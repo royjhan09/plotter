@@ -2868,3 +2868,17 @@ body,
     transform: translateX(300%);
   }
 }
+/* the header's buttons keep one size; a long file name is cut short with … instead */
+.pdf-head > button,
+.pdf-head > .pdf-saved {
+  flex: none;
+  white-space: nowrap;
+}
+.pdf-name {
+  flex: 1;
+}
+.pdf-meta {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
