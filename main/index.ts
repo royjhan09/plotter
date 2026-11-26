@@ -11,8 +11,9 @@ import { clearMemories, getChat, listChats, listMemories, readFeatures, readSett
 import { startDevBridge } from './devBridge'
 import { getUiFrame, putUiFrame, UI_FRAME_CSP } from './uiFrames'
 import { showInExplorer } from './frontExplorer'
+import { checkMarketTool, closeAllMarket, listMarket, removeMarketTool, saveMarketTool, setMarketConnected } from './market'
 import { claudeCodeAvailable, recentFolders, sendToClaude, settleStale, stopAllClaude, stopClaude } from './claudeCode'
-import { USAGE_URL, type Chat, type ChatMetaPatch, type ConnectorId, type Features, type ReplyEvent, type SendRequest } from '../shared/api'
+import { USAGE_URL, type Chat, type ChatMetaPatch, type MarketToolInput, type ConnectorId, type Features, type ReplyEvent, type SendRequest } from '../shared/api'
 
 app.setName('Plotter')
 // Interactive previews live on their own scheme/origin (see uiFrames.ts). Must be registered before ready.
@@ -143,6 +144,12 @@ export const handlers: Record<string, (...args: never[]) => unknown> = {
   'connectors:setEnabled': (id: ConnectorId, on: boolean) => setConnectorEnabled(id, !!on),
   'python:status': () => pythonStatus(),
 
+  'market:list': () => listMarket(),
+  'market:save': (tool: MarketToolInput) => saveMarketTool(tool ?? ({} as MarketToolInput)),
+  'market:remove': (id: string) => removeMarketTool(String(id)),
+  'market:setConnected': (id: string, on: boolean) => setMarketConnected(String(id), !!on),
+  'market:check': (id: string) => checkMarketTool(String(id)),
+
   // Send to Claude Code: the user's own Claude Code runs a task in a project folder (see claudeCode.ts).
   'claudeCode:available': () => claudeCodeAvailable(),
   'claudeCode:folders': () => recentFolders(),
@@ -236,7 +243,10 @@ if (!single) {
     if (process.env['ELECTRON_RENDERER_URL']) startDevBridge(handlers, (e) => emitters.add(e))
     if (!BROWSER_ONLY) createWindow()
   })
-  app.on('before-quit', () => stopAllClaude())
+  app.on('before-quit', () => {
+    stopAllClaude()
+    void closeAllMarket()
+  })
   app.on('window-all-closed', () => {
     if (!BROWSER_ONLY) app.quit()
   })

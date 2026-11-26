@@ -8,6 +8,7 @@ import { ChatList } from './ChatList'
 import { ClaudeBuddy } from './ClaudeCode'
 import { ChatPane, announceRename, cleanError } from './ChatPane'
 import { RailIcon } from './RailIcon'
+import { Market } from './Market'
 import icon from '../../assets/icon.png'
 
 const api = window.plotter
@@ -139,7 +140,9 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
   const [query, setQuery] = useState('')
   const [settingsTab, setSettingsTab] = useState<SettingsTab>('account')
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [marketOpen, setMarketOpen] = useState(false)
   const openSettings = (tab: SettingsTab): void => {
+    setMarketOpen(false)
     setSettingsTab(tab)
     setSettingsOpen(true)
     setPanel(null)
@@ -182,6 +185,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
   /** Opens a chat on a side (the focused one unless given). Already open on the other side: just go there. */
   const openChat = (id: string, where: 'left' | 'right' = side): void => {
     setSettingsOpen(false)
+    setMarketOpen(false)
     if (where === 'right') setSplit(true)
     const other = where === 'left' ? rightId : leftId
     if (split && other === id && where !== side) return setFocus(where === 'left' ? 'right' : 'left')
@@ -195,6 +199,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
 
   const newChat = (): void => {
     setSettingsOpen(false)
+    setMarketOpen(false)
     setSideNew(side, 'chatgpt')
     setSideId(side, null)
   }
@@ -202,6 +207,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
   /** Opens a new Claude Code chat right away (on this side, or beside it), optionally with its first message typed in. */
   const newClaudeChat = (beside: boolean, seed?: string): void => {
     setSettingsOpen(false)
+    setMarketOpen(false)
     const where: 'left' | 'right' = beside ? (side === 'left' ? 'right' : 'left') : side
     if (where === 'right') setSplit(true)
     setSideNew(where, 'claude', seed)
@@ -279,6 +285,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
   /** A new chat of a kind dropped on a side. */
   const openNew = (kind: ChatKind, where: 'left' | 'right'): void => {
     setSettingsOpen(false)
+    setMarketOpen(false)
     if (where === 'right') setSplit(true)
     setSideNew(where, kind)
     setSideId(where, null)
@@ -352,6 +359,18 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
         </div>
         <div className="rail-fill" />
         <div className="rail-bottom">
+          <button
+            className={`rail-btn ${marketOpen ? 'on' : ''}`}
+            title="Market: your tools"
+            onClick={() => {
+              setSettingsOpen(false)
+    setMarketOpen(false)
+              setPanel(null)
+              setMarketOpen(!marketOpen)
+            }}
+          >
+            <RailIcon name="market" />
+          </button>
           <button className={`rail-btn ${settingsOpen ? 'on' : ''}`} title="Settings" onClick={() => (settingsOpen ? setSettingsOpen(false) : openSettings('general'))}>
             <RailIcon name="settings" />
           </button>
@@ -454,6 +473,8 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
         )}
       </aside>
 
+      {marketOpen && !settingsOpen && <Market onClose={() => setMarketOpen(false)} />}
+
       {settingsOpen && (
         <Settings
           initialTab={settingsTab}
@@ -473,7 +494,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
 
       <div
         className={`panes ${split ? 'split' : ''}`}
-        hidden={settingsOpen}
+        hidden={settingsOpen || marketOpen}
         onDragOver={onPanesDragOver}
         onDragLeave={(e) => {
           if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDropSide(null)

@@ -48,6 +48,13 @@ const api: PlotterApi = {
     disconnect: (id) => ipcRenderer.invoke('connectors:disconnect', id),
     setEnabled: (id, on) => ipcRenderer.invoke('connectors:setEnabled', id, on)
   },
+  market: {
+    list: () => ipcRenderer.invoke('market:list'),
+    save: (tool) => ipcRenderer.invoke('market:save', tool),
+    remove: (id) => ipcRenderer.invoke('market:remove', id),
+    setConnected: (id, on) => ipcRenderer.invoke('market:setConnected', id, on),
+    check: (id) => ipcRenderer.invoke('market:check', id)
+  },
   claudeCode: {
     available: () => ipcRenderer.invoke('claudeCode:available'),
     folders: () => ipcRenderer.invoke('claudeCode:folders'),

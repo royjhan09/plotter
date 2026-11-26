@@ -94,6 +94,13 @@ export function installDevBridge(): void {
         return () => listeners.python.delete(listener)
       }
     },
+    market: {
+      list: () => call('market:list'),
+      save: (tool) => call('market:save', tool),
+      remove: (id) => call('market:remove', id),
+      setConnected: (id, on) => call('market:setConnected', id, on),
+      check: (id) => call('market:check', id)
+    },
     claudeCode: {
       available: () => call('claudeCode:available'),
       folders: () => call('claudeCode:folders'),

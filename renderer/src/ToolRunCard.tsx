@@ -5,7 +5,7 @@ import type { ToolRun } from '../../shared/api'
 export function ToolRunCard({ run }: { run: ToolRun }): React.JSX.Element {
   const [open, setOpen] = useState(false)
   const hasDetail = !!(run.code || run.output || run.error)
-  const icon = run.kind === 'python' ? '🐍' : run.kind === 'memory' ? '🧠' : '🔗'
+  const icon = run.kind === 'python' ? '🐍' : run.kind === 'memory' ? '🧠' : run.kind === 'market' ? '🧩' : '🔗'
   return (
     <div className={`toolrun ${run.kind} ${run.error ? 'failed' : ''}`}>
       <button className="toolrun-head" onClick={() => hasDetail && setOpen((o) => !o)} disabled={!hasDetail}>

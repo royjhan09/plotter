@@ -21,7 +21,7 @@ export interface Attachment {
 /** Something Plotter did with one of its own tools while answering (shown in the reply as a card). */
 export interface ToolRun {
   id: string
-  kind: 'python' | 'memory' | 'connector'
+  kind: 'python' | 'memory' | 'connector' | 'market'
   /** One line, e.g. "Ran Python", "Saved to memory", "Searched Gmail". */
   title: string
   /** Python: the code; connector: the request. */
@@ -107,6 +107,56 @@ export interface ClaudeCodeUpdate {
   chatId: string
   message: ChatMessage
   sessionId?: string
+}
+
+/** ---------------------------------------------------------------- Market: tools you register and connect */
+
+/** One input a Web API tool takes (sent as a query parameter for GET, a JSON field for POST). */
+export interface ApiParam {
+  name: string
+  type: 'string' | 'number' | 'boolean'
+  description: string
+  required: boolean
+}
+
+/**
+ * A tool in the market. Web API: Plotter calls your URL with the inputs the model fills in.
+ * MCP server: any Model Context Protocol server (remote URL, or a command run on this PC); its own
+ * tools are offered to the chat. Connected tools are used by ChatGPT chats and Claude Code chats.
+ */
+export interface MarketTool {
+  id: string
+  name: string
+  /** What it does, for you and for the model (it decides when to use the tool from this). */
+  description: string
+  /** One emoji or character shown on its card. */
+  icon?: string
+  kind: 'api' | 'mcp'
+  connected: boolean
+  api?: { url: string; method: 'GET' | 'POST'; params: ApiParam[]; authHeader?: string }
+  mcp?: { transport: 'http' | 'stdio'; url?: string; command?: string; args?: string[] }
+  /** A secret (API key or token) is stored, encrypted on this PC; it is never sent back to the window. */
+  hasSecret: boolean
+  createdAt: number
+}
+
+/** Registering or editing a tool. secret: undefined keeps the stored one, '' removes it. */
+export interface MarketToolInput {
+  id?: string
+  name: string
+  description: string
+  icon?: string
+  kind: 'api' | 'mcp'
+  api?: MarketTool['api']
+  mcp?: MarketTool['mcp']
+  secret?: string
+}
+
+/** What checking a tool found: the MCP server's tool names, or why it failed. */
+export interface MarketCheck {
+  ok: boolean
+  tools?: { name: string; description?: string }[]
+  error?: string
 }
 
 /** What the chat list's ⋯ menu can change. */
@@ -271,6 +321,14 @@ export interface PlotterApi {
     connect: (id: ConnectorId) => Promise<ConnectorStatus[]>
     disconnect: (id: ConnectorId) => Promise<ConnectorStatus[]>
     setEnabled: (id: ConnectorId, enabled: boolean) => Promise<ConnectorStatus[]>
+  }
+  market: {
+    list: () => Promise<MarketTool[]>
+    save: (tool: MarketToolInput) => Promise<MarketTool[]>
+    remove: (id: string) => Promise<MarketTool[]>
+    setConnected: (id: string, connected: boolean) => Promise<MarketTool[]>
+    /** Connects to an MCP server and lists its tools (a Web API tool is not called: it may have effects). */
+    check: (id: string) => Promise<MarketCheck>
   }
   /** Claude Code chats: each message is sent to the user's own installed Claude Code (`claude -p`) in the chat's folder. */
   claudeCode: {

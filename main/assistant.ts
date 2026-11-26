@@ -2,6 +2,7 @@ import { INSTRUCTIONS, WEB_INSTRUCTIONS, runConversation, type ConversationHandl
 import { addMemory, listMemories, readFeatures, removeMemory } from './store'
 import { pythonTool } from './python'
 import { connectorTools } from './connectors'
+import { marketTools } from './market'
 import type { Attachment, SendRequest } from '../shared/api'
 
 /**
@@ -82,6 +83,11 @@ export async function reply(req: SendRequest, handlers: ConversationHandlers, si
   if (connected.tools.length) {
     parts.push(connected.instructions)
     tools.push(...connected.tools)
+  }
+  const market = await marketTools()
+  if (market.tools.length || market.instructions) {
+    if (market.instructions) parts.push(market.instructions)
+    tools.push(...market.tools)
   }
   if (f.canvas || req.canvas) parts.push(CANVAS_INSTRUCTIONS)
   if (req.canvas) parts.push(canvasContext(req))
