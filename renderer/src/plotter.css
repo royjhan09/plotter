@@ -15,7 +15,40 @@
   --bad: #c92a2a;
   --radius: 16px;
   --shadow: 0 1px 2px rgba(59, 42, 26, 0.06), 0 6px 20px rgba(59, 42, 26, 0.07);
+  --shadow-pop: 0 10px 30px rgba(59, 42, 26, 0.16);
+  --surface: #ffffff;
+  --placeholder: #b39d88;
+  --leaf-text: #2f7d3a;
+  --code-bg: #2b2118;
+  --stripe: rgba(246, 230, 210, 0.35);
+  --overlay: rgba(59, 42, 26, 0.3);
   color-scheme: light;
+}
+
+/* Dark: the same seed-bot colours on warm soil instead of cream paper. */
+:root[data-theme='dark'] {
+  --cream: #221b15;
+  --paper: #1a1511;
+  --sand: #31281f;
+  --sand-strong: #45382c;
+  --ink: #f2e6d8;
+  --muted: #a8927c;
+  --orange: #f06a1d;
+  --orange-soft: #f4975f;
+  --orange-tint: #3d2718;
+  --leaf: #51cf66;
+  --leaf-light: #8ce99a;
+  --leaf-tint: #1d3122;
+  --bad: #ff8787;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 6px 20px rgba(0, 0, 0, 0.3);
+  --shadow-pop: 0 12px 34px rgba(0, 0, 0, 0.5);
+  --surface: #262019;
+  --placeholder: #7d6a58;
+  --leaf-text: #8ce99a;
+  --code-bg: #120e0b;
+  --stripe: rgba(255, 255, 255, 0.03);
+  --overlay: rgba(0, 0, 0, 0.55);
+  color-scheme: dark;
 }
 
 * {
@@ -316,7 +349,7 @@ button:disabled {
 .topbar-model {
   font-size: 12px;
   font-weight: 600;
-  color: #2f7d3a;
+  color: var(--leaf-text);
   background: var(--leaf-tint);
   border-radius: 999px;
   padding: 2px 10px;
@@ -481,7 +514,7 @@ button:disabled {
 }
 
 .md pre {
-  background: #2b2118;
+  background: var(--code-bg);
   color: #fbeee0;
   padding: 14px 16px;
   border-radius: 12px;
@@ -597,7 +630,7 @@ button:disabled {
 }
 
 .md tbody tr:nth-child(even) td {
-  background: rgba(246, 230, 210, 0.35);
+  background: var(--stripe);
 }
 
 /* callouts: > [!TIP] … */
@@ -660,7 +693,7 @@ button:disabled {
 /* charts and diagrams */
 .viz {
   margin: 4px 0 14px;
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--sand);
   border-radius: 16px;
   padding: 14px;
@@ -726,8 +759,8 @@ button:disabled {
 }
 
 .toast {
-  background: #3b2a1a;
-  color: #fff4e6;
+  background: var(--ink);
+  color: var(--paper);
   border-radius: 12px;
   padding: 9px 14px;
   margin-bottom: 10px;
@@ -737,7 +770,7 @@ button:disabled {
 
 /* The composer: one rounded bar like ChatGPT's: [+] text [effort] [mic] [voice / send] */
 .composer {
-  background: #fff;
+  background: var(--surface);
   border: 1.5px solid var(--sand-strong);
   border-radius: 28px;
   padding: 7px 7px 7px 8px;
@@ -769,7 +802,7 @@ button:disabled {
 }
 
 .composer textarea::placeholder {
-  color: #b39d88;
+  color: var(--placeholder);
 }
 
 .icon-btn {
@@ -814,7 +847,7 @@ button:disabled {
   width: 12px;
   height: 12px;
   border-radius: 3px;
-  background: #fff;
+  background: var(--paper);
 }
 
 .effort-btn {
@@ -846,10 +879,10 @@ button:disabled {
   position: absolute;
   bottom: calc(100% + 10px);
   z-index: 10;
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--sand);
   border-radius: 16px;
-  box-shadow: 0 10px 30px rgba(59, 42, 26, 0.16);
+  box-shadow: var(--shadow-pop);
   padding: 6px;
   min-width: 220px;
 }
@@ -981,9 +1014,9 @@ button:disabled {
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  border: 2px solid #fff;
+  border: 2px solid var(--surface);
   background: var(--ink);
-  color: #fff;
+  color: var(--paper);
   font-size: 13px;
   line-height: 1;
   display: grid;
@@ -1103,13 +1136,13 @@ button:disabled {
   border-radius: 999px;
   padding: 11px 26px;
   font-weight: 650;
-  background: #fff;
+  background: var(--surface);
   box-shadow: var(--shadow);
 }
 
 .voice-btn.end {
   background: var(--ink);
-  color: #fff;
+  color: var(--paper);
 }
 
 .plan-note {
@@ -1124,7 +1157,7 @@ button:disabled {
 .modal-back {
   position: fixed;
   inset: 0;
-  background: rgba(59, 42, 26, 0.3);
+  background: var(--overlay);
   display: grid;
   place-items: center;
 }
@@ -1166,4 +1199,74 @@ button:disabled {
   border-radius: 10px;
   border: 3px solid transparent;
   background-clip: content-box;
+}
+
+/* ---------- dark-mode details that are not plain variables ---------- */
+
+:root[data-theme='dark'] .md blockquote.callout.note {
+  border-color: #4dabf7;
+  background: #15263a;
+}
+:root[data-theme='dark'] .md blockquote.callout.note .callout-title {
+  color: #74c0fc;
+}
+:root[data-theme='dark'] .md blockquote.callout.tip .callout-title {
+  color: #8ce99a;
+}
+:root[data-theme='dark'] .md blockquote.callout.important {
+  border-color: #cc5de8;
+  background: #2c1a33;
+}
+:root[data-theme='dark'] .md blockquote.callout.important .callout-title {
+  color: #e599f7;
+}
+:root[data-theme='dark'] .md blockquote.callout.warning {
+  border-color: #fcc419;
+  background: #33280f;
+}
+:root[data-theme='dark'] .md blockquote.callout.warning .callout-title {
+  color: #ffd43b;
+}
+:root[data-theme='dark'] .md blockquote.callout.caution {
+  border-color: #ff6b6b;
+  background: #3a1a1a;
+}
+:root[data-theme='dark'] .md blockquote.callout.caution .callout-title {
+  color: #ff8787;
+}
+:root[data-theme='dark'] .voice-orb {
+  background: radial-gradient(circle at 35% 30%, #4a3424, var(--orange-tint) 60%, #24170e);
+}
+:root[data-theme='dark'] .md code {
+  background: var(--sand-strong);
+}
+:root[data-theme='dark'] .md pre code {
+  background: none;
+}
+
+/* theme switch in the sidebar */
+.theme-btn {
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+}
+.theme-btn:hover {
+  background: var(--sand);
+  color: var(--ink);
+}
+
+body,
+.sidebar,
+.composer,
+.topbar {
+  transition:
+    background-color 0.2s,
+    border-color 0.2s,
+    color 0.2s;
 }

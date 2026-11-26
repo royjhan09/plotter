@@ -1,9 +1,9 @@
-import { app, BrowserWindow, ipcMain, shell, nativeImage, session } from 'electron'
+import { app, BrowserWindow, ipcMain, shell, nativeImage, nativeTheme, session } from 'electron'
 import { join } from 'node:path'
 import { authState, cancelSignIn, loadSession, signIn, signOut } from './auth'
 import { forgetModel, primaryModel, ReplyError, streamReply } from './openai'
 import { onSpeechStatus, speechStatus, transcribe, warmSpeech } from './speech'
-import { getChat, listChats, removeChat, saveChat, updateSettings } from './store'
+import { getChat, listChats, readSettings, removeChat, saveChat, updateSettings } from './store'
 import { startDevBridge } from './devBridge'
 import { USAGE_URL, type Chat, type ReplyEvent, type SendRequest } from '../shared/api'
 
@@ -16,7 +16,10 @@ const BROWSER_ONLY = process.env['PLOTTER_BROWSER_ONLY'] === '1' && !!process.en
 const iconPath = join(__dirname, '../../assets/icon.ico')
 let win: BrowserWindow | null = null
 
+const windowBackground = (): string => (nativeTheme.shouldUseDarkColors ? '#1a1511' : '#fffaf3')
+
 function createWindow(): void {
+  nativeTheme.themeSource = readSettings().theme ?? 'system'
   win = new BrowserWindow({
     width: 1100,
     height: 760,
@@ -24,7 +27,7 @@ function createWindow(): void {
     minHeight: 500,
     title: 'Plotter',
     icon: nativeImage.createFromPath(iconPath),
-    backgroundColor: '#fff8ef',
+    backgroundColor: windowBackground(),
     autoHideMenuBar: true,
     show: false,
     webPreferences: {
@@ -122,6 +125,13 @@ export const handlers: Record<string, (...args: never[]) => unknown> = {
       .finally(() => running.delete(req.requestId))
   },
   'reply:stop': (requestId: string) => running.get(requestId)?.abort(),
+
+  'theme:set': (choice: 'system' | 'light' | 'dark') => {
+    if (!['system', 'light', 'dark'].includes(choice)) return
+    nativeTheme.themeSource = choice
+    updateSettings({ theme: choice })
+    win?.setBackgroundColor(windowBackground())
+  },
 
   openUsage: () => shell.openExternal(USAGE_URL)
 }

@@ -69,6 +69,7 @@ export function installDevBridge(): void {
         return () => listeners.speech.delete(l)
       }
     },
+    setTheme: (choice) => call('theme:set', choice),
     openUsage: () => call('openUsage')
   }
   window.plotter = api

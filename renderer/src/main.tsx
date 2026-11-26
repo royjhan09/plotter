@@ -1,5 +1,8 @@
 import { createRoot } from 'react-dom/client'
 import './plotter.css'
+import { applyTheme } from './theme'
+
+applyTheme() // before the first paint, so dark mode never flashes light
 
 /** In a plain browser during development there is no Electron preload: use the dev bridge instead.
  *  The app is imported only afterwards, because its modules read window.plotter when they load. */

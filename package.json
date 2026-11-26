@@ -6,7 +6,7 @@
   "license": "MIT",
   "main": "./out/main/index.js",
   "scripts": {
-    "dev": "electron-vite dev",
+    "dev": "electron-vite dev --watch",
     "dev:browser": "node scripts/dev-browser.mjs",
     "build": "electron-vite build",
     "start": "electron-vite preview",

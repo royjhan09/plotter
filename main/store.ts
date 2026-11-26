@@ -44,6 +44,7 @@ export interface Settings {
   hostId?: string
   welcomeSeen?: boolean
   lastModel?: string
+  theme?: 'system' | 'light' | 'dark'
 }
 
 const settingsPath = (): string => join(root(), 'settings.json')

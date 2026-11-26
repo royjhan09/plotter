@@ -4,6 +4,7 @@ import { Markdown } from './Markdown'
 import { Composer } from './Composer'
 import { VoiceMode } from './VoiceMode'
 import { sizeLabel, toAttachment } from './attachments'
+import { useThemeChoice, type ThemeChoice } from './theme'
 import icon from '../../assets/icon.png'
 
 const api = window.plotter
@@ -88,6 +89,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
   const [toast, setToast] = useState<string | null>(null)
   const [voice, setVoice] = useState(false)
   const [showWelcome, setShowWelcome] = useState(auth.planUsage && !auth.welcomeSeen)
+  const [themeChoice, setThemeChoice] = useThemeChoice()
   const chatRef = useRef<Chat | null>(null)
   chatRef.current = chat
   const pendingRef = useRef(pending)
@@ -298,6 +300,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
             <div className="name">{auth.account.name ?? 'Signed in'}</div>
             <div className="email">{auth.account.email}</div>
           </div>
+          <ThemeButton choice={themeChoice} onChange={setThemeChoice} />
           <button className="link" onClick={() => void signOut()}>
             Sign out
           </button>
@@ -455,5 +458,34 @@ function Message({ m, typing }: { m: ChatMessage; typing: boolean }): React.JSX.
         {m.error === 'Stopped.' && <div className="stopped">Stopped</div>}
       </div>
     </div>
+  )
+}
+
+// ---------------------------------------------------------------- theme switch
+
+const NEXT_THEME: Record<ThemeChoice, ThemeChoice> = { system: 'light', light: 'dark', dark: 'system' }
+const THEME_NAME: Record<ThemeChoice, string> = { system: 'Match Windows', light: 'Light', dark: 'Dark' }
+
+function ThemeButton({ choice, onChange }: { choice: ThemeChoice; onChange: (c: ThemeChoice) => void }): React.JSX.Element {
+  const icon =
+    choice === 'light' ? (
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round">
+        <circle cx="12" cy="12" r="4.2" />
+        <path d="M12 2.5v2.2M12 19.3v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6" />
+      </svg>
+    ) : choice === 'dark' ? (
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinejoin="round">
+        <path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5Z" />
+      </svg>
+    ) : (
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="4" width="18" height="12.5" rx="2" />
+        <path d="M8.5 20.5h7M12 16.5v4" />
+      </svg>
+    )
+  return (
+    <button className="theme-btn" title={`Theme: ${THEME_NAME[choice]} (click for ${THEME_NAME[NEXT_THEME[choice]]})`} onClick={() => onChange(NEXT_THEME[choice])}>
+      {icon}
+    </button>
   )
 }

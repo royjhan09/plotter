@@ -36,6 +36,7 @@ const api: PlotterApi = {
       return () => ipcRenderer.removeListener('speech:status', handler)
     }
   },
+  setTheme: (choice) => ipcRenderer.invoke('theme:set', choice),
   openUsage: () => ipcRenderer.invoke('openUsage')
 }
 

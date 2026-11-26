@@ -8,7 +8,7 @@ your ChatGPT plan's usage. You can set a weekly cap for Plotter at https://chatg
 
 ```
 npm install
-npm run dev      # development, hot reload
+npm run dev      # development: window code hot-reloads, main/preload changes restart the app
 npm run dev:browser   # development with no Electron window: open http://localhost:5173 in any browser
 npm run build && npm start   # the built app
 ```

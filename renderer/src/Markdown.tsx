@@ -7,6 +7,7 @@ import DOMPurify from 'dompurify'
 import 'katex/dist/katex.min.css'
 import 'highlight.js/styles/atom-one-dark.css'
 import { renderChart, renderMermaid } from './visuals'
+import { useTheme } from './theme'
 
 /**
  * Replies as rich Markdown: tables, highlighted code, math (KaTeX), coloured callouts
@@ -77,20 +78,20 @@ function callouts(html: string): string {
 
 export function Markdown({ text, streaming = false }: { text: string; streaming?: boolean }): React.JSX.Element {
   const ref = useRef<HTMLDivElement>(null)
+  const theme = useTheme()
   const html = useMemo(() => {
     const raw = md.parse(normalizeMath(text), { async: false })
     const clean = DOMPurify.sanitize(callouts(raw), { USE_PROFILES: { html: true, svg: true, mathMl: true }, ADD_ATTR: ['target'] })
     return clean.replace(/<a /g, '<a target="_blank" rel="noreferrer" ')
   }, [text])
 
-  // Draw charts/diagrams and add copy buttons once the reply is complete.
+  // Draw charts/diagrams (again when the theme changes) and add copy buttons once the reply is complete.
   useEffect(() => {
     const root = ref.current
     if (!root || streaming) return
     const cleanups: (() => void)[] = []
     root.querySelectorAll<HTMLDivElement>('.viz[data-src]').forEach((el) => {
       const src = new TextDecoder().decode(Uint8Array.from(atob(el.dataset['src'] ?? ''), (c) => c.charCodeAt(0)))
-      el.removeAttribute('data-src')
       if (el.dataset['kind'] === 'chart') cleanups.push(renderChart(el, src))
       else void renderMermaid(el, src)
     })
@@ -107,7 +108,7 @@ export function Markdown({ text, streaming = false }: { text: string; streaming?
       pre.appendChild(b)
     })
     return () => cleanups.forEach((c) => c())
-  }, [html, streaming])
+  }, [html, streaming, theme])
 
   return <div ref={ref} className="md" dangerouslySetInnerHTML={{ __html: html }} />
 }
