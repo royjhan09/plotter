@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { Attachment, AuthState, CanvasDoc, Chat, ChatMessage, ChatSummary, Model, ReplyEvent } from '../../shared/api'
+import type { Attachment, AuthState, CanvasDoc, Chat, ChatMessage, ChatMetaPatch, ChatSummary, Model, ReplyEvent } from '../../shared/api'
 import { Markdown } from './Markdown'
 import { Composer } from './Composer'
 import { VoiceMode } from './VoiceMode'
@@ -9,6 +9,7 @@ import { CanvasContext, CanvasPanel } from './Canvas'
 import { CustomizePanel, Settings } from './Settings'
 import { PictureViewer } from './ImageViewer'
 import { PdfBadge, PdfPreview } from './PdfPreview'
+import { ChatList } from './ChatList'
 import icon from '../../assets/icon.png'
 
 const api = window.plotter
@@ -136,7 +137,6 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
   }
   const [searching, setSearching] = useState(false)
   const [query, setQuery] = useState('')
-  const shownChats = query.trim() ? chats.filter((c) => c.title.toLowerCase().includes(query.trim().toLowerCase())) : chats
   const [settingsTab, setSettingsTab] = useState<'features' | 'memory' | 'connectors'>('features')
   const openSettings = (tab: 'features' | 'memory' | 'connectors'): void => {
     setSettingsTab(tab)
@@ -289,11 +289,11 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
   }
 
   /** Converts the whole chat, or one reply with its question, to a PDF and shows it; Download in the preview saves it. */
-  const savePdf = (messageId?: string): void => {
-    if (!chat) return
+  const savePdf = (messageId?: string, target: { id: string; title: string } | null = chat): void => {
+    if (!target) return
     const job = ++pdfJob.current
-    setPdf({ bytes: null, name: chat.title || 'Plotter chat' }) // the preview opens at once, saying Converting…
-    api.pdf.make(chat.id, messageId).then(
+    setPdf({ bytes: null, name: target.title || 'Plotter chat' }) // the preview opens at once, saying Converting…
+    api.pdf.make(target.id, messageId).then(
       (bytes) => {
         if (pdfJob.current === job) setPdf((p) => p && { ...p, bytes })
         else void api.pdf.discard() // closed while converting
@@ -315,6 +315,19 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
     setDraft('')
     setAttachments([])
   }
+
+  /** Rename, pin or archive from the chat list's ⋯ menu; a renamed open chat shows its new name at once. */
+  const updateChat = useCallback(
+    (id: string, patch: ChatMetaPatch): void => {
+      void api.chats.update(id, patch).then(setChats)
+      if (patch.title && chatRef.current?.id === id) {
+        const renamed = { ...chatRef.current, title: patch.title, titled: true }
+        chatRef.current = renamed
+        setChat(renamed)
+      }
+    },
+    []
+  )
 
   const removeChat = async (id: string): Promise<void> => {
     if (pending?.chatId === id) {
@@ -496,32 +509,19 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
             <button className="side-item" onClick={newChat} disabled={!!pending}>
               <RailIcon name="new" /> New chat
             </button>
-            <div className="chat-list-label">{query ? `Matching “${query}”` : 'Recent'}</div>
-            <nav className="chat-list">
-              {shownChats.length === 0 && <p className="empty-list">{query ? 'No chats match.' : 'No chats yet. Plant the first one.'}</p>}
-              {shownChats.map((c) => (
-                <div
-                  key={c.id}
-                  className={`chat-item ${chat?.id === c.id ? 'active' : ''}`}
-                  onClick={() => {
-                    void openChat(c.id)
-                    if (!pinned) setPanel(null)
-                  }}
-                >
-                  <span className="chat-title">{c.title}</span>
-                  <button
-                    className="del"
-                    title="Delete chat"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setDeleting({ id: c.id, title: c.title }) // Plotter's own popup: the browser's confirm() is blocked in the dev pane
-                    }}
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-            </nav>
+            <ChatList
+              chats={chats}
+              activeId={chat?.id ?? null}
+              query={query}
+              visible={shownPanel === 'chats'}
+              onOpen={(id) => {
+                void openChat(id)
+                if (!pinned) setPanel(null)
+              }}
+              onUpdate={updateChat}
+              onDelete={(c) => setDeleting({ id: c.id, title: c.title })}
+              onPdf={(c) => savePdf(undefined, c)}
+            />
           </>
         )}
       </aside>

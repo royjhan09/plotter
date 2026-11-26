@@ -7,11 +7,11 @@ import { reply } from './assistant'
 import { onPythonStatus, pythonStatus, PY_SCHEME } from './python'
 import { connect as connectService, disconnect as disconnectService, listConnectors, setEnabled as setConnectorEnabled, setGoogleClient, setNotionToken } from './connectors'
 import { onSpeechStatus, speechStatus, transcribe, warmSpeech } from './speech'
-import { clearMemories, getChat, listChats, listMemories, readFeatures, readSettings, removeChat, removeMemory, saveChat, updateFeatures, updateSettings } from './store'
+import { clearMemories, getChat, listChats, listMemories, readFeatures, readSettings, removeChat, removeMemory, saveChat, updateChatMeta, updateFeatures, updateSettings } from './store'
 import { startDevBridge } from './devBridge'
 import { getUiFrame, putUiFrame, UI_FRAME_CSP } from './uiFrames'
 import { showInExplorer } from './frontExplorer'
-import { USAGE_URL, type Chat, type ConnectorId, type Features, type ReplyEvent, type SendRequest } from '../shared/api'
+import { USAGE_URL, type Chat, type ChatMetaPatch, type ConnectorId, type Features, type ReplyEvent, type SendRequest } from '../shared/api'
 
 app.setName('Plotter')
 // Interactive previews live on their own scheme/origin (see uiFrames.ts). Must be registered before ready.
@@ -115,6 +115,10 @@ export const handlers: Record<string, (...args: never[]) => unknown> = {
     updateSettings({ lastModel: chat.model })
   },
   'chats:remove': (id: string) => removeChat(id),
+  'chats:update': (id: string, patch: ChatMetaPatch) => {
+    updateChatMeta(String(id), patch ?? {})
+    return listChats()
+  },
   'chats:title': (userText: string, replyText: string) => generateTitle(userText, replyText),
   'ui:put': (html: string, dark: boolean) => putUiFrame(String(html), !!dark),
 

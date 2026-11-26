@@ -1,7 +1,7 @@
 import { app, safeStorage } from 'electron'
 import { mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
-import { DEFAULT_FEATURES, type Chat, type ChatSummary, type Features, type Memory } from '../shared/api'
+import { DEFAULT_FEATURES, type Chat, type ChatMetaPatch, type ChatSummary, type Features, type Memory } from '../shared/api'
 
 /** Plotter's files, all under its own user-data folder. */
 const root = (): string => app.getPath('userData')
@@ -80,7 +80,7 @@ export function listChats(): ChatSummary[] {
     if (!name.endsWith('.json')) continue
     try {
       const chat = JSON.parse(readFileSync(join(chatsDir(), name), 'utf8')) as Chat
-      out.push({ id: chat.id, title: chat.title, updatedAt: chat.updatedAt })
+      out.push({ id: chat.id, title: chat.title, updatedAt: chat.updatedAt, pinned: !!chat.pinned, archived: !!chat.archived })
     } catch {
       // a broken file is skipped, not fatal
     }
@@ -97,6 +97,26 @@ export function getChat(id: string): Chat | null {
 }
 
 export function saveChat(chat: Chat): void {
+  mkdirSync(chatsDir(), { recursive: true })
+  // Pin and archive are changed only through updateChatMeta; a save from the window keeps them.
+  const before = getChat(chat.id)
+  if (before) chat = { ...chat, pinned: before.pinned, archived: before.archived }
+  writeAtomic(join(chatsDir(), `${safeId(chat.id)}.json`), JSON.stringify(chat, null, 2))
+}
+
+/** Rename (also marks it named, so the auto-title leaves it alone), pin or archive a chat. */
+export function updateChatMeta(id: string, patch: ChatMetaPatch): void {
+  const chat = getChat(id)
+  if (!chat) return
+  if (typeof patch.title === 'string' && patch.title.trim()) {
+    chat.title = patch.title.trim().slice(0, 200)
+    chat.titled = true
+  }
+  if (typeof patch.pinned === 'boolean') chat.pinned = patch.pinned
+  if (typeof patch.archived === 'boolean') {
+    chat.archived = patch.archived
+    if (patch.archived) chat.pinned = false
+  }
   mkdirSync(chatsDir(), { recursive: true })
   writeAtomic(join(chatsDir(), `${safeId(chat.id)}.json`), JSON.stringify(chat, null, 2))
 }

@@ -60,12 +60,25 @@ export interface Chat {
   messages: ChatMessage[]
   createdAt: number
   updatedAt: number
+  /** Kept at the top of the chat list. */
+  pinned?: boolean
+  /** Hidden from Recent; listed under Archived. */
+  archived?: boolean
+}
+
+/** What the chat list's ⋯ menu can change. */
+export interface ChatMetaPatch {
+  title?: string
+  pinned?: boolean
+  archived?: boolean
 }
 
 export interface ChatSummary {
   id: string
   title: string
   updatedAt: number
+  pinned?: boolean
+  archived?: boolean
 }
 
 export interface Account {
@@ -183,6 +196,8 @@ export interface PlotterApi {
     get: (id: string) => Promise<Chat | null>
     save: (chat: Chat) => Promise<void>
     remove: (id: string) => Promise<void>
+    /** Rename, pin or archive a chat (its place in Recent is kept). */
+    update: (id: string, patch: ChatMetaPatch) => Promise<ChatSummary[]>
     /** A short title for a new chat, written by the model from the first exchange. */
     title: (userText: string, replyText: string) => Promise<string>
   }
