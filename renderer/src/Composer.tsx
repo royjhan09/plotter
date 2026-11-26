@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Attachment, EffortLevel, SpeechStatus } from '../../shared/api'
+import { ClaudeCodeIcon } from './ClaudeCode'
 import { ACCEPT, badgeFor, sizeLabel, toAttachment } from './attachments'
 import { startRecording, type Recording } from './audio'
 import { PictureViewer, SketchEditor, type RectSource } from './ImageViewer'
@@ -104,6 +105,8 @@ interface Props {
   /** Deep research for the next message (many searches, a long cited report). */
   research: boolean
   setResearch: (on: boolean) => void
+  /** Opens "Send to Claude Code" with the message box's text as the task (absent when there is no chat yet). */
+  onClaudeCode?: () => void
 }
 
 export function Composer(p: Props): React.JSX.Element {
@@ -286,6 +289,17 @@ export function Composer(p: Props): React.JSX.Element {
               >
                 <Telescope /> Deep research
                 {p.research && <span className="pop-check">✓</span>}
+              </button>
+              <button
+                className="pop-item"
+                disabled={!p.onClaudeCode}
+                title={p.onClaudeCode ? 'Hand a coding task to your own Claude Code' : 'Open or start a chat first'}
+                onClick={() => {
+                  setMenu(null)
+                  p.onClaudeCode?.()
+                }}
+              >
+                <ClaudeCodeIcon /> Send to Claude Code
               </button>
             </div>
           )}

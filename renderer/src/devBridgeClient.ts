@@ -1,4 +1,4 @@
-import type { PlotterApi, PythonStatus, ReplyEvent, SpeechStatus } from '../../shared/api'
+import type { ClaudeCodeRun, PlotterApi, PythonStatus, ReplyEvent, SpeechStatus } from '../../shared/api'
 
 /**
  * Development only: when the UI is opened in an ordinary browser (no Electron preload), stand in for
@@ -29,13 +29,19 @@ async function call<T>(channel: string, ...args: unknown[]): Promise<T> {
   return body.result as T
 }
 
-const listeners = { reply: new Set<(e: ReplyEvent) => void>(), speech: new Set<(s: SpeechStatus) => void>(), python: new Set<(s: PythonStatus) => void>() }
+const listeners = {
+  reply: new Set<(e: ReplyEvent) => void>(),
+  speech: new Set<(s: SpeechStatus) => void>(),
+  python: new Set<(s: PythonStatus) => void>(),
+  claudeCode: new Set<(r: ClaudeCodeRun) => void>()
+}
 
 export function installDevBridge(): void {
   if (window.plotter) return
   const events = new EventSource(`${BRIDGE}/events`)
   events.addEventListener('reply:event', (e) => listeners.reply.forEach((l) => l(JSON.parse((e as MessageEvent).data))))
   events.addEventListener('python:status', (e) => listeners.python.forEach((l) => l(JSON.parse((e as MessageEvent).data))))
+  events.addEventListener('claudeCode:update', (e) => listeners.claudeCode.forEach((l) => l(JSON.parse((e as MessageEvent).data))))
   events.addEventListener('speech:status', (e) => listeners.speech.forEach((l) => l(JSON.parse((e as MessageEvent).data))))
 
   const api: PlotterApi = {
@@ -85,6 +91,19 @@ export function installDevBridge(): void {
       onStatus: (listener) => {
         listeners.python.add(listener)
         return () => listeners.python.delete(listener)
+      }
+    },
+    claudeCode: {
+      available: () => call('claudeCode:available'),
+      folders: () => call('claudeCode:folders'),
+      pickFolder: () => call('claudeCode:pickFolder'),
+      start: (req) => call('claudeCode:start', req),
+      stop: (id) => call('claudeCode:stop', id),
+      list: (chatId) => call('claudeCode:list', chatId),
+      openFolder: (folder) => call('claudeCode:openFolder', folder),
+      onUpdate: (l) => {
+        listeners.claudeCode.add(l)
+        return () => listeners.claudeCode.delete(l)
       }
     },
     speech: {

@@ -3171,3 +3171,269 @@ body,
 .btn.danger-text {
   color: var(--bad);
 }
+
+/* ---------- Send to Claude Code ---------- */
+.cc-dialog {
+  width: min(620px, 94vw);
+  max-height: 92vh;
+  overflow-y: auto;
+  background: var(--paper);
+  border-radius: 18px;
+  padding: 18px 22px 20px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.3);
+  text-align: left;
+}
+.cc-dialog-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.cc-dialog-head h3 {
+  margin: 0;
+  font-size: 18px;
+  flex: 1;
+}
+.cc-note {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 6px 0 14px;
+}
+.cc-bad {
+  color: var(--bad);
+  font-weight: 600;
+}
+.cc-ver {
+  opacity: 0.8;
+}
+.cc-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 650;
+  margin: 12px 0 6px;
+}
+.cc-task,
+.cc-folder {
+  width: 100%;
+  font: inherit;
+  font-size: 14px;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--sand);
+  border-radius: 10px;
+  padding: 9px 11px;
+  outline: none;
+}
+.cc-task {
+  resize: vertical;
+  min-height: 110px;
+}
+.cc-task:focus,
+.cc-folder:focus {
+  border-color: var(--orange);
+}
+.cc-folder-row {
+  display: flex;
+  gap: 8px;
+}
+.cc-folder-row .btn {
+  flex: none;
+}
+.cc-hint {
+  font-size: 12.5px;
+  color: var(--muted);
+  margin-top: 6px;
+}
+.cc-recent {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.cc-chip {
+  border: 1px solid var(--sand);
+  background: none;
+  border-radius: 999px;
+  padding: 3px 11px;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--ink);
+}
+.cc-chip.on {
+  border-color: var(--orange);
+  background: var(--orange-tint);
+}
+.cc-modes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.cc-modes button {
+  text-align: left;
+  border: 1.5px solid var(--sand);
+  border-radius: 12px;
+  background: none;
+  padding: 10px 12px;
+  font: inherit;
+  color: var(--ink);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.cc-modes button b {
+  font-size: 14px;
+}
+.cc-modes button span {
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.cc-modes button.on {
+  border-color: var(--orange);
+  background: var(--orange-tint);
+}
+
+/* the run card in the chat */
+.cc-card {
+  border: 1px solid #e3e3e3;
+  border-radius: 14px;
+  background: #fff;
+  overflow: hidden;
+  margin-left: 40px;
+}
+:root[data-theme='dark'] .cc-card {
+  background: #2a2a2a;
+  border-color: #3a3a3a;
+}
+.cc-card-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+}
+.cc-card-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: #f4efe9;
+  color: #c15f3c;
+  flex: none;
+}
+.cc-card-title {
+  flex: 1;
+  min-width: 0;
+  font-weight: 650;
+  font-size: 14px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.cc-card-mode {
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--muted);
+  margin-left: 8px;
+}
+.cc-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.cc-state.done {
+  color: #2b8a3e;
+}
+.cc-state.failed {
+  color: var(--bad);
+}
+.cc-spin {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid #e8d5cc;
+  border-top-color: #c15f3c;
+  animation: pdf-spin 0.8s linear infinite;
+}
+.cc-card-body {
+  border-top: 1px solid #ececec;
+  padding: 10px 14px 12px;
+}
+:root[data-theme='dark'] .cc-card-body {
+  border-color: #3a3a3a;
+}
+.cc-task-line {
+  font-size: 13px;
+  color: var(--muted);
+  white-space: pre-wrap;
+  max-height: 3.2em;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+.cc-steps {
+  max-height: 240px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 13px;
+  padding: 6px 0;
+}
+.cc-step {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+.cc-step.tool {
+  font-family: 'Cascadia Code', Consolas, monospace;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.cc-step.text {
+  white-space: pre-wrap;
+}
+.cc-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #c15f3c;
+  flex: none;
+  transform: translateY(-1px);
+}
+.cc-more {
+  align-self: flex-start;
+  font-size: 12.5px;
+}
+.cc-result {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed #e3e3e3;
+}
+.cc-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+.cc-actions .btn {
+  padding: 5px 12px;
+  font-size: 13px;
+}
+.cc-meta {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--muted);
+}
+@media print {
+  .cc-card .cc-actions {
+    display: none;
+  }
+}

@@ -1,5 +1,5 @@
 import { writeFile } from 'node:fs/promises'
-import { app, BrowserWindow, ipcMain, shell, nativeImage, nativeTheme, protocol, session } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, shell, nativeImage, nativeTheme, protocol, session } from 'electron'
 import { join } from 'node:path'
 import { authState, cancelSignIn, loadSession, signIn, signOut } from './auth'
 import { forgetModel, generateTitle, primaryModel, ReplyError } from './openai'
@@ -11,7 +11,8 @@ import { clearMemories, getChat, listChats, listMemories, readFeatures, readSett
 import { startDevBridge } from './devBridge'
 import { getUiFrame, putUiFrame, UI_FRAME_CSP } from './uiFrames'
 import { showInExplorer } from './frontExplorer'
-import { USAGE_URL, type Chat, type ChatMetaPatch, type ConnectorId, type Features, type ReplyEvent, type SendRequest } from '../shared/api'
+import { claudeCodeAvailable, listRuns, recentFolders, removeRunsForChat, startRun, stopAllRuns, stopRun } from './claudeCode'
+import { USAGE_URL, type Chat, type ChatMetaPatch, type ClaudeCodeStart, type ConnectorId, type Features, type ReplyEvent, type SendRequest } from '../shared/api'
 
 app.setName('Plotter')
 // Interactive previews live on their own scheme/origin (see uiFrames.ts). Must be registered before ready.
@@ -114,7 +115,10 @@ export const handlers: Record<string, (...args: never[]) => unknown> = {
     saveChat(chat)
     updateSettings({ lastModel: chat.model })
   },
-  'chats:remove': (id: string) => removeChat(id),
+  'chats:remove': (id: string) => {
+    removeChat(id)
+    removeRunsForChat(String(id))
+  },
   'chats:update': (id: string, patch: ChatMetaPatch) => {
     updateChatMeta(String(id), patch ?? {})
     return listChats()
@@ -134,6 +138,23 @@ export const handlers: Record<string, (...args: never[]) => unknown> = {
   'connectors:disconnect': (id: ConnectorId) => disconnectService(id),
   'connectors:setEnabled': (id: ConnectorId, on: boolean) => setConnectorEnabled(id, !!on),
   'python:status': () => pythonStatus(),
+
+  // Send to Claude Code: the user's own Claude Code runs a task in a project folder (see claudeCode.ts).
+  'claudeCode:available': () => claudeCodeAvailable(),
+  'claudeCode:folders': () => recentFolders(),
+  'claudeCode:pickFolder': async () => {
+    if (!win) return null // dev browser mode: no window to attach the chooser to (it would open hidden)
+    const r = await dialog.showOpenDialog(win, { title: 'Choose the project folder for Claude Code', properties: ['openDirectory'] })
+    return r.canceled ? null : (r.filePaths[0] ?? null)
+  },
+  'claudeCode:start': (req: ClaudeCodeStart) => startRun(req, (run) => emit('claudeCode:update', run)),
+  'claudeCode:stop': (id: string) => stopRun(String(id)),
+  'claudeCode:list': (chatId: string) => listRuns(String(chatId)),
+  'claudeCode:openFolder': async (folder: string) => {
+    if (typeof folder !== 'string' || !folder) return
+    if (BROWSER_ONLY) return showInExplorer(folder)
+    await shell.openPath(folder)
+  },
 
   'reply:send': (req: SendRequest) => {
     const ctrl = new AbortController()
@@ -212,6 +233,7 @@ if (!single) {
     if (process.env['ELECTRON_RENDERER_URL']) startDevBridge(handlers, (e) => emitters.add(e))
     if (!BROWSER_ONLY) createWindow()
   })
+  app.on('before-quit', () => stopAllRuns())
   app.on('window-all-closed', () => {
     if (!BROWSER_ONLY) app.quit()
   })

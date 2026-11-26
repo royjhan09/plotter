@@ -66,6 +66,43 @@ export interface Chat {
   archived?: boolean
 }
 
+/** "Send to Claude Code": edit = may change files; plan = reads and answers only. */
+export type ClaudeCodeMode = 'edit' | 'plan'
+
+export interface ClaudeCodeStep {
+  at: number
+  /** text = what Claude Code said; tool = what it did ("Edit src/App.tsx"). */
+  kind: 'text' | 'tool'
+  text: string
+}
+
+/** One task handed to the user's own Claude Code, shown as a card in the chat it was sent from. */
+export interface ClaudeCodeRun {
+  id: string
+  chatId: string
+  /** The card sits after this message. */
+  afterMessageId?: string
+  task: string
+  folder: string
+  mode: ClaudeCodeMode
+  state: 'running' | 'done' | 'failed' | 'stopped'
+  startedAt: number
+  endedAt?: number
+  steps: ClaudeCodeStep[]
+  result?: string
+  error?: string
+  turns?: number
+  costUsd?: number
+}
+
+export interface ClaudeCodeStart {
+  chatId: string
+  afterMessageId?: string
+  task: string
+  folder: string
+  mode: ClaudeCodeMode
+}
+
 /** What the chat list's ⋯ menu can change. */
 export interface ChatMetaPatch {
   title?: string
@@ -225,6 +262,18 @@ export interface PlotterApi {
     connect: (id: ConnectorId) => Promise<ConnectorStatus[]>
     disconnect: (id: ConnectorId) => Promise<ConnectorStatus[]>
     setEnabled: (id: ConnectorId, enabled: boolean) => Promise<ConnectorStatus[]>
+  }
+  /** Hands coding tasks to the user's own installed Claude Code (`claude -p`) in a project folder. */
+  claudeCode: {
+    available: () => Promise<{ ok: boolean; version?: string; error?: string }>
+    folders: () => Promise<string[]>
+    /** Folder chooser (desktop app only; null if cancelled or unavailable). */
+    pickFolder: () => Promise<string | null>
+    start: (req: ClaudeCodeStart) => Promise<ClaudeCodeRun>
+    stop: (id: string) => Promise<void>
+    list: (chatId: string) => Promise<ClaudeCodeRun[]>
+    openFolder: (folder: string) => Promise<void>
+    onUpdate: (listener: (run: ClaudeCodeRun) => void) => () => void
   }
   python: {
     status: () => Promise<PythonStatus>

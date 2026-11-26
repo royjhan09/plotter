@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { Attachment, AuthState, CanvasDoc, Chat, ChatMessage, ChatMetaPatch, ChatSummary, Model, ReplyEvent } from '../../shared/api'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { Attachment, AuthState, CanvasDoc, Chat, ChatMessage, ChatMetaPatch, ClaudeCodeRun, ChatSummary, Model, ReplyEvent } from '../../shared/api'
 import { Markdown } from './Markdown'
 import { Composer } from './Composer'
 import { VoiceMode } from './VoiceMode'
@@ -10,6 +10,7 @@ import { CustomizePanel, Settings, type Tab as SettingsTab } from './Settings'
 import { PictureViewer } from './ImageViewer'
 import { PdfBadge, PdfPreview } from './PdfPreview'
 import { ChatList } from './ChatList'
+import { ClaudeCodeCard, ClaudeCodeIcon, SendToClaudeCode } from './ClaudeCode'
 import icon from '../../assets/icon.png'
 
 const api = window.plotter
@@ -95,6 +96,9 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
   const [pdf, setPdf] = useState<{ bytes: Uint8Array | null; name: string; error?: string } | null>(null)
   const pdfJob = useRef(0)
   const [deleting, setDeleting] = useState<{ id: string; title: string } | null>(null)
+  /** Claude Code runs started from the open chat, and the "Send to Claude Code" dialog. */
+  const [ccRuns, setCcRuns] = useState<ClaudeCodeRun[]>([])
+  const [ccDialog, setCcDialog] = useState<{ task: string; afterMessageId?: string } | null>(null)
   const [activity, setActivity] = useState<string | null>(null)
   const [voice, setVoice] = useState(false)
   const [showWelcome, setShowWelcome] = useState(auth.planUsage && !auth.welcomeSeen)
@@ -159,6 +163,23 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
   )
   const chatRef = useRef<Chat | null>(null)
   chatRef.current = chat
+  const chatId = chat?.id ?? null
+  useEffect(() => {
+    if (!chatId) return setCcRuns([])
+    let live = true
+    void api.claudeCode.list(chatId).then((list) => live && setCcRuns(list))
+    return () => {
+      live = false
+    }
+  }, [chatId])
+  useEffect(
+    () =>
+      api.claudeCode.onUpdate((run) => {
+        if (run.chatId !== chatRef.current?.id) return
+        setCcRuns((list) => (list.some((r) => r.id === run.id) ? list.map((r) => (r.id === run.id ? run : r)) : [...list, run]))
+      }),
+    []
+  )
   const pendingRef = useRef(pending)
   pendingRef.current = pending
   const waiters = useRef(new Map<string, Waiter>())
@@ -593,8 +614,26 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
                 <div className="print-meta">Plotter · {new Date().toLocaleDateString()}</div>
               </div>
               {messages.map((m, i) => (
-                <Message key={m.id} m={m} typing={!!pending && i === messages.length - 1 && m.role === 'assistant'} activity={activity} onPdf={pdf ? undefined : (id) => savePdf(id)} />
+                <Fragment key={m.id}>
+                  <Message
+                    m={m}
+                    typing={!!pending && i === messages.length - 1 && m.role === 'assistant'}
+                    activity={activity}
+                    onPdf={pdf ? undefined : (id) => savePdf(id)}
+                    onClaudeCode={(msg) => setCcDialog({ task: msg.text, afterMessageId: msg.id })}
+                  />
+                  {ccRuns
+                    .filter((r) => r.afterMessageId === m.id)
+                    .map((r) => (
+                      <ClaudeCodeCard key={r.id} run={r} />
+                    ))}
+                </Fragment>
               ))}
+              {ccRuns
+                .filter((r) => !messages.some((m) => m.id === r.afterMessageId))
+                .map((r) => (
+                  <ClaudeCodeCard key={r.id} run={r} />
+                ))}
             </div>
           )}
         </div>
@@ -630,6 +669,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
             onError={setToast}
             research={research}
             setResearch={setResearch}
+            onClaudeCode={chat ? () => setCcDialog({ task: draft, afterMessageId: messages[messages.length - 1]?.id }) : undefined}
           />
           <div className="plan-note">
             {auth.planUsage ? 'Using ChatGPT plan' : 'Plan usage not granted at sign-in'} ·{' '}
@@ -648,6 +688,19 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
           name={pdf.name}
           error={pdf.error}
           onClose={closePdf}
+        />
+      )}
+
+      {ccDialog && chat && (
+        <SendToClaudeCode
+          initialTask={ccDialog.task}
+          onClose={() => setCcDialog(null)}
+          onStart={async (task, folder, mode) => {
+            const run = await api.claudeCode.start({ chatId: chat.id, afterMessageId: ccDialog.afterMessageId, task, folder, mode })
+            setCcRuns((list) => (list.some((r) => r.id === run.id) ? list : [...list, run]))
+            if (!ccDialog.afterMessageId || ccDialog.task === draft) setDraft('')
+            setCcDialog(null)
+          }}
         />
       )}
 
@@ -704,7 +757,19 @@ function siteName(url: string): string {
   }
 }
 
-export function Message({ m, typing, activity, onPdf }: { m: ChatMessage; typing: boolean; activity?: string | null; onPdf?: (id: string) => void }): React.JSX.Element {
+export function Message({
+  m,
+  typing,
+  activity,
+  onPdf,
+  onClaudeCode
+}: {
+  m: ChatMessage
+  typing: boolean
+  activity?: string | null
+  onPdf?: (id: string) => void
+  onClaudeCode?: (m: ChatMessage) => void
+}): React.JSX.Element {
   if (m.role === 'user')
     return (
       <div className="msg user" data-msg-id={m.id}>
@@ -781,6 +846,12 @@ export function Message({ m, typing, activity, onPdf }: { m: ChatMessage; typing
               <PdfBadge size={16} />
               Convert to PDF
             </button>
+            {onClaudeCode && (
+              <button title="Hand this to your own Claude Code to carry out" onClick={() => onClaudeCode(m)}>
+                <ClaudeCodeIcon size={16} />
+                Send to Claude Code
+              </button>
+            )}
           </div>
         )}
       </div>

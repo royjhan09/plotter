@@ -7,7 +7,7 @@ import { DEFAULT_FEATURES, type Chat, type ChatMetaPatch, type ChatSummary, type
 const root = (): string => app.getPath('userData')
 const chatsDir = (): string => join(root(), 'chats')
 
-function writeAtomic(path: string, data: string | Buffer): void {
+export function writeAtomic(path: string, data: string | Buffer): void {
   const tmp = `${path}.tmp`
   writeFileSync(tmp, data)
   renameSync(tmp, path)
@@ -47,6 +47,8 @@ export interface Settings {
   theme?: 'light' | 'dark'
   features?: Partial<Features>
   connectorsEnabled?: Partial<Record<'google' | 'notion', boolean>>
+  /** Project folders recently sent to Claude Code, newest first. */
+  ccFolders?: string[]
 }
 
 const settingsPath = (): string => join(root(), 'settings.json')
