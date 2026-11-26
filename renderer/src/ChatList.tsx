@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ChatMetaPatch, ChatSummary } from '../../shared/api'
+import { ClaudeBuddy } from './ClaudeCode'
+import icon from '../../assets/icon.png'
 
 /** Small line icons for the chat rows and their ⋯ menu. */
-function Icon({ name }: { name: 'pin' | 'unpin' | 'more' | 'rename' | 'pdf' | 'archive' | 'unarchive' | 'trash' | 'chevron' }): React.JSX.Element {
+function Icon({ name }: { name: 'pin' | 'unpin' | 'more' | 'rename' | 'pdf' | 'archive' | 'unarchive' | 'trash' | 'chevron' | 'split' }): React.JSX.Element {
   const p = { viewBox: '0 0 24 24', width: 16, height: 16, fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const }
   switch (name) {
     case 'pin':
@@ -58,6 +60,13 @@ function Icon({ name }: { name: 'pin' | 'unpin' | 'more' | 'rename' | 'pdf' | 'a
           <path d="M4 7h16M9 7V4.5h6V7M6 7l1 13h10l1-13M10 11v6M14 11v6" />
         </svg>
       )
+    case 'split':
+      return (
+        <svg {...p}>
+          <rect x="3" y="4" width="18" height="16" rx="2.5" />
+          <path d="M12 4v16" />
+        </svg>
+      )
     case 'chevron':
       return (
         <svg {...p}>
@@ -69,7 +78,8 @@ function Icon({ name }: { name: 'pin' | 'unpin' | 'more' | 'rename' | 'pdf' | 'a
 
 interface Props {
   chats: ChatSummary[]
-  activeId: string | null
+  /** The chats open on the left and right. */
+  activeIds: string[]
   query: string
   /** False while the panel is closed: any open menu or rename is dropped. */
   visible: boolean
@@ -77,13 +87,17 @@ interface Props {
   onUpdate: (id: string, patch: ChatMetaPatch) => void
   onDelete: (chat: ChatSummary) => void
   onPdf: (chat: ChatSummary) => void
+  /** Open this chat on the other side (side by side). */
+  onOpenBeside: (id: string) => void
+  /** A row started being dragged (towards the chat area). */
+  onDragStart: () => void
 }
 
 /**
  * The chat list, as in ChatGPT: rows show only the title until hovered; then a pin button and a ⋯ menu
  * (Pin, Rename, Convert to PDF, Archive, Delete) appear. Pinned chats sit on top; archived ones fold away at the bottom.
  */
-export function ChatList({ chats, activeId, query, visible, onOpen, onUpdate, onDelete, onPdf }: Props): React.JSX.Element {
+export function ChatList({ chats, activeIds, query, visible, onOpen, onUpdate, onDelete, onPdf, onOpenBeside, onDragStart }: Props): React.JSX.Element {
   const [menu, setMenu] = useState<{ id: string; left: number; top: number } | null>(null)
   const [renaming, setRenaming] = useState<string | null>(null)
   const [showArchived, setShowArchived] = useState(false)
@@ -136,7 +150,7 @@ export function ChatList({ chats, activeId, query, visible, onOpen, onUpdate, on
     e.stopPropagation()
     if (menu?.id === id) return setMenu(null)
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
-    const height = 230
+    const height = 270
     const top = r.bottom + 4 + height > window.innerHeight ? Math.max(8, r.top - height - 4) : r.bottom + 4
     setMenu({ id, left: Math.min(r.left - 8, window.innerWidth - 220), top })
   }
@@ -144,9 +158,18 @@ export function ChatList({ chats, activeId, query, visible, onOpen, onUpdate, on
   const row = (c: ChatSummary): React.JSX.Element => (
     <div
       key={c.id}
-      className={`chat-item ${activeId === c.id ? 'active' : ''} ${menu?.id === c.id ? 'menu-open' : ''} ${renaming === c.id ? 'renaming' : ''}`}
+      className={`chat-item ${c.kind === 'claude' ? 'claude' : 'chatgpt'} ${activeIds.includes(c.id) ? 'active' : ''} ${menu?.id === c.id ? 'menu-open' : ''} ${renaming === c.id ? 'renaming' : ''}`}
       onClick={() => renaming !== c.id && onOpen(c.id)}
+      draggable={renaming !== c.id}
+      onDragStart={(e) => {
+        e.dataTransfer.setData('application/x-plotter-chat', c.id)
+        e.dataTransfer.effectAllowed = 'move'
+        setMenu(null)
+        onDragStart()
+      }}
+      title={c.kind === 'claude' ? 'Claude Code chat. Drag to the right side to open it beside another chat' : 'Drag to the right side to open it beside another chat'}
     >
+      <span className="chat-kind">{c.kind === 'claude' ? <ClaudeBuddy size={18} /> : <img src={icon} alt="" />}</span>
       {renaming === c.id ? (
         <RenameInput
           initial={c.title}
@@ -222,6 +245,7 @@ export function ChatList({ chats, activeId, query, visible, onOpen, onUpdate, on
         <div ref={menuRef} className="row-menu" role="menu" style={{ left: menu.left, top: menu.top }} onClick={(e) => e.stopPropagation()}>
           {!menuChat.archived && item(menuChat.pinned ? 'unpin' : 'pin', menuChat.pinned ? 'Unpin' : 'Pin', 'P', () => onUpdate(menuChat.id, { pinned: !menuChat.pinned }))}
           {item('rename', 'Rename', 'R', () => setRenaming(menuChat.id))}
+          {item('split', 'Open side by side', '', () => onOpenBeside(menuChat.id))}
           {item('pdf', 'Convert to PDF', '', () => onPdf(menuChat))}
           {item(menuChat.archived ? 'unarchive' : 'archive', menuChat.archived ? 'Unarchive' : 'Archive', 'A', () => onUpdate(menuChat.id, { archived: !menuChat.archived }))}
           <div className="row-menu-sep" />

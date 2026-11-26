@@ -48,6 +48,8 @@ export interface ChatMessage {
   research?: boolean
   /** Set when a reply stopped early: the user stopped it, or it failed. */
   error?: string
+  /** A Claude Code reply: its live steps and state (text holds its final answer). */
+  cc?: ClaudeCodeTurn
   at: number
 }
 
@@ -64,6 +66,19 @@ export interface Chat {
   pinned?: boolean
   /** Hidden from Recent; listed under Archived. */
   archived?: boolean
+  /** chatgpt (default): Plotter's own chat. claude: a Claude Code session in a project folder. */
+  kind?: ChatKind
+  /** For a Claude Code chat: where it works, what it may do, and the session it continues. */
+  cc?: ClaudeChatConfig
+}
+
+export type ChatKind = 'chatgpt' | 'claude'
+
+export interface ClaudeChatConfig {
+  folder: string
+  mode: ClaudeCodeMode
+  /** Claude Code's session id, so each new message continues the same session (--resume). */
+  sessionId?: string
 }
 
 /** "Send to Claude Code": edit = may change files; plan = reads and answers only. */
@@ -76,31 +91,20 @@ export interface ClaudeCodeStep {
   text: string
 }
 
-/** One task handed to the user's own Claude Code, shown as a card in the chat it was sent from. */
-export interface ClaudeCodeRun {
-  id: string
-  chatId: string
-  /** The card sits after this message. */
-  afterMessageId?: string
-  task: string
-  folder: string
-  mode: ClaudeCodeMode
+/** A Claude Code reply while it works and after. */
+export interface ClaudeCodeTurn {
   state: 'running' | 'done' | 'failed' | 'stopped'
+  steps: ClaudeCodeStep[]
   startedAt: number
   endedAt?: number
-  steps: ClaudeCodeStep[]
-  result?: string
-  error?: string
   turns?: number
-  costUsd?: number
 }
 
-export interface ClaudeCodeStart {
+/** A Claude Code reply changed (sent while it works, and once at the end). */
+export interface ClaudeCodeUpdate {
   chatId: string
-  afterMessageId?: string
-  task: string
-  folder: string
-  mode: ClaudeCodeMode
+  message: ChatMessage
+  sessionId?: string
 }
 
 /** What the chat list's ⋯ menu can change. */
@@ -116,6 +120,7 @@ export interface ChatSummary {
   updatedAt: number
   pinned?: boolean
   archived?: boolean
+  kind?: ChatKind
 }
 
 export interface Account {
@@ -263,17 +268,17 @@ export interface PlotterApi {
     disconnect: (id: ConnectorId) => Promise<ConnectorStatus[]>
     setEnabled: (id: ConnectorId, enabled: boolean) => Promise<ConnectorStatus[]>
   }
-  /** Hands coding tasks to the user's own installed Claude Code (`claude -p`) in a project folder. */
+  /** Claude Code chats: each message is sent to the user's own installed Claude Code (`claude -p`) in the chat's folder. */
   claudeCode: {
     available: () => Promise<{ ok: boolean; version?: string; error?: string }>
     folders: () => Promise<string[]>
     /** Folder chooser (desktop app only; null if cancelled or unavailable). */
     pickFolder: () => Promise<string | null>
-    start: (req: ClaudeCodeStart) => Promise<ClaudeCodeRun>
-    stop: (id: string) => Promise<void>
-    list: (chatId: string) => Promise<ClaudeCodeRun[]>
+    /** Runs the chat's last user message; the reply is the message with this id (already saved, cc.state running). */
+    send: (chatId: string, messageId: string) => Promise<void>
+    stop: (chatId: string) => Promise<void>
     openFolder: (folder: string) => Promise<void>
-    onUpdate: (listener: (run: ClaudeCodeRun) => void) => () => void
+    onUpdate: (listener: (update: ClaudeCodeUpdate) => void) => () => void
   }
   python: {
     status: () => Promise<PythonStatus>

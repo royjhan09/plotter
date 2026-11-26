@@ -11,8 +11,8 @@ import { clearMemories, getChat, listChats, listMemories, readFeatures, readSett
 import { startDevBridge } from './devBridge'
 import { getUiFrame, putUiFrame, UI_FRAME_CSP } from './uiFrames'
 import { showInExplorer } from './frontExplorer'
-import { claudeCodeAvailable, listRuns, recentFolders, removeRunsForChat, startRun, stopAllRuns, stopRun } from './claudeCode'
-import { USAGE_URL, type Chat, type ChatMetaPatch, type ClaudeCodeStart, type ConnectorId, type Features, type ReplyEvent, type SendRequest } from '../shared/api'
+import { claudeCodeAvailable, recentFolders, sendToClaude, settleStale, stopAllClaude, stopClaude } from './claudeCode'
+import { USAGE_URL, type Chat, type ChatMetaPatch, type ConnectorId, type Features, type ReplyEvent, type SendRequest } from '../shared/api'
 
 app.setName('Plotter')
 // Interactive previews live on their own scheme/origin (see uiFrames.ts). Must be registered before ready.
@@ -110,14 +110,17 @@ export const handlers: Record<string, (...args: never[]) => unknown> = {
   'speech:warm': () => warmSpeech(),
 
   'chats:list': () => listChats(),
-  'chats:get': (id: string) => getChat(id),
+  'chats:get': (id: string) => {
+    const chat = getChat(id)
+    return chat ? settleStale(chat) : null
+  },
   'chats:save': (chat: Chat) => {
     saveChat(chat)
-    updateSettings({ lastModel: chat.model })
+    if (chat.kind !== 'claude') updateSettings({ lastModel: chat.model })
   },
   'chats:remove': (id: string) => {
+    stopClaude(String(id))
     removeChat(id)
-    removeRunsForChat(String(id))
   },
   'chats:update': (id: string, patch: ChatMetaPatch) => {
     updateChatMeta(String(id), patch ?? {})
@@ -147,9 +150,8 @@ export const handlers: Record<string, (...args: never[]) => unknown> = {
     const r = await dialog.showOpenDialog(win, { title: 'Choose the project folder for Claude Code', properties: ['openDirectory'] })
     return r.canceled ? null : (r.filePaths[0] ?? null)
   },
-  'claudeCode:start': (req: ClaudeCodeStart) => startRun(req, (run) => emit('claudeCode:update', run)),
-  'claudeCode:stop': (id: string) => stopRun(String(id)),
-  'claudeCode:list': (chatId: string) => listRuns(String(chatId)),
+  'claudeCode:send': (chatId: string, messageId: string) => sendToClaude(String(chatId), String(messageId), (u) => emit('claudeCode:update', u)),
+  'claudeCode:stop': (chatId: string) => stopClaude(String(chatId)),
   'claudeCode:openFolder': async (folder: string) => {
     if (typeof folder !== 'string' || !folder) return
     if (BROWSER_ONLY) return showInExplorer(folder)
@@ -233,7 +235,7 @@ if (!single) {
     if (process.env['ELECTRON_RENDERER_URL']) startDevBridge(handlers, (e) => emitters.add(e))
     if (!BROWSER_ONLY) createWindow()
   })
-  app.on('before-quit', () => stopAllRuns())
+  app.on('before-quit', () => stopAllClaude())
   app.on('window-all-closed', () => {
     if (!BROWSER_ONLY) app.quit()
   })

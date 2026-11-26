@@ -1,4 +1,4 @@
-import type { ClaudeCodeRun, PlotterApi, PythonStatus, ReplyEvent, SpeechStatus } from '../../shared/api'
+import type { ClaudeCodeUpdate, PlotterApi, PythonStatus, ReplyEvent, SpeechStatus } from '../../shared/api'
 
 /**
  * Development only: when the UI is opened in an ordinary browser (no Electron preload), stand in for
@@ -33,7 +33,7 @@ const listeners = {
   reply: new Set<(e: ReplyEvent) => void>(),
   speech: new Set<(s: SpeechStatus) => void>(),
   python: new Set<(s: PythonStatus) => void>(),
-  claudeCode: new Set<(r: ClaudeCodeRun) => void>()
+  claudeCode: new Set<(u: ClaudeCodeUpdate) => void>()
 }
 
 export function installDevBridge(): void {
@@ -97,9 +97,8 @@ export function installDevBridge(): void {
       available: () => call('claudeCode:available'),
       folders: () => call('claudeCode:folders'),
       pickFolder: () => call('claudeCode:pickFolder'),
-      start: (req) => call('claudeCode:start', req),
-      stop: (id) => call('claudeCode:stop', id),
-      list: (chatId) => call('claudeCode:list', chatId),
+      send: (chatId, messageId) => call('claudeCode:send', chatId, messageId),
+      stop: (chatId) => call('claudeCode:stop', chatId),
       openFolder: (folder) => call('claudeCode:openFolder', folder),
       onUpdate: (l) => {
         listeners.claudeCode.add(l)

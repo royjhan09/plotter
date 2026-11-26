@@ -82,7 +82,7 @@ export function listChats(): ChatSummary[] {
     if (!name.endsWith('.json')) continue
     try {
       const chat = JSON.parse(readFileSync(join(chatsDir(), name), 'utf8')) as Chat
-      out.push({ id: chat.id, title: chat.title, updatedAt: chat.updatedAt, pinned: !!chat.pinned, archived: !!chat.archived })
+      out.push({ id: chat.id, title: chat.title, updatedAt: chat.updatedAt, pinned: !!chat.pinned, archived: !!chat.archived, kind: chat.kind ?? 'chatgpt' })
     } catch {
       // a broken file is skipped, not fatal
     }
@@ -102,7 +102,11 @@ export function saveChat(chat: Chat): void {
   mkdirSync(chatsDir(), { recursive: true })
   // Pin and archive are changed only through updateChatMeta; a save from the window keeps them.
   const before = getChat(chat.id)
-  if (before) chat = { ...chat, pinned: before.pinned, archived: before.archived }
+  if (before) {
+    chat = { ...chat, pinned: before.pinned, archived: before.archived }
+    // A Claude Code chat's session id is written by the main process; keep it.
+    if (before.cc?.sessionId && chat.cc && !chat.cc.sessionId) chat = { ...chat, cc: { ...chat.cc, sessionId: before.cc.sessionId } }
+  }
   writeAtomic(join(chatsDir(), `${safeId(chat.id)}.json`), JSON.stringify(chat, null, 2))
 }
 
@@ -119,6 +123,12 @@ export function updateChatMeta(id: string, patch: ChatMetaPatch): void {
     chat.archived = patch.archived
     if (patch.archived) chat.pinned = false
   }
+  mkdirSync(chatsDir(), { recursive: true })
+  writeAtomic(join(chatsDir(), `${safeId(chat.id)}.json`), JSON.stringify(chat, null, 2))
+}
+
+/** Writes a chat as given (the main process's own updates, e.g. a Claude Code reply as it streams). */
+export function writeChatFile(chat: Chat): void {
   mkdirSync(chatsDir(), { recursive: true })
   writeAtomic(join(chatsDir(), `${safeId(chat.id)}.json`), JSON.stringify(chat, null, 2))
 }

@@ -107,6 +107,8 @@ interface Props {
   setResearch: (on: boolean) => void
   /** Opens "Send to Claude Code" with the message box's text as the task (absent when there is no chat yet). */
   onClaudeCode?: () => void
+  /** claude: a Claude Code chat's box (no files, effort, deep research or voice mode). */
+  variant?: 'chatgpt' | 'claude'
 }
 
 export function Composer(p: Props): React.JSX.Element {
@@ -183,14 +185,14 @@ export function Composer(p: Props): React.JSX.Element {
 
   return (
     <div
-      className="composer"
+      className={`composer ${p.variant === 'claude' ? 'claude' : ''}`}
       onDragOver={(e) => {
         if (e.dataTransfer.types.includes('Files')) e.preventDefault()
       }}
       onDrop={(e) => {
         e.preventDefault()
         e.stopPropagation() // the chat area behind also accepts drops
-        void addFiles(e.dataTransfer.files)
+        if (p.variant !== 'claude') void addFiles(e.dataTransfer.files)
       }}
     >
       {p.research && (
@@ -397,8 +399,8 @@ export function Composer(p: Props): React.JSX.Element {
               <button className="round-btn dark" title="Stop" onClick={p.onStop}>
                 <span className="stop-square" />
               </button>
-            ) : canSend ? (
-              <button className="round-btn" title="Send (Enter)" onClick={p.onSend}>
+            ) : canSend || p.variant === 'claude' ? (
+              <button className="round-btn" title="Send (Enter)" onClick={p.onSend} disabled={!canSend}>
                 <Up />
               </button>
             ) : (

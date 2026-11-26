@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
-import type { ClaudeCodeRun, PlotterApi, PythonStatus, ReplyEvent, SpeechStatus } from '../shared/api'
+import type { ClaudeCodeUpdate, PlotterApi, PythonStatus, ReplyEvent, SpeechStatus } from '../shared/api'
 
 const fromBase64 = (b64: string): Uint8Array => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))
 
@@ -51,12 +51,11 @@ const api: PlotterApi = {
     available: () => ipcRenderer.invoke('claudeCode:available'),
     folders: () => ipcRenderer.invoke('claudeCode:folders'),
     pickFolder: () => ipcRenderer.invoke('claudeCode:pickFolder'),
-    start: (req) => ipcRenderer.invoke('claudeCode:start', req),
-    stop: (id) => ipcRenderer.invoke('claudeCode:stop', id),
-    list: (chatId) => ipcRenderer.invoke('claudeCode:list', chatId),
+    send: (chatId, messageId) => ipcRenderer.invoke('claudeCode:send', chatId, messageId),
+    stop: (chatId) => ipcRenderer.invoke('claudeCode:stop', chatId),
     openFolder: (folder) => ipcRenderer.invoke('claudeCode:openFolder', folder),
     onUpdate: (listener) => {
-      const handler = (_e: IpcRendererEvent, run: ClaudeCodeRun): void => listener(run)
+      const handler = (_e: IpcRendererEvent, u: ClaudeCodeUpdate): void => listener(u)
       ipcRenderer.on('claudeCode:update', handler)
       return () => ipcRenderer.removeListener('claudeCode:update', handler)
     }

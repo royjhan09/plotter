@@ -1,32 +1,17 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { Attachment, AuthState, CanvasDoc, Chat, ChatMessage, ChatMetaPatch, ClaudeCodeRun, ChatSummary, Model, ReplyEvent } from '../../shared/api'
-import { Markdown } from './Markdown'
-import { Composer } from './Composer'
-import { VoiceMode } from './VoiceMode'
-import { badgeFor, sizeLabel, toAttachment } from './attachments'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { AuthState, CanvasDoc, ChatMetaPatch, ChatSummary, ClaudeCodeMode, Model } from '../../shared/api'
 import { useThemeSetting, type Theme } from './theme'
 import { CanvasContext, CanvasPanel } from './Canvas'
 import { CustomizePanel, Settings, type Tab as SettingsTab } from './Settings'
-import { PictureViewer } from './ImageViewer'
-import { PdfBadge, PdfPreview } from './PdfPreview'
+import { PdfPreview } from './PdfPreview'
 import { ChatList } from './ChatList'
-import { ClaudeCodeCard, ClaudeCodeIcon, SendToClaudeCode } from './ClaudeCode'
+import { ClaudeBuddy, NewClaudeChat, startClaudeChat } from './ClaudeCode'
+import { ChatPane, announceRename, cleanError } from './ChatPane'
+import { RailIcon } from './RailIcon'
 import icon from '../../assets/icon.png'
 
 const api = window.plotter
-const newId = (): string => crypto.randomUUID().replace(/-/g, '')
 const EFFORT_KEY = 'plotter.effort'
-
-function titleFrom(text: string, attachments: Attachment[]): string {
-  const line = text.trim().split('\n')[0] ?? ''
-  if (!line) return attachments[0]?.name ?? 'New chat'
-  return line.length > 48 ? `${line.slice(0, 47)}…` : line
-}
-
-function cleanError(e: unknown): string {
-  const m = e instanceof Error ? e.message : String(e)
-  return m.replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
-}
 
 export function App(): React.JSX.Element {
   const [auth, setAuth] = useState<AuthState | null>(null)
@@ -80,30 +65,32 @@ function SignIn({ onSignedIn }: { onSignedIn: (s: AuthState) => void }): React.J
 
 // ---------------------------------------------------------------- chat
 
-type Waiter = { resolve: (text: string) => void; reject: (e: Error) => void }
-
 function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true }>; setAuth: (s: AuthState) => void }): React.JSX.Element {
   const [chats, setChats] = useState<ChatSummary[]>([])
-  const [chat, setChat] = useState<Chat | null>(null)
   const [model, setModel] = useState<Model | null>(null)
   const [modelError, setModelError] = useState<string | null>(null)
   const [effort, setEffortState] = useState<string>('')
-  const [draft, setDraft] = useState('')
-  const [attachments, setAttachments] = useState<Attachment[]>([])
-  const [pending, setPending] = useState<{ requestId: string; chatId: string } | null>(null)
-  const [limitHit, setLimitHit] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   const [pdf, setPdf] = useState<{ bytes: Uint8Array | null; name: string; error?: string } | null>(null)
   const pdfJob = useRef(0)
   const [deleting, setDeleting] = useState<{ id: string; title: string } | null>(null)
-  /** Claude Code runs started from the open chat, and the "Send to Claude Code" dialog. */
-  const [ccRuns, setCcRuns] = useState<ClaudeCodeRun[]>([])
-  const [ccDialog, setCcDialog] = useState<{ task: string; afterMessageId?: string } | null>(null)
-  const [activity, setActivity] = useState<string | null>(null)
-  const [voice, setVoice] = useState(false)
+  /** The "New Claude Code chat" dialog; `beside` opens the new chat on the other side. */
+  const [ccDialog, setCcDialog] = useState<{ task: string; beside: boolean } | null>(null)
   const [showWelcome, setShowWelcome] = useState(auth.planUsage && !auth.welcomeSeen)
   const [theme, setTheme] = useThemeSetting()
   const [accountMenu, setAccountMenu] = useState(false)
+
+  // Two sides: the left chat always; the right one when split. Each can show any chat, of either kind.
+  const [leftId, setLeftId] = useState<string | null>(null)
+  const [rightId, setRightId] = useState<string | null>(null)
+  const [split, setSplit] = useState(false)
+  const [focus, setFocus] = useState<'left' | 'right'>('left')
+  const [dropSide, setDropSide] = useState<'left' | 'right' | null>(null)
+  const side = split ? focus : 'left'
+  const setSideId = (s: 'left' | 'right', id: string | null): void => (s === 'left' ? setLeftId(id) : setRightId(id))
+  const onLeftId = useCallback((id: string | null) => setLeftId(id), [])
+  const onRightId = useCallback((id: string | null) => setRightId(id), [])
+
   // Rail panels (Chats, Customize): hovering an icon slides its own panel out; leaving closes it a moment later.
   // "Docked" keeps a panel open beside the chat.
   type PanelKind = 'chats' | 'customize'
@@ -142,50 +129,17 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
   const [searching, setSearching] = useState(false)
   const [query, setQuery] = useState('')
   const [settingsTab, setSettingsTab] = useState<SettingsTab>('account')
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const openSettings = (tab: SettingsTab): void => {
     setSettingsTab(tab)
     setSettingsOpen(true)
     setPanel(null)
   }
-  const [settingsOpen, setSettingsOpen] = useState(false)
-  const [research, setResearch] = useState(false)
   const [canvas, setCanvas] = useState<CanvasDoc | null>(null)
-  const canvasRef = useRef<CanvasDoc | null>(null)
-  canvasRef.current = canvas
   const canvasApi = useMemo(() => ({ open: (doc: CanvasDoc) => setCanvas(doc), current: canvas }), [canvas])
-  // while Python is starting or downloading a library, say so in the reply's activity line
-  useEffect(
-    () =>
-      api.python.onStatus((s) => {
-        if (s.state === 'loading' && pendingRef.current) setActivity(s.detail)
-      }),
-    []
-  )
-  const chatRef = useRef<Chat | null>(null)
-  chatRef.current = chat
-  const chatId = chat?.id ?? null
-  useEffect(() => {
-    if (!chatId) return setCcRuns([])
-    let live = true
-    void api.claudeCode.list(chatId).then((list) => live && setCcRuns(list))
-    return () => {
-      live = false
-    }
-  }, [chatId])
-  useEffect(
-    () =>
-      api.claudeCode.onUpdate((run) => {
-        if (run.chatId !== chatRef.current?.id) return
-        setCcRuns((list) => (list.some((r) => r.id === run.id) ? list.map((r) => (r.id === run.id ? run : r)) : [...list, run]))
-      }),
-    []
-  )
-  const pendingRef = useRef(pending)
-  pendingRef.current = pending
-  const waiters = useRef(new Map<string, Waiter>())
-  const scroller = useRef<HTMLDivElement>(null)
 
   const refreshList = useCallback(() => void api.chats.list().then(setChats), [])
+  const showToast = useCallback((m: string) => setToast(m), [])
 
   const loadModel = useCallback(() => {
     setModelError(null)
@@ -216,103 +170,33 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
     return () => clearTimeout(t)
   }, [toast])
 
-  /** Ask the model for a short title and store it, whether or not the chat is still open. */
-  const nameChat = useCallback(
-    async (chatId: string, userText: string, replyText: string): Promise<void> => {
-      try {
-        const title = await api.chats.title(userText, replyText)
-        if (!title) return
-        const open = chatRef.current?.id === chatId ? chatRef.current : null
-        const stored = open ?? (await api.chats.get(chatId))
-        if (!stored) return
-        const named = { ...stored, title, titled: true }
-        if (open) {
-          chatRef.current = named
-          setChat(named)
-        }
-        await api.chats.save(named)
-        refreshList()
-      } catch {
-        // keep the first-message title if naming fails (e.g. usage limit)
-      }
-    },
-    [refreshList]
-  )
-
-  // Stream events from the main process. Refs, not state updaters, so each event is applied exactly once.
-  useEffect(
-    () =>
-      api.reply.onEvent((ev: ReplyEvent) => {
-        const p = pendingRef.current
-        const current = chatRef.current
-        if (!p || p.requestId !== ev.requestId || !current || current.id !== p.chatId) return
-        const msgs = [...current.messages]
-        const last = msgs[msgs.length - 1]
-        if (!last || last.role !== 'assistant') return
-        if (ev.type === 'activity') {
-          setActivity(ev.label)
-          return
-        }
-        if (ev.type === 'tool') {
-          // a Plotter tool ran (Python, memory, a connector): show its card where it happened
-          msgs[msgs.length - 1] = { ...last, text: `${last.text}\n\n[[tool:${ev.run.id}]]\n\n`, toolRuns: [...(last.toolRuns ?? []), ev.run] }
-          chatRef.current = { ...current, messages: msgs }
-          setChat(chatRef.current)
-          return
-        }
-        if (ev.type === 'source') {
-          if (last.sources?.some((s) => s.url === ev.url)) return
-          msgs[msgs.length - 1] = { ...last, sources: [...(last.sources ?? []), { url: ev.url, title: ev.title }] }
-          chatRef.current = { ...current, messages: msgs }
-          setChat(chatRef.current)
-          return
-        }
-        if (ev.type === 'delta') {
-          const first = !last.text && last.thoughtMs === undefined
-          msgs[msgs.length - 1] = { ...last, text: last.text + ev.text, ...(first ? { thoughtMs: Date.now() - last.at } : {}) }
-          chatRef.current = { ...current, messages: msgs }
-          setChat(chatRef.current)
-          return
-        }
-        setActivity(null)
-        if (ev.type === 'error') {
-          msgs[msgs.length - 1] = { ...last, error: ev.message }
-          if (ev.usageLimit) setLimitHit(true)
-        }
-        const done = { ...current, messages: msgs, updatedAt: Date.now() }
-        chatRef.current = done
-        pendingRef.current = null
-        setChat(done)
-        setPending(null)
-        void api.chats.save(done).then(refreshList)
-        // After the first exchange, let the model name the chat (like ChatGPT's chat list).
-        const users = done.messages.filter((m) => m.role === 'user')
-        if (users.length === 1 && last.text && !done.titled) void nameChat(done.id, users[0]!.text, last.text)
-        const w = waiters.current.get(ev.requestId)
-        waiters.current.delete(ev.requestId)
-        if (w) {
-          if (ev.type === 'error' && !last.text) w.reject(new Error(ev.message))
-          else w.resolve(last.text)
-        }
-      }),
-    [refreshList, nameChat]
-  )
-
-  useEffect(() => {
-    const el = scroller.current
-    if (el) el.scrollTop = el.scrollHeight
-  }, [chat?.messages])
-
-  const openChat = async (id: string): Promise<void> => {
+  /** Opens a chat on a side (the focused one unless given). Already open on the other side: just go there. */
+  const openChat = (id: string, where: 'left' | 'right' = side): void => {
     setSettingsOpen(false)
-    if (pending) return
-    const c = await api.chats.get(id)
-    if (c) setChat(c)
+    if (where === 'right') setSplit(true)
+    const other = where === 'left' ? rightId : leftId
+    if (split && other === id && where !== side) return setFocus(where === 'left' ? 'right' : 'left')
+    if (split && other === id) {
+      // dropped on the other side: swap the two
+      setSideId(where === 'left' ? 'right' : 'left', where === 'left' ? leftId : rightId)
+    }
+    setSideId(where, id)
+    setFocus(where)
   }
 
-  /** Converts the whole chat, or one reply with its question, to a PDF and shows it; Download in the preview saves it. */
-  const savePdf = (messageId?: string, target: { id: string; title: string } | null = chat): void => {
-    if (!target) return
+  const newChat = (): void => {
+    setSettingsOpen(false)
+    setSideId(side, null)
+  }
+
+  const closeRight = (): void => {
+    setSplit(false)
+    setRightId(null)
+    setFocus('left')
+  }
+
+  /** Converts a whole chat, or one reply with its question, to a PDF and shows it; Download in the preview saves it. */
+  const savePdf = useCallback((messageId: string | undefined, target: { id: string; title: string }): void => {
     const job = ++pdfJob.current
     setPdf({ bytes: null, name: target.title || 'Plotter chat' }) // the preview opens at once, saying Converting…
     api.pdf.make(target.id, messageId).then(
@@ -324,120 +208,68 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
         if (pdfJob.current === job) setPdf((p) => p && { ...p, error: e instanceof Error ? e.message : String(e) })
       }
     )
-  }
+  }, [])
   const closePdf = (): void => {
     pdfJob.current++
     setPdf(null)
     void api.pdf.discard()
   }
 
-  const newChat = (): void => {
-    setSettingsOpen(false)
-    if (pending) return
-    setChat(null)
-    setDraft('')
-    setAttachments([])
-  }
-
   /** Rename, pin or archive from the chat list's ⋯ menu; a renamed open chat shows its new name at once. */
-  const updateChat = useCallback(
-    (id: string, patch: ChatMetaPatch): void => {
-      void api.chats.update(id, patch).then(setChats)
-      if (patch.title && chatRef.current?.id === id) {
-        const renamed = { ...chatRef.current, title: patch.title, titled: true }
-        chatRef.current = renamed
-        setChat(renamed)
-      }
-    },
-    []
-  )
+  const updateChat = useCallback((id: string, patch: ChatMetaPatch): void => {
+    void api.chats.update(id, patch).then(setChats)
+    if (patch.title) announceRename(id, patch.title)
+  }, [])
 
   const removeChat = async (id: string): Promise<void> => {
-    if (pending?.chatId === id) {
-      setToast('Wait for the reply to finish (or stop it) before deleting this chat.')
-      return
-    }
     await api.chats.remove(id)
-    if (chat?.id === id) setChat(null)
+    if (leftId === id) setLeftId(null)
+    if (rightId === id) setRightId(null)
     refreshList()
   }
 
-  /** Sends a message (the composer's, or voice mode's text) and resolves with the full reply. */
-  const sendMessage = async (spoken?: string): Promise<string> => {
-    const text = (spoken ?? draft).trim()
-    const files = spoken === undefined ? attachments : []
-    if ((!text && files.length === 0) || pendingRef.current || !model) return ''
-    const now = Date.now()
-    const asResearch = research && spoken === undefined
-    const user: ChatMessage = { id: newId(), role: 'user', text, at: now, ...(files.length ? { attachments: files } : {}), ...(asResearch ? { research: true } : {}) }
-    const reply: ChatMessage = { id: newId(), role: 'assistant', text: '', at: now }
-    const current = chatRef.current
-    const base: Chat = current ?? { id: newId(), title: titleFrom(text, files), model: model.slug, messages: [], createdAt: now, updatedAt: now }
-    const history = [...base.messages.filter((m) => !(m.role === 'assistant' && !m.text)), user]
-    const next: Chat = { ...base, model: model.slug, messages: [...history, reply], updatedAt: now }
-    chatRef.current = next
-    setChat(next)
-    if (spoken === undefined) {
-      setDraft('')
-      setAttachments([])
-      setResearch(false)
-    }
-    setLimitHit(false)
-    const requestId = newId()
-    pendingRef.current = { requestId, chatId: next.id }
-    setPending(pendingRef.current)
-    const finished = new Promise<string>((resolve, reject) => waiters.current.set(requestId, { resolve, reject }))
-    await api.chats.save(next)
+  /** Starts a Claude Code chat from the dialog; from a ChatGPT reply it opens beside that chat. */
+  const startClaude = async (task: string, folder: string, mode: ClaudeCodeMode, beside: boolean): Promise<void> => {
+    const chat = await startClaudeChat(task, folder, mode)
     refreshList()
-    try {
-      await api.reply.send({
-        requestId,
-        chatId: next.id,
-        model: model.slug,
-        effort,
-        history: history.map((m) => ({ role: m.role, text: m.text, ...(m.attachments ? { attachments: m.attachments } : {}) })),
-        research: asResearch,
-        canvas: canvasRef.current
-      })
-    } catch (e) {
-      const failed = { ...next, messages: [...history, { ...reply, error: cleanError(e) }] }
-      chatRef.current = failed
-      pendingRef.current = null
-      setChat(failed)
-      setPending(null)
-      void api.chats.save(failed)
-      waiters.current.delete(requestId)
-      throw e
-    }
-    return finished
-  }
-
-  // Voice mode keeps one stable function, pointing at the latest sendMessage.
-  const sendRef = useRef(sendMessage)
-  sendRef.current = sendMessage
-  const ask = useCallback((text: string) => sendRef.current(text), [])
-
-  const stop = (): void => {
-    if (pending) void api.reply.stop(pending.requestId)
+    setCcDialog(null)
+    openChat(chat.id, beside ? (side === 'left' ? 'right' : 'left') : side)
   }
 
   const signOut = async (): Promise<void> => {
-    stop()
     setAuth(await api.auth.signOut())
   }
 
-  const onDropFiles = async (files: FileList): Promise<void> => {
-    for (const f of Array.from(files)) {
-      try {
-        const a = await toAttachment(f)
-        setAttachments((prev) => [...prev, a])
-      } catch (e) {
-        setToast(cleanError(e))
-      }
-    }
+  // Dragging a chat from the list: drop it on the right half to open it beside, or the left half to open it there.
+  const chatDrag = (e: React.DragEvent): boolean => e.dataTransfer.types.includes('application/x-plotter-chat')
+  const onPanesDragOver = (e: React.DragEvent<HTMLDivElement>): void => {
+    if (!chatDrag(e)) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    const r = e.currentTarget.getBoundingClientRect()
+    setDropSide(e.clientX - r.left > r.width / 2 ? 'right' : 'left')
+  }
+  const onPanesDrop = (e: React.DragEvent<HTMLDivElement>): void => {
+    if (!chatDrag(e)) return
+    e.preventDefault()
+    const id = e.dataTransfer.getData('application/x-plotter-chat')
+    const where = dropSide ?? 'right'
+    setDropSide(null)
+    if (id) openChat(id, where)
   }
 
-  const messages = chat?.messages ?? []
+  const paneProps = {
+    model,
+    modelError,
+    loadModel,
+    effort,
+    setEffort,
+    planUsage: auth.planUsage,
+    refreshList,
+    toast: showToast,
+    savePdf,
+    pdfBusy: !!pdf
+  }
 
   return (
     <CanvasContext.Provider value={canvasApi}>
@@ -445,7 +277,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
       {/* The rail: always there. Hovering an icon slides its panel out (Chats, Customize); a docked panel stays. */}
       <nav className="rail">
         <div className="rail-top">
-          <button className="rail-logo" title="New chat" onClick={newChat} disabled={!!pending}>
+          <button className="rail-logo" title="New chat" onClick={newChat}>
             <img src={icon} alt="Plotter" />
           </button>
           <button
@@ -465,6 +297,9 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
             onClick={() => clickPanel('customize')}
           >
             <RailIcon name="customize" />
+          </button>
+          <button className="rail-btn rail-claude" title="New Claude Code chat" onClick={() => setCcDialog({ task: '', beside: false })}>
+            <ClaudeBuddy size={24} />
           </button>
         </div>
         <div className="rail-fill" />
@@ -529,21 +364,31 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
               </div>
             </div>
             {searching && <input className="chat-search" autoFocus placeholder="Search chats" value={query} onChange={(e) => setQuery(e.target.value)} />}
-            <button className="side-item" onClick={newChat} disabled={!!pending}>
+            <button className="side-item" onClick={newChat}>
               <RailIcon name="new" /> New chat
+            </button>
+            <button className="side-item claude-new" onClick={() => setCcDialog({ task: '', beside: false })}>
+              <ClaudeBuddy size={20} /> New Claude Code chat
             </button>
             <ChatList
               chats={chats}
-              activeId={chat?.id ?? null}
+              activeIds={[leftId, split ? rightId : null].filter((x): x is string => !!x)}
               query={query}
               visible={shownPanel === 'chats'}
               onOpen={(id) => {
-                void openChat(id)
+                openChat(id)
                 if (!pinned) setPanel(null)
               }}
               onUpdate={updateChat}
               onDelete={(c) => setDeleting({ id: c.id, title: c.title })}
               onPdf={(c) => savePdf(undefined, c)}
+              onOpenBeside={(id) => {
+                openChat(id, side === 'left' || !split ? 'right' : 'left')
+                if (!pinned) setPanel(null)
+              }}
+              onDragStart={() => {
+                if (!pinned) setTimeout(() => setPanel(null), 0)
+              }}
             />
           </>
         )}
@@ -560,148 +405,55 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
           onUsage={() => void api.openUsage()}
           onSignOut={() => void signOut()}
           chats={chats}
-          onOpenChat={(id) => {
-            setSettingsOpen(false)
-            void openChat(id)
-          }}
+          onOpenChat={(id) => openChat(id)}
           onUpdateChat={updateChat}
           onDeleteChat={(c) => setDeleting({ id: c.id, title: c.title })}
         />
       )}
 
-      <main
+      <div
+        className={`panes ${split ? 'split' : ''}`}
         hidden={settingsOpen}
-        className="main"
-        onDragOver={(e) => {
-          if (e.dataTransfer.types.includes('Files')) e.preventDefault()
+        onDragOver={onPanesDragOver}
+        onDragLeave={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDropSide(null)
         }}
-        onDrop={(e) => {
-          e.preventDefault()
-          void onDropFiles(e.dataTransfer.files)
-        }}
+        onDrop={onPanesDrop}
       >
-        <header className="topbar">
-          <button className="topbar-new" title="New chat" onClick={newChat} disabled={!!pending}>
-            <RailIcon name="new" />
-          </button>
-          <span className="chat-heading">{chat?.title ?? ''}</span>
-          {messages.length > 0 && (
-            <button className="topbar-pdf" title="Convert this chat to a PDF" onClick={() => savePdf()} disabled={!!pending || !!pdf}>
-              <PdfBadge />
-              Convert chat to PDF
-            </button>
-          )}
-        </header>
-
-        <div className="scroller" ref={scroller}>
-          {messages.length === 0 ? (
-            <div className="hello">
-              <img src={icon} alt="" />
-              <h2>What shall we grow today?</h2>
-              {modelError && (
-                <p className="error">
-                  {modelError}{' '}
-                  <button className="link" onClick={loadModel}>
-                    Try again
-                  </button>
-                </p>
-              )}
-            </div>
-          ) : (
-            <div className="thread">
-              <div className="print-head">
-                <div className="print-title">{chat?.title || 'Plotter chat'}</div>
-                <div className="print-meta">Plotter · {new Date().toLocaleDateString()}</div>
-              </div>
-              {messages.map((m, i) => (
-                <Fragment key={m.id}>
-                  <Message
-                    m={m}
-                    typing={!!pending && i === messages.length - 1 && m.role === 'assistant'}
-                    activity={activity}
-                    onPdf={pdf ? undefined : (id) => savePdf(id)}
-                    onClaudeCode={(msg) => setCcDialog({ task: msg.text, afterMessageId: msg.id })}
-                  />
-                  {ccRuns
-                    .filter((r) => r.afterMessageId === m.id)
-                    .map((r) => (
-                      <ClaudeCodeCard key={r.id} run={r} />
-                    ))}
-                </Fragment>
-              ))}
-              {ccRuns
-                .filter((r) => !messages.some((m) => m.id === r.afterMessageId))
-                .map((r) => (
-                  <ClaudeCodeCard key={r.id} run={r} />
-                ))}
-            </div>
-          )}
-        </div>
-
-        <div className="composer-wrap">
-          {limitHit && (
-            <div className="limit">
-              <span>You’ve reached your ChatGPT plan’s usage limit for now.</span>
-              <button className="btn primary" onClick={() => void api.openUsage()}>
-                Manage usage
-              </button>
-            </div>
-          )}
-          {toast && (
-            <div className="toast" onClick={() => setToast(null)}>
-              {toast}
-            </div>
-          )}
-          <Composer
-            draft={draft}
-            setDraft={setDraft}
-            attachments={attachments}
-            setAttachments={setAttachments}
-            efforts={model?.efforts ?? []}
-            effort={effort}
-            setEffort={setEffort}
-            pending={!!pending}
-            ready={!!model}
-            placeholder={model ? 'Ask Plotter anything' : modelError ? 'Plotter could not load its model' : 'Loading…'}
-            onSend={() => void sendMessage().catch(() => undefined)}
-            onStop={stop}
-            onVoice={() => setVoice(true)}
-            onError={setToast}
-            research={research}
-            setResearch={setResearch}
-            onClaudeCode={chat ? () => setCcDialog({ task: draft, afterMessageId: messages[messages.length - 1]?.id }) : undefined}
+        <ChatPane {...paneProps} chatId={leftId} onChatId={onLeftId} side="left" split={split} focused={!split || focus === 'left'} onFocus={() => setFocus('left')} onSendToClaude={(task) => setCcDialog({ task, beside: true })} />
+        {split && (
+          <ChatPane
+            {...paneProps}
+            chatId={rightId}
+            onChatId={onRightId}
+            side="right"
+            split
+            focused={focus === 'right'}
+            onFocus={() => setFocus('right')}
+            onClose={closeRight}
+            onSendToClaude={(task) => setCcDialog({ task, beside: true })}
           />
-          <div className="plan-note">
-            {auth.planUsage ? 'Using ChatGPT plan' : 'Plan usage not granted at sign-in'} ·{' '}
-            <button className="link" onClick={() => void api.openUsage()}>
-              Manage usage
-            </button>
+        )}
+        {dropSide && (
+          <div className="drop-zones">
+            <div className={`drop-zone ${dropSide === 'left' ? 'on' : ''}`}>{split ? 'Open on the left' : 'Open here'}</div>
+            <div className={`drop-zone ${dropSide === 'right' ? 'on' : ''}`}>{split ? 'Open on the right' : 'Open side by side'}</div>
           </div>
-        </div>
-      </main>
+        )}
+      </div>
 
       {canvas && !settingsOpen && <CanvasPanel doc={canvas} onChange={setCanvas} onClose={() => setCanvas(null)} />}
 
-      {pdf && (
-        <PdfPreview
-          bytes={pdf.bytes}
-          name={pdf.name}
-          error={pdf.error}
-          onClose={closePdf}
-        />
+      {toast && (
+        <div className="toast floating" onClick={() => setToast(null)}>
+          {toast}
+        </div>
       )}
 
-      {ccDialog && chat && (
-        <SendToClaudeCode
-          initialTask={ccDialog.task}
-          onClose={() => setCcDialog(null)}
-          onStart={async (task, folder, mode) => {
-            const run = await api.claudeCode.start({ chatId: chat.id, afterMessageId: ccDialog.afterMessageId, task, folder, mode })
-            setCcRuns((list) => (list.some((r) => r.id === run.id) ? list : [...list, run]))
-            if (!ccDialog.afterMessageId || ccDialog.task === draft) setDraft('')
-            setCcDialog(null)
-          }}
-        />
+      {pdf && <PdfPreview bytes={pdf.bytes} name={pdf.name} error={pdf.error} onClose={closePdf} />}
+
+      {ccDialog && (
+        <NewClaudeChat initialTask={ccDialog.task} onClose={() => setCcDialog(null)} onStart={(task, folder, mode) => startClaude(task, folder, mode, ccDialog.beside)} />
       )}
 
       {deleting && (
@@ -711,17 +463,6 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
           onDelete={() => {
             setDeleting(null)
             void removeChat(deleting.id)
-          }}
-        />
-      )}
-
-
-      {voice && (
-        <VoiceMode
-          ask={ask}
-          onClose={() => {
-            setVoice(false)
-            stop()
           }}
         />
       )}
@@ -749,115 +490,6 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
   )
 }
 
-function siteName(url: string): string {
-  try {
-    return new URL(url).hostname.replace(/^www\./, '')
-  } catch {
-    return url
-  }
-}
-
-export function Message({
-  m,
-  typing,
-  activity,
-  onPdf,
-  onClaudeCode
-}: {
-  m: ChatMessage
-  typing: boolean
-  activity?: string | null
-  onPdf?: (id: string) => void
-  onClaudeCode?: (m: ChatMessage) => void
-}): React.JSX.Element {
-  if (m.role === 'user')
-    return (
-      <div className="msg user" data-msg-id={m.id}>
-        {m.attachments && m.attachments.length > 0 && (
-          <div className="msg-attachments">
-            {m.attachments.map((a) =>
-              a.kind === 'image' ? (
-                <SentPicture key={a.id} src={a.data} name={a.name} />
-              ) : (
-                <div key={a.id} className="attach file in-msg">
-                  <span className="file-badge">{badgeFor(a)}</span>
-                  <span className="file-meta">
-                    <span className="file-name">{a.name}</span>
-                    <span className="file-size">{sizeLabel(a.size)}</span>
-                  </span>
-                </div>
-              )
-            )}
-          </div>
-        )}
-        {m.text && <div className="bubble">{m.text}</div>}
-      </div>
-    )
-  return (
-    <div className="msg assistant" data-msg-id={m.id}>
-      <img src={icon} alt="" className="sprout" />
-      <div className="body">
-        {m.thoughtMs !== undefined && m.thoughtMs >= 2000 && m.text && (
-          <div className="thought">Thought for {Math.round(m.thoughtMs / 1000)}s</div>
-        )}
-        {typing && activity && (
-          <div className="activity">
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <circle cx="11" cy="11" r="6.5" />
-              <path d="m20 20-4.2-4.2" />
-            </svg>
-            {activity}
-          </div>
-        )}
-        {m.text ? (
-          <Markdown text={m.text} streaming={typing} runs={m.toolRuns} />
-        ) : typing && !activity ? (
-          <span className="dots">
-            <i />
-            <i />
-            <i />
-          </span>
-        ) : null}
-        {m.sources && m.sources.length > 0 && !typing && (
-          <div className="sources">
-            <span className="sources-label">Sources</span>
-            {m.sources.map((s) => (
-              <a key={s.url} className="source" href={s.url} target="_blank" rel="noreferrer" title={s.url}>
-                <span className="source-badge">{siteName(s.url).slice(0, 1).toUpperCase()}</span>
-                <span className="source-text">
-                  {/^https?:\/\//.test(s.title) || !s.title.trim() || s.title.replace(/^www\./, '') === siteName(s.url) ? (
-                    <span className="source-title">{siteName(s.url)}</span>
-                  ) : (
-                    <>
-                      <span className="source-title">{s.title}</span>
-                      <span className="source-site">{siteName(s.url)}</span>
-                    </>
-                  )}
-                </span>
-              </a>
-            ))}
-          </div>
-        )}
-        {m.error && m.error !== 'Stopped.' && <div className="error">{m.error}</div>}
-        {m.error === 'Stopped.' && <div className="stopped">Stopped</div>}
-        {!typing && m.text && (
-          <div className="msg-actions">
-            <button title="Convert this reply to a PDF" disabled={!onPdf} onClick={() => onPdf?.(m.id)}>
-              <PdfBadge size={16} />
-              Convert to PDF
-            </button>
-            {onClaudeCode && (
-              <button title="Hand this to your own Claude Code to carry out" onClick={() => onClaudeCode(m)}>
-                <ClaudeCodeIcon size={16} />
-                Send to Claude Code
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
 
 // ---------------------------------------------------------------- theme switch and account menu
 
@@ -969,74 +601,5 @@ function ConfirmDelete({ title, onCancel, onDelete }: { title: string; onCancel:
         </div>
       </div>
     </div>
-  )
-}
-
-function RailIcon({ name }: { name: 'new' | 'chats' | 'home' | 'customize' | 'search' | 'settings' | 'pin' | 'unpin' }): React.JSX.Element {
-  const common = { viewBox: '0 0 24 24', width: 20, height: 20, fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const }
-  if (name === 'new')
-    return (
-      <svg {...common}>
-        <path d="M12 20h9" />
-        <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
-      </svg>
-    )
-  if (name === 'home')
-    return (
-      <svg {...common}>
-        <path d="M3 10.5 12 3l9 7.5" />
-        <path d="M5 9v11h5v-6h4v6h5V9" />
-      </svg>
-    )
-  if (name === 'customize')
-    return (
-      <svg {...common}>
-        <path d="M4 7h10M18 7h2M4 17h4M12 17h8" />
-        <circle cx="16" cy="7" r="2" />
-        <circle cx="10" cy="17" r="2" />
-      </svg>
-    )
-  if (name === 'search')
-    return (
-      <svg {...common}>
-        <circle cx="11" cy="11" r="6.5" />
-        <path d="m20 20-4.2-4.2" />
-      </svg>
-    )
-  if (name === 'chats')
-    return (
-      <svg {...common}>
-        <path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12Z" />
-        <path d="M8.5 10.5h7M8.5 13.5h4.5" />
-      </svg>
-    )
-  if (name === 'settings')
-    return (
-      <svg {...common}>
-        <circle cx="12" cy="12" r="3" />
-        <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z" />
-      </svg>
-    )
-  // pin / unpin: a sidebar outline, filled when docked
-  return (
-    <svg {...common}>
-      <rect x="3" y="4" width="18" height="16" rx="3" />
-      <path d="M9 4v16" />
-      {name === 'unpin' && <path d="M4.5 6h3M4.5 9h3M4.5 12h3" />}
-    </svg>
-  )
-}
-
-/** A picture in a sent message: a thumbnail that grows into the full-screen viewer. */
-function SentPicture({ src, name }: { src: string; name: string }): React.JSX.Element {
-  const thumb = useRef<HTMLButtonElement>(null)
-  const [open, setOpen] = useState(false)
-  return (
-    <>
-      <button ref={thumb} className="msg-image" aria-label={`View ${name}`} title={name} onClick={() => setOpen(true)}>
-        <img src={src} alt={name} />
-      </button>
-      {open && <PictureViewer src={src} from={() => thumb.current?.getBoundingClientRect() ?? null} onClose={() => setOpen(false)} />}
-    </>
   )
 }
