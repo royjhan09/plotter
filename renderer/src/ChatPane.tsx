@@ -466,8 +466,8 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
               <button className="pop-item" onClick={() => newChat('claude')}>
                 <ClaudeBuddy size={26} />
                 <span className="new-menu-text">
-                  <b>New Claude Code chat</b>
-                  <span>Works in a project folder</span>
+                  <b>New chat</b>
+                  <span>Claude Code, in a project folder</span>
                 </span>
               </button>
             </div>

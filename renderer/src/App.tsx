@@ -253,6 +253,38 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
   }
 
   // Dragging a chat from the list: drop it on the right half to open it beside, or the left half to open it there.
+  /** A drag from the Chats panel began: a chat (its id) or a new chat ('new:chatgpt' / 'new:claude'). */
+  const beginDrag = (what: string): void => {
+    dragChat.current = what
+    draggingRef.current = true
+    clearTimeout(hoverTimer.current)
+    // after the drag has begun: let it pass through the panel to the chat area beneath
+    setTimeout(() => setDragging(true), 0)
+  }
+  const startDrag = (e: React.DragEvent, what: string, label: string): void => {
+    e.dataTransfer.setData('application/x-plotter-chat', what)
+    e.dataTransfer.setData('text/plain', label)
+    e.dataTransfer.effectAllowed = 'move'
+    beginDrag(what)
+  }
+  const lastDrag = useRef(0)
+  const endDrag = (): void => {
+    lastDrag.current = Date.now() // a drag never also counts as a click
+    setTimeout(() => (dragChat.current = null), 0)
+    draggingRef.current = false
+    setDragging(false)
+    setDropSide(null)
+    if (!pinned) setPanel(null)
+  }
+  /** A new chat of a kind dropped on a side. */
+  const openNew = (kind: ChatKind, where: 'left' | 'right'): void => {
+    setSettingsOpen(false)
+    if (where === 'right') setSplit(true)
+    setSideNew(where, kind)
+    setSideId(where, null)
+    setFocus(where)
+  }
+
   const chatDrag = (e: React.DragEvent): boolean => !!dragChat.current || e.dataTransfer.types.includes('application/x-plotter-chat')
   const sideAt = (e: React.DragEvent<HTMLDivElement>): 'left' | 'right' => {
     const r = e.currentTarget.getBoundingClientRect()
@@ -271,7 +303,8 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
     const id = dragChat.current ?? (e.dataTransfer.getData('application/x-plotter-chat') || null)
     dragChat.current = null
     setDropSide(null)
-    if (id) openChat(id, sideAt(e))
+    if (id?.startsWith('new:')) openNew(id === 'new:claude' ? 'claude' : 'chatgpt', sideAt(e))
+    else if (id) openChat(id, sideAt(e))
   }
 
   const paneProps = {
@@ -378,11 +411,25 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
               </div>
             </div>
             {searching && <input className="chat-search" autoFocus placeholder="Search chats" value={query} onChange={(e) => setQuery(e.target.value)} />}
-            <button className="side-item" onClick={newChat}>
+            <button
+              className="side-item"
+              title="New ChatGPT chat (or drag it to a side)"
+              draggable
+              onDragStart={(e) => startDrag(e, 'new:chatgpt', 'New chat')}
+              onDragEnd={endDrag}
+              onClick={() => Date.now() - lastDrag.current > 400 && newChat()}
+            >
               <img src={icon} alt="" className="side-item-icon" /> New chat
             </button>
-            <button className="side-item claude-new" onClick={() => newClaudeChat(false)}>
-              <ClaudeBuddy size={20} /> New Claude Code chat
+            <button
+              className="side-item claude-new"
+              title="New Claude Code chat (or drag it to a side)"
+              draggable
+              onDragStart={(e) => startDrag(e, 'new:claude', 'New Claude Code chat')}
+              onDragEnd={endDrag}
+              onClick={() => Date.now() - lastDrag.current > 400 && newClaudeChat(false)}
+            >
+              <ClaudeBuddy size={20} /> New chat
             </button>
             <ChatList
               chats={chats}
@@ -400,20 +447,8 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
                 openChat(id, side === 'left' || !split ? 'right' : 'left')
                 if (!pinned) setPanel(null)
               }}
-              onDragStart={(id) => {
-                dragChat.current = id
-                draggingRef.current = true
-                clearTimeout(hoverTimer.current)
-                // after the drag has begun: let it pass through the panel to the chat area beneath
-                setTimeout(() => setDragging(true), 0)
-              }}
-              onDragEnd={() => {
-                setTimeout(() => (dragChat.current = null), 0)
-                draggingRef.current = false
-                setDragging(false)
-                setDropSide(null)
-                if (!pinned) setPanel(null)
-              }}
+              onDragStart={beginDrag}
+              onDragEnd={endDrag}
             />
           </>
         )}
