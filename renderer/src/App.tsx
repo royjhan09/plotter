@@ -506,7 +506,7 @@ function Message({ m, typing, activity }: { m: ChatMessage; typing: boolean; act
               <a key={s.url} className="source" href={s.url} target="_blank" rel="noreferrer" title={s.url}>
                 <span className="source-badge">{siteName(s.url).slice(0, 1).toUpperCase()}</span>
                 <span className="source-text">
-                  {/^https?:\/\//.test(s.title) || !s.title.trim() ? (
+                  {/^https?:\/\//.test(s.title) || !s.title.trim() || s.title.replace(/^www\./, '') === siteName(s.url) ? (
                     <span className="source-title">{siteName(s.url)}</span>
                   ) : (
                     <>

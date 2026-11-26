@@ -16,7 +16,7 @@ const BROWSER_ONLY = process.env['PLOTTER_BROWSER_ONLY'] === '1' && !!process.en
 const iconPath = join(__dirname, '../../assets/icon.ico')
 let win: BrowserWindow | null = null
 
-const windowBackground = (): string => (nativeTheme.shouldUseDarkColors ? '#1a1511' : '#fffaf3')
+const windowBackground = (): string => (nativeTheme.shouldUseDarkColors ? '#1a1511' : '#ffffff')
 
 function createWindow(): void {
   nativeTheme.themeSource = readSettings().theme ?? 'system' // before the first choice: Windows decides
