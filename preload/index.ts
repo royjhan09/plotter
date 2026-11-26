@@ -71,7 +71,8 @@ const api: PlotterApi = {
   openUsage: () => ipcRenderer.invoke('openUsage'),
   pdf: {
     print: () => ipcRenderer.invoke('pdf:print'),
-    save: (name) => ipcRenderer.invoke('pdf:save', name)
+    save: (name) => ipcRenderer.invoke('pdf:save', name),
+    discard: () => ipcRenderer.invoke('pdf:discard')
   }
 }
 

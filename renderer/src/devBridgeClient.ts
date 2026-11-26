@@ -106,8 +106,9 @@ export function installDevBridge(): void {
     openUsage: () => call('openUsage'),
     // No Electron window here: use the browser's own print dialog (Save as PDF).
     pdf: {
-      print: async () => window.print(),
-      save: async () => null
+      print: async () => (window.print(), null),
+      save: async () => null,
+      discard: async () => undefined
     }
   }
   window.plotter = api

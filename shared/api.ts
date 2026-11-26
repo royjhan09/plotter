@@ -233,11 +233,13 @@ export interface PlotterApi {
   /** Window frame and Windows title bar follow the chosen theme. */
   setTheme: (theme: 'light' | 'dark') => Promise<void>
   openUsage: () => Promise<void>
-  /** PDF export: print() renders the page as printed (only the chat shows), save() asks where to put it and opens it. */
+  /** PDF export: print() renders the page as printed (only the chat shows) for a preview; save() asks where to put it. */
   pdf: {
-    print: () => Promise<void>
-    /** The saved file's path, or null if cancelled (or in the dev browser, where the browser's own print dialog is used). */
+    /** The PDF's bytes, or null in the dev browser (which shows the browser's own print dialog instead). */
+    print: () => Promise<Uint8Array | null>
+    /** The saved file's path, or null if cancelled. */
     save: (name: string) => Promise<string | null>
+    discard: () => Promise<void>
   }
 }
 

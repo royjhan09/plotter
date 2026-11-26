@@ -2711,3 +2711,78 @@ body,
     color: inherit;
   }
 }
+
+/* PDF preview before downloading */
+.pdf-badge {
+  flex: none;
+}
+.pdf-back {
+  z-index: 60;
+}
+.pdf-preview {
+  width: min(920px, 94vw);
+  height: 92vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--paper);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.35);
+}
+.pdf-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px 12px 18px;
+  border-bottom: 1px solid var(--sand);
+}
+.pdf-name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  margin-right: auto;
+  line-height: 1.3;
+}
+.pdf-file {
+  font-weight: 650;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.pdf-meta {
+  font-size: 12px;
+  color: var(--muted);
+}
+.pdf-error {
+  font-size: 12.5px;
+  color: #c92a2a;
+}
+.pdf-download {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.pdf-close {
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: var(--ink);
+  font-size: 22px;
+  line-height: 1;
+}
+.pdf-close:hover:not(:disabled) {
+  background: var(--sand);
+}
+.pdf-frame {
+  flex: 1;
+  width: 100%;
+  border: 0;
+  background: #525659;
+}
+@media print {
+  .pdf-back {
+    display: none !important;
+  }
+}

@@ -45,7 +45,8 @@ function createWindow(): void {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
       sandbox: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      plugins: true // Chromium's PDF viewer, for the PDF preview before downloading
     }
   })
   win.once('ready-to-show', () => win?.show())
