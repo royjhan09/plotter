@@ -4,10 +4,14 @@ import { authState, cancelSignIn, loadSession, signIn, signOut } from './auth'
 import { forgetModel, primaryModel, ReplyError, streamReply } from './openai'
 import { onSpeechStatus, speechStatus, transcribe, warmSpeech } from './speech'
 import { getChat, listChats, removeChat, saveChat, updateSettings } from './store'
+import { startDevBridge } from './devBridge'
 import { USAGE_URL, type Chat, type ReplyEvent, type SendRequest } from '../shared/api'
 
 app.setName('Plotter')
 if (process.platform === 'win32') app.setAppUserModelId('com.plotter.app')
+
+/** `npm run dev:browser`: no Electron window; the UI runs in a browser and talks to this process over the dev bridge. */
+const BROWSER_ONLY = process.env['PLOTTER_BROWSER_ONLY'] === '1' && !!process.env['ELECTRON_RENDERER_URL']
 
 const iconPath = join(__dirname, '../../assets/icon.ico')
 let win: BrowserWindow | null = null
@@ -57,54 +61,57 @@ function allowMicrophone(): void {
   session.defaultSession.setPermissionCheckHandler((wc, permission) => permission === 'media' && !!wc && own(wc.getURL()))
 }
 
+// ---------------------------------------------------------------- one set of handlers, two doors
+
+type Emit = (channel: string, payload: unknown) => void
+const emitters = new Set<Emit>()
+const emit: Emit = (channel, payload) => emitters.forEach((e) => e(channel, payload))
+
 const running = new Map<string, AbortController>()
+const sendReply = (event: ReplyEvent): void => emit('reply:event', event)
 
-function send(event: ReplyEvent): void {
-  win?.webContents.send('reply:event', event)
-}
-
-function registerIpc(): void {
-  ipcMain.handle('auth:state', () => authState())
-  ipcMain.handle('auth:signIn', async () => {
+/** Every call the window can make. The preload reaches them over IPC; the dev bridge over HTTP. */
+export const handlers: Record<string, (...args: never[]) => unknown> = {
+  'auth:state': () => authState(),
+  'auth:signIn': async () => {
     const state = await signIn()
     win?.show()
     win?.focus()
     return state
-  })
-  ipcMain.handle('auth:cancelSignIn', () => cancelSignIn())
-  ipcMain.handle('auth:signOut', () => {
+  },
+  'auth:cancelSignIn': () => cancelSignIn(),
+  'auth:signOut': () => {
     forgetModel()
     return signOut()
-  })
-  ipcMain.handle('auth:welcomeSeen', () => void updateSettings({ welcomeSeen: true }))
+  },
+  'auth:welcomeSeen': () => void updateSettings({ welcomeSeen: true }),
 
-  ipcMain.handle('model', () => primaryModel())
+  model: () => primaryModel(),
 
-  ipcMain.handle('speech:transcribe', (_e, samples: Float32Array) => transcribe(samples))
-  ipcMain.handle('speech:status', () => speechStatus())
-  ipcMain.handle('speech:warm', () => warmSpeech())
-  onSpeechStatus((s) => win?.webContents.send('speech:status', s))
+  'speech:transcribe': (samples: Float32Array) => transcribe(samples),
+  'speech:status': () => speechStatus(),
+  'speech:warm': () => warmSpeech(),
 
-  ipcMain.handle('chats:list', () => listChats())
-  ipcMain.handle('chats:get', (_e, id: string) => getChat(id))
-  ipcMain.handle('chats:save', (_e, chat: Chat) => {
+  'chats:list': () => listChats(),
+  'chats:get': (id: string) => getChat(id),
+  'chats:save': (chat: Chat) => {
     saveChat(chat)
     updateSettings({ lastModel: chat.model })
-  })
-  ipcMain.handle('chats:remove', (_e, id: string) => removeChat(id))
+  },
+  'chats:remove': (id: string) => removeChat(id),
 
-  ipcMain.handle('reply:send', (_e, req: SendRequest) => {
+  'reply:send': (req: SendRequest) => {
     const ctrl = new AbortController()
     running.set(req.requestId, ctrl)
-    void streamReply(req.model, req.effort, req.history, { onDelta: (text) => send({ requestId: req.requestId, type: 'delta', text }) }, ctrl.signal)
-      .then(() => send({ requestId: req.requestId, type: 'done' }))
+    void streamReply(req.model, req.effort, req.history, { onDelta: (text) => sendReply({ requestId: req.requestId, type: 'delta', text }) }, ctrl.signal)
+      .then(() => sendReply({ requestId: req.requestId, type: 'done' }))
       .catch((err: unknown) => {
         if (ctrl.signal.aborted) {
-          send({ requestId: req.requestId, type: 'error', code: 'stopped', message: 'Stopped.', usageLimit: false })
+          sendReply({ requestId: req.requestId, type: 'error', code: 'stopped', message: 'Stopped.', usageLimit: false })
           return
         }
         const re = err instanceof ReplyError ? err : null
-        send({
+        sendReply({
           requestId: req.requestId,
           type: 'error',
           code: re?.code ?? 'error',
@@ -113,15 +120,25 @@ function registerIpc(): void {
         })
       })
       .finally(() => running.delete(req.requestId))
-  })
-  ipcMain.handle('reply:stop', (_e, requestId: string) => running.get(requestId)?.abort())
+  },
+  'reply:stop': (requestId: string) => running.get(requestId)?.abort(),
 
-  ipcMain.handle('openUsage', () => shell.openExternal(USAGE_URL))
+  openUsage: () => shell.openExternal(USAGE_URL)
+}
+
+function registerIpc(): void {
+  for (const [channel, fn] of Object.entries(handlers)) {
+    ipcMain.handle(channel, (_e, ...args: unknown[]) => (fn as (...a: unknown[]) => unknown)(...args))
+  }
+  emitters.add((channel, payload) => win?.webContents.send(channel, payload))
+  onSpeechStatus((s) => emit('speech:status', s))
 }
 
 const single = app.requestSingleInstanceLock()
-if (!single) app.quit()
-else {
+if (!single) {
+  if (BROWSER_ONLY) console.error('[plotter] Plotter is already open. Close the desktop Plotter window, then start the browser dev mode again.')
+  app.quit()
+} else {
   app.on('second-instance', () => {
     if (win) {
       if (win.isMinimized()) win.restore()
@@ -132,7 +149,10 @@ else {
     loadSession()
     allowMicrophone()
     registerIpc()
-    createWindow()
+    if (process.env['ELECTRON_RENDERER_URL']) startDevBridge(handlers, (e) => emitters.add(e))
+    if (!BROWSER_ONLY) createWindow()
   })
-  app.on('window-all-closed', () => app.quit())
+  app.on('window-all-closed', () => {
+    if (!BROWSER_ONLY) app.quit()
+  })
 }

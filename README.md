@@ -9,8 +9,14 @@ your ChatGPT plan's usage. You can set a weekly cap for Plotter at https://chatg
 ```
 npm install
 npm run dev      # development, hot reload
+npm run dev:browser   # development with no Electron window: open http://localhost:5173 in any browser
 npm run build && npm start   # the built app
 ```
+
+`dev:browser` runs the Plotter process without a window. The page reaches it through a development-only
+bridge on `127.0.0.1:5199` (`main/devBridge.ts`). The bridge answers only the dev server's origin, and a
+built app never starts it. Only one Plotter can run at a time, so close the desktop app before you start
+`dev:browser`. `.claude/launch.json` lets Claude open `dev:browser` in its browser pane.
 
 ## How it works
 
