@@ -4476,3 +4476,93 @@ body,
   font-size: 13px;
   color: var(--muted);
 }
+
+/* ---------- Claude Code chats: one bright accent so lines and buttons stand out ---------- */
+.pane.claude {
+  --cc-accent: #7048e8;
+  --cc-accent-soft: rgba(112, 72, 232, 0.35);
+  --cc-accent-text: #6741d9;
+}
+.pane.claude.theme-dark {
+  --cc-accent: #a98bff;
+  --cc-accent-soft: rgba(169, 139, 255, 0.4);
+  --cc-accent-text: #c4b1ff;
+}
+.pane.claude .topbar {
+  border-bottom: 1px solid var(--cc-accent-soft);
+}
+.pane.claude .topbar-pdf {
+  border-color: var(--cc-accent-soft);
+}
+.pane.claude .topbar-pdf:hover:not(:disabled),
+.pane.claude .theme-btn:hover,
+.pane.claude .topbar-new:hover:not(:disabled) {
+  background: rgba(169, 139, 255, 0.14);
+  color: var(--cc-accent-text);
+}
+.pane.claude .composer {
+  border: 1.5px solid var(--cc-accent-soft);
+  box-shadow: 0 0 0 1px rgba(169, 139, 255, 0.06), 0 6px 24px rgba(0, 0, 0, 0.25);
+}
+.pane.claude .composer:focus-within {
+  border-color: var(--cc-accent);
+  box-shadow: 0 0 0 3px rgba(169, 139, 255, 0.18), 0 6px 24px rgba(0, 0, 0, 0.25);
+}
+.pane.claude .round-btn {
+  background: var(--cc-accent);
+  color: #160f2b;
+}
+.pane.claude .round-btn:hover:not(:disabled) {
+  background: #c0a8ff;
+}
+.pane.claude.theme-light .round-btn {
+  color: #fff;
+}
+.pane.claude.theme-light .round-btn:hover:not(:disabled) {
+  background: #5f3dc4;
+}
+.pane.claude .round-btn:disabled {
+  opacity: 0.45;
+}
+.pane.claude .msg.user .bubble {
+  border: 1px solid var(--cc-accent-soft);
+}
+.pane.claude .cc-turn .cc-steps {
+  border-left: 2px solid var(--cc-accent);
+}
+.pane.claude .cc-turn .cc-step.tool {
+  color: var(--cc-accent-text);
+}
+.pane.claude .cc-turn .cc-dot {
+  background: var(--cc-accent);
+  box-shadow: 0 0 6px var(--cc-accent);
+}
+.pane.claude .cc-turn .cc-spin {
+  border-color: var(--cc-accent-soft);
+  border-top-color: var(--cc-accent);
+}
+.pane.claude .composer-below .folder-btn {
+  color: var(--cc-accent-text);
+}
+.pane.claude .composer-below .folder-btn:hover,
+.pane.claude .composer-below .folder-btn.open {
+  background: rgba(169, 139, 255, 0.14);
+  color: var(--cc-accent-text);
+}
+.pane.claude .tab-hint {
+  border-color: var(--cc-accent-soft);
+  color: var(--cc-accent-text);
+}
+.pane.claude .effort-btn {
+  color: var(--cc-accent-text);
+}
+.pane.claude .msg-actions button:hover {
+  color: var(--cc-accent-text);
+}
+.cc-figures {
+  margin-top: 4px;
+}
+.cc-figures img {
+  background: #fff;
+  border-radius: 12px;
+}

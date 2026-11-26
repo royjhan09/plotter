@@ -88,8 +88,8 @@ export type ClaudeCodeMode = 'edit' | 'plan'
 
 export interface ClaudeCodeStep {
   at: number
-  /** text = what Claude Code said; tool = what it did ("Edit src/App.tsx"). */
-  kind: 'text' | 'tool'
+  /** text = what Claude Code said; tool = what it did ("Edit src/App.tsx"); image = a picture a tool returned (text is a data URL). */
+  kind: 'text' | 'tool' | 'image'
   text: string
 }
 
