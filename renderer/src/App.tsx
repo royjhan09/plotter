@@ -8,7 +8,6 @@ import { useThemeSetting, type Theme } from './theme'
 import { CanvasContext, CanvasPanel } from './Canvas'
 import { CustomizePanel, Settings } from './Settings'
 import { PictureViewer } from './ImageViewer'
-import { makePdf } from './pdf'
 import { PdfBadge, PdfPreview } from './PdfPreview'
 import icon from '../../assets/icon.png'
 
@@ -92,8 +91,8 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
   const [pending, setPending] = useState<{ requestId: string; chatId: string } | null>(null)
   const [limitHit, setLimitHit] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
-  const [exporting, setExporting] = useState(false)
-  const [pdf, setPdf] = useState<{ bytes: Uint8Array; name: string } | null>(null)
+  const [pdf, setPdf] = useState<{ bytes: Uint8Array | null; name: string; error?: string } | null>(null)
+  const pdfJob = useRef(0)
   const [activity, setActivity] = useState<string | null>(null)
   const [voice, setVoice] = useState(false)
   const [showWelcome, setShowWelcome] = useState(auth.planUsage && !auth.welcomeSeen)
@@ -289,17 +288,24 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
   }
 
   /** Converts the whole chat, or one reply with its question, to a PDF and shows it; Download in the preview saves it. */
-  const savePdf = async (messageId?: string): Promise<void> => {
-    if (!chat || exporting) return
-    setExporting(true)
-    try {
-      const bytes = await makePdf(messageId)
-      if (bytes) setPdf({ bytes, name: chat.title || 'Plotter chat' })
-    } catch (e) {
-      setToast(`Could not make the PDF: ${e instanceof Error ? e.message : String(e)}`)
-    } finally {
-      setExporting(false)
-    }
+  const savePdf = (messageId?: string): void => {
+    if (!chat) return
+    const job = ++pdfJob.current
+    setPdf({ bytes: null, name: chat.title || 'Plotter chat' }) // the preview opens at once, saying Converting…
+    api.pdf.make(chat.id, messageId).then(
+      (bytes) => {
+        if (pdfJob.current === job) setPdf((p) => p && { ...p, bytes })
+        else void api.pdf.discard() // closed while converting
+      },
+      (e: unknown) => {
+        if (pdfJob.current === job) setPdf((p) => p && { ...p, error: e instanceof Error ? e.message : String(e) })
+      }
+    )
+  }
+  const closePdf = (): void => {
+    pdfJob.current++
+    setPdf(null)
+    void api.pdf.discard()
   }
 
   const newChat = (): void => {
@@ -532,9 +538,9 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
           </button>
           <span className="chat-heading">{chat?.title ?? ''}</span>
           {messages.length > 0 && (
-            <button className="topbar-pdf" title="Convert this chat to a PDF" onClick={() => void savePdf()} disabled={!!pending || exporting}>
+            <button className="topbar-pdf" title="Convert this chat to a PDF" onClick={() => savePdf()} disabled={!!pending || !!pdf}>
               <PdfBadge />
-              {exporting ? 'Converting…' : 'Convert chat to PDF'}
+              Convert chat to PDF
             </button>
           )}
         </header>
@@ -560,7 +566,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
                 <div className="print-meta">Plotter · {new Date().toLocaleDateString()}</div>
               </div>
               {messages.map((m, i) => (
-                <Message key={m.id} m={m} typing={!!pending && i === messages.length - 1 && m.role === 'assistant'} activity={activity} onPdf={exporting ? undefined : (id) => void savePdf(id)} />
+                <Message key={m.id} m={m} typing={!!pending && i === messages.length - 1 && m.role === 'assistant'} activity={activity} onPdf={pdf ? undefined : (id) => savePdf(id)} />
               ))}
             </div>
           )}
@@ -613,10 +619,8 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
         <PdfPreview
           bytes={pdf.bytes}
           name={pdf.name}
-          onClose={() => {
-            setPdf(null)
-            void api.pdf.discard()
-          }}
+          error={pdf.error}
+          onClose={closePdf}
           onSaved={(path) => {
             setPdf(null)
             setToast(`Saved to ${path}`)
@@ -667,7 +671,7 @@ function siteName(url: string): string {
   }
 }
 
-function Message({ m, typing, activity, onPdf }: { m: ChatMessage; typing: boolean; activity?: string | null; onPdf?: (id: string) => void }): React.JSX.Element {
+export function Message({ m, typing, activity, onPdf }: { m: ChatMessage; typing: boolean; activity?: string | null; onPdf?: (id: string) => void }): React.JSX.Element {
   if (m.role === 'user')
     return (
       <div className="msg user" data-msg-id={m.id}>

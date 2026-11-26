@@ -1,6 +1,8 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import type { PlotterApi, PythonStatus, ReplyEvent, SpeechStatus } from '../shared/api'
 
+const fromBase64 = (b64: string): Uint8Array => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))
+
 /** The window's only way to the main process. */
 const api: PlotterApi = {
   auth: {
@@ -70,7 +72,8 @@ const api: PlotterApi = {
   setTheme: (choice) => ipcRenderer.invoke('theme:set', choice),
   openUsage: () => ipcRenderer.invoke('openUsage'),
   pdf: {
-    print: () => ipcRenderer.invoke('pdf:print'),
+    make: async (chatId, messageId) => fromBase64(await ipcRenderer.invoke('pdf:make', chatId, messageId)),
+    ready: () => ipcRenderer.send('pdf:ready'),
     save: (name) => ipcRenderer.invoke('pdf:save', name),
     discard: () => ipcRenderer.invoke('pdf:discard')
   }

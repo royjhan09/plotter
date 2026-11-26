@@ -233,10 +233,12 @@ export interface PlotterApi {
   /** Window frame and Windows title bar follow the chosen theme. */
   setTheme: (theme: 'light' | 'dark') => Promise<void>
   openUsage: () => Promise<void>
-  /** PDF export: print() renders the page as printed (only the chat shows) for a preview; save() asks where to put it. */
+  /** PDF export: make() draws the chat (or one reply and its question) in a hidden window and prints it,
+   *  for a preview; save() asks where to put it. */
   pdf: {
-    /** The PDF's bytes, or null in the dev browser (which shows the browser's own print dialog instead). */
-    print: () => Promise<Uint8Array | null>
+    make: (chatId: string, messageId?: string) => Promise<Uint8Array>
+    /** Called by the hidden print page once everything is drawn. */
+    ready: () => void
     /** The saved file's path, or null if cancelled. */
     save: (name: string) => Promise<string | null>
     discard: () => Promise<void>
