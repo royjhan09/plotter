@@ -2240,3 +2240,349 @@ body,
   color: var(--ink);
   font-size: 15px;
 }
+
+/* ---------- attached pictures (as in Claude Code) ---------- */
+/* message box: square thumbnails in one row that scrolls sideways when there are many */
+.attach-row {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding: 8px 6px 10px;
+  scrollbar-width: thin;
+}
+.attach {
+  flex: none;
+}
+.attach.image {
+  width: 120px;
+  height: 120px;
+  border-radius: 14px;
+  overflow: visible;
+}
+.attach-open {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 13px;
+  overflow: hidden;
+  background: var(--cream);
+  cursor: zoom-in;
+}
+.attach.image .attach-open img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  object-fit: cover;
+  object-position: top left;
+}
+.attach-x {
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.attach:hover .attach-x,
+.attach-x:focus-visible {
+  opacity: 1;
+}
+
+/* sent messages: larger thumbnails that open the viewer */
+.msg-image {
+  display: block;
+  width: 150px;
+  height: 112px;
+  padding: 0;
+  border: 1px solid var(--sand);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--cream);
+  cursor: zoom-in;
+}
+.msg-image img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top left;
+}
+
+/* the full-screen viewer: grows out of the thumbnail and shrinks back into it */
+.picture-view {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  background: rgba(0, 0, 0, 0);
+  transition: background-color 220ms ease;
+}
+.picture-view.is-open {
+  background: rgba(0, 0, 0, 0.6);
+}
+.picture-view figure {
+  position: relative;
+  margin: 0;
+  max-width: 100%;
+  max-height: 100%;
+}
+.picture-view img {
+  display: block;
+  max-width: calc(100vw - 176px);
+  max-height: calc(100vh - 80px);
+  border-radius: 8px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+  transform-origin: 0 0;
+  transition:
+    transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    clip-path 220ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 220ms;
+}
+.picture-view.is-in img,
+.picture-view.is-out img {
+  box-shadow: none;
+}
+/* ✕ and ✏ beside the picture, at its top, so they never cover it */
+.picture-view-tools {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 12px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: opacity 160ms;
+}
+.picture-view.is-in .picture-view-tools,
+.picture-view.is-out .picture-view-tools {
+  opacity: 0;
+}
+.picture-view-tools button {
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  display: grid;
+  place-items: center;
+}
+.picture-view-tools button:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* the editor: draw on a picture before sending */
+.sketch {
+  position: fixed;
+  inset: 0;
+  z-index: 3100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 24px 84px;
+  background: rgba(0, 0, 0, 0.6);
+  animation: sketch-in 160ms ease;
+}
+@keyframes sketch-in {
+  from {
+    opacity: 0;
+  }
+}
+.sketch-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+.sketch-canvas {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+  touch-action: none;
+  cursor: crosshair;
+}
+.sketch-canvas.is-text {
+  cursor: text;
+}
+.sketch-typing {
+  position: fixed;
+  min-width: 120px;
+  padding: 2px 4px;
+  border: 1px dashed currentColor;
+  background: rgba(255, 255, 255, 0.85);
+  font:
+    600 18px 'Segoe UI',
+    'Malgun Gothic',
+    sans-serif;
+  outline: none;
+}
+.sketch-tools {
+  position: fixed;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px;
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.25);
+}
+.sketch-tools button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 40px;
+  height: 40px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  color: var(--muted);
+  font-size: 14px;
+}
+.sketch-tools button:hover:not(:disabled) {
+  background: var(--sand);
+  color: var(--ink);
+}
+.sketch-tools button.is-on {
+  background: color-mix(in srgb, #1c7ed6 14%, transparent);
+  color: #1c7ed6;
+}
+.sketch-tools button.is-open {
+  background: var(--sand);
+  color: var(--ink);
+}
+.sketch-tools button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.sketch-tools .sketch-save {
+  padding: 0 16px;
+  background: var(--sand);
+  color: var(--ink);
+  font-weight: 600;
+}
+.sketch-tools .sketch-save:not(:disabled) {
+  background: var(--orange);
+  color: #fff;
+}
+.sketch-pick {
+  position: relative;
+  display: inline-flex;
+}
+.sketch-menu {
+  position: absolute;
+  bottom: calc(100% + 14px);
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+  padding: 8px;
+  border: 1px solid var(--sand);
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+}
+.sketch-menu.is-narrow {
+  min-width: 170px;
+}
+.sketch-tools .sketch-menu button {
+  justify-content: flex-start;
+  gap: 14px;
+  width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 10px;
+  color: var(--ink);
+  font-size: 14.5px;
+}
+.sketch-menu-label {
+  flex: 1;
+  text-align: left;
+}
+.sketch-menu-check {
+  color: #1c7ed6;
+  visibility: hidden;
+  display: inline-flex;
+}
+.sketch-menu button[aria-checked='true'] .sketch-menu-check {
+  visibility: visible;
+}
+.sketch-line {
+  width: 1px;
+  height: 24px;
+  margin: 0 4px;
+  background: var(--sand-strong);
+}
+.sketch-swatch {
+  display: inline-block;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: 50%;
+}
+.sketch-width {
+  display: inline-block;
+  flex: none;
+  width: 30px;
+  border-radius: 6px;
+  background: var(--ink);
+}
+/* "Discard your annotations?" */
+.sketch-confirm-back {
+  position: fixed;
+  inset: 0;
+  z-index: 3200;
+  display: grid;
+  place-items: center;
+}
+.sketch-confirm {
+  width: min(400px, 90vw);
+  padding: 18px 20px 16px;
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.3);
+}
+.sketch-confirm-title {
+  font-weight: 700;
+  font-size: 16px;
+}
+.sketch-confirm p {
+  margin: 6px 0 16px;
+  color: var(--muted);
+  font-size: 14px;
+}
+.sketch-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.sketch-confirm-actions button {
+  border: 1px solid var(--sand-strong);
+  border-radius: 10px;
+  padding: 6px 14px;
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 600;
+}
+.sketch-confirm-actions .discard {
+  border-color: transparent;
+  background: #fff0f0;
+  color: #c92a2a;
+}
+.sketch-stage {
+  min-width: 0;
+}
+.sketch-canvas {
+  max-width: calc(100vw - 48px);
+  max-height: calc(100vh - 110px);
+}

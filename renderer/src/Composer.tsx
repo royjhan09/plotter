@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { Attachment, EffortLevel, SpeechStatus } from '../../shared/api'
 import { ACCEPT, badgeFor, sizeLabel, toAttachment } from './attachments'
 import { startRecording, type Recording } from './audio'
+import { PictureViewer, SketchEditor, type RectSource } from './ImageViewer'
 
 const api = window.plotter
 
@@ -110,6 +111,11 @@ export function Composer(p: Props): React.JSX.Element {
   const filePicker = useRef<HTMLInputElement>(null)
   const [menu, setMenu] = useState<'plus' | 'effort' | null>(null)
   const [dictation, setDictation] = useState<'off' | 'recording' | 'transcribing'>('off')
+  // a picture opened large from its thumbnail, or being drawn on
+  const [viewing, setViewing] = useState<{ id: string; from: RectSource } | null>(null)
+  const [editing, setEditing] = useState<string | null>(null)
+  const viewingAttachment = viewing ? p.attachments.find((x) => x.id === viewing.id) : undefined
+  const editingAttachment = editing ? p.attachments.find((x) => x.id === editing) : undefined
   const rec = useRef<Recording | null>(null)
   const speech = useSpeechStatus()
   const canSend = (p.draft.trim().length > 0 || p.attachments.length > 0) && p.ready
@@ -199,7 +205,16 @@ export function Composer(p: Props): React.JSX.Element {
           {p.attachments.map((a) => (
             <div key={a.id} className={`attach ${a.kind}`} title={a.name}>
               {a.kind === 'image' ? (
-                <img src={a.data} alt={a.name} />
+                <button
+                  className="attach-open"
+                  aria-label={`View ${a.name}`}
+                  onClick={(e) => {
+                    const thumb = e.currentTarget
+                    setViewing({ id: a.id, from: () => (thumb.isConnected ? thumb.getBoundingClientRect() : null) })
+                  }}
+                >
+                  <img src={a.data} alt={a.name} />
+                </button>
               ) : (
                 <>
                   <span className="file-badge">{badgeFor(a)}</span>
@@ -215,6 +230,28 @@ export function Composer(p: Props): React.JSX.Element {
             </div>
           ))}
         </div>
+      )}
+      {viewingAttachment && (
+        <PictureViewer
+          src={viewingAttachment.data}
+          from={viewing!.from}
+          onEdit={() => {
+            setEditing(viewingAttachment.id)
+            setViewing(null)
+          }}
+          onClose={() => setViewing(null)}
+        />
+      )}
+      {editingAttachment && (
+        <SketchEditor
+          src={editingAttachment.data}
+          onClose={() => setEditing(null)}
+          onSave={(data) => {
+            const size = Math.round(((data.length - data.indexOf(',') - 1) * 3) / 4)
+            p.setAttachments((prev) => prev.map((x) => (x.id === editingAttachment.id ? { ...x, data, mime: 'image/png', size } : x)))
+            setEditing(null)
+          }}
+        />
       )}
 
       <div className="composer-row">

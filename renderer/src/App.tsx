@@ -7,6 +7,7 @@ import { badgeFor, sizeLabel, toAttachment } from './attachments'
 import { useThemeSetting, type Theme } from './theme'
 import { CanvasContext, CanvasPanel } from './Canvas'
 import { CustomizePanel, Settings } from './Settings'
+import { PictureViewer } from './ImageViewer'
 import icon from '../../assets/icon.png'
 
 const api = window.plotter
@@ -631,7 +632,7 @@ function Message({ m, typing, activity }: { m: ChatMessage; typing: boolean; act
           <div className="msg-attachments">
             {m.attachments.map((a) =>
               a.kind === 'image' ? (
-                <img key={a.id} src={a.data} alt={a.name} className="msg-image" />
+                <SentPicture key={a.id} src={a.data} name={a.name} />
               ) : (
                 <div key={a.id} className="attach file in-msg">
                   <span className="file-badge">{badgeFor(a)}</span>
@@ -835,5 +836,19 @@ function RailIcon({ name }: { name: 'new' | 'chats' | 'home' | 'customize' | 'se
       <path d="M9 4v16" />
       {name === 'unpin' && <path d="M4.5 6h3M4.5 9h3M4.5 12h3" />}
     </svg>
+  )
+}
+
+/** A picture in a sent message: a thumbnail that grows into the full-screen viewer. */
+function SentPicture({ src, name }: { src: string; name: string }): React.JSX.Element {
+  const thumb = useRef<HTMLButtonElement>(null)
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <button ref={thumb} className="msg-image" aria-label={`View ${name}`} title={name} onClick={() => setOpen(true)}>
+        <img src={src} alt={name} />
+      </button>
+      {open && <PictureViewer src={src} from={() => thumb.current?.getBoundingClientRect() ?? null} onClose={() => setOpen(false)} />}
+    </>
   )
 }
