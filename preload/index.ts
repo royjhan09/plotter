@@ -20,7 +20,8 @@ const api: PlotterApi = {
     remove: (id) => ipcRenderer.invoke('chats:remove', id),
     update: (id, patch) => ipcRenderer.invoke('chats:update', id, patch),
     title: (userText, replyText) => ipcRenderer.invoke('chats:title', userText, replyText),
-    suggest: (kind, userText, replyText) => ipcRenderer.invoke('chats:suggest', kind, userText, replyText)
+    suggest: (kind, userText, replyText) => ipcRenderer.invoke('chats:suggest', kind, userText, replyText),
+    brief: (chatId) => ipcRenderer.invoke('chats:brief', chatId)
   },
   reply: {
     send: (request) => ipcRenderer.invoke('reply:send', request),
@@ -62,6 +63,8 @@ const api: PlotterApi = {
     send: (chatId, messageId) => ipcRenderer.invoke('claudeCode:send', chatId, messageId),
     stop: (chatId) => ipcRenderer.invoke('claudeCode:stop', chatId),
     openFolder: (folder) => ipcRenderer.invoke('claudeCode:openFolder', folder),
+    suggestFolder: (name) => ipcRenderer.invoke('claudeCode:suggestFolder', name),
+    makeFolder: (path) => ipcRenderer.invoke('claudeCode:makeFolder', path),
     onUpdate: (listener) => {
       const handler = (_e: IpcRendererEvent, u: ClaudeCodeUpdate): void => listener(u)
       ipcRenderer.on('claudeCode:update', handler)

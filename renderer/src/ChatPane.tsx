@@ -1,6 +1,6 @@
 import { useCallback, useContext, useEffect, useRef, useState } from 'react'
 import type { Attachment, Chat, ChatKind, ChatMessage, ClaudeChatConfig, HandOff, Model, ReplyEvent } from '../../shared/api'
-import { Composer } from './Composer'
+import { Composer, EffortMenu } from './Composer'
 import { VoiceMode } from './VoiceMode'
 import { toAttachment } from './attachments'
 import { CanvasContext } from './Canvas'
@@ -99,6 +99,28 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
   const [ccMissing, setCcMissing] = useState<string | null>(null)
   // a ChatGPT reply handed to this (new) Claude Code chat, shown as a card in the message box
   const [handOff, setHandOff] = useState<HandOff | null>(null)
+  const handOffRef = useRef<HandOff | null>(null)
+  handOffRef.current = handOff
+  // a project brief's suggested new folder (Create project), and whether it was made
+  const [suggested, setSuggested] = useState<{ path: string; made: boolean } | null>(null)
+  useEffect(() => {
+    setSuggested(null)
+    if (!handOff?.folder || chat) return
+    void api.claudeCode.suggestFolder(handOff.folder).then((path) => setSuggested({ path, made: false })).catch(() => undefined)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [handOff])
+  const makeSuggested = async (): Promise<void> => {
+    if (!suggested) return
+    try {
+      const path = await api.claudeCode.makeFolder(suggested.path)
+      setSuggested({ path, made: true })
+      setCcNew((c) => (c ? { ...c, folder: path } : { folder: path, mode: 'edit', effort: localStorage.getItem(CC_EFFORT_KEY) ?? 'xhigh' }))
+    } catch (e) {
+      toast(cleanError(e))
+    }
+  }
+  // "Create project": ChatGPT sums up this chat into a brief, then a Claude Code chat opens beside it with the brief attached
+  const [briefBusy, setBriefBusy] = useState(false)
   const isClaude = chat ? chat.kind === 'claude' : newKind === 'claude'
   const cc = chat ? chat.cc : ccNew
   const ccBusy = !!chat && chat.kind === 'claude' && chat.messages.some((m) => m.cc?.state === 'running')
@@ -183,7 +205,7 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
   // A new Claude Code chat starts in the folder used last (and checks Claude Code is installed).
   useEffect(() => {
     if (chat || newKind !== 'claude' || ccNew) return
-    void api.claudeCode.folders().then((list) => setCcNew((c) => c ?? { folder: list[0] ?? '', mode: 'edit', effort: localStorage.getItem(CC_EFFORT_KEY) ?? 'xhigh' }))
+    void api.claudeCode.folders().then((list) => setCcNew((c) => c ?? { folder: handOffRef.current?.folder ? '' : (list[0] ?? ''), mode: 'edit', effort: localStorage.getItem(CC_EFFORT_KEY) ?? 'xhigh' }))
     void api.claudeCode.available().then((a) => setCcMissing(a.ok ? null : (a.error ?? 'Claude Code is not available.')))
   }, [chat, newKind, ccNew])
 
@@ -320,6 +342,20 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
   }
 
   /** A Claude Code chat: the message goes to Claude Code, which keeps working in its own session. */
+  const createProject = async (): Promise<void> => {
+    const current = chatRef.current
+    if (!current || briefBusy) return
+    setBriefBusy(true)
+    try {
+      const b = await api.chats.brief(current.id)
+      p.onSendToClaude('', { chat: b.title || current.title, text: b.brief, kind: 'brief', folder: b.folder })
+    } catch (e) {
+      toast(`Could not make the project brief: ${cleanError(e)}`)
+    } finally {
+      setBriefBusy(false)
+    }
+  }
+
   const sendClaude = async (): Promise<void> => {
     const current = chatRef.current
     const text = draft.trim()
@@ -440,6 +476,7 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
   }
 
   const messages = chat?.messages ?? []
+  const lastReply = messages.reduce((at, m, i) => (m.role === 'assistant' && m.text && !m.cc ? i : at), -1)
   return (
     <main
       className={`main pane ${isClaude ? `claude theme-${ccTheme}` : ''} ${p.split ? 'split' : ''} ${p.focused ? 'focused' : ''}`}
@@ -514,6 +551,8 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
                   <>
                     Claude Code works in <b title={cc.folder}>{folderName(cc.folder)}</b>. Change it with the folder button below the message box.
                   </>
+                ) : handOff?.kind === 'brief' ? (
+                  'Your project brief is attached. Create the suggested new folder for it (or choose another below), then press send: Claude Code starts building right away.'
                 ) : (
                   'Select a folder below the message box, then tell Claude Code what to do.'
                 )}
@@ -543,8 +582,8 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
                 chatId={chat?.id}
                 typing={!!pending && i === messages.length - 1 && m.role === 'assistant'}
                 activity={activity}
-                onPdf={p.pdfBusy || !chat ? undefined : (id) => p.savePdf(id, chat)}
-                onClaudeCode={isClaude || !CLAUDE_CODE ? undefined : (msg) => p.onSendToClaude('', { chat: chat?.title || 'ChatGPT chat', text: msg.text })}
+                onProject={isClaude || !CLAUDE_CODE || i !== lastReply ? undefined : () => void createProject()}
+                projectBusy={briefBusy}
               />
             ))}
           </div>
@@ -565,9 +604,6 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
           setDraft={setDraft}
           attachments={attachments}
           setAttachments={setAttachments}
-          efforts={isClaude ? CLAUDE_EFFORTS : (p.model?.efforts ?? [])}
-          effort={isClaude ? (cc?.effort ?? 'xhigh') : p.effort}
-          setEffort={isClaude ? (effort) => setCc({ effort }) : p.setEffort}
           leadSlot={isClaude ? <span className="lead-gap" /> : undefined}
           pending={isClaude ? ccBusy : !!pending}
           ready={isClaude ? true : !!p.model}
@@ -595,23 +631,49 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
           onClaudeCode={isClaude || !CLAUDE_CODE ? undefined : () => p.onSendToClaude(draft)}
           variant={isClaude ? 'claude' : 'chatgpt'}
           suggestion={handOff ? undefined : suggestion}
-          topSlot={handOff ? <HandOffCard from={handOff} onRemove={() => setHandOff(null)} /> : undefined}
+          topSlot={
+            handOff ? (
+              <>
+                <HandOffCard from={handOff} onRemove={() => setHandOff(null)} />
+                {suggested && !chat && (
+                  <div className="folder-suggest">
+                    {cc?.folder === suggested.path && suggested.made ? (
+                      <span>
+                        Created <b>{folderName(suggested.path)}</b>. Claude Code will build the project there.
+                      </span>
+                    ) : (
+                      <>
+                        <span className="folder-suggest-text">
+                          New folder <b>{folderName(suggested.path)}</b> in {suggested.path.slice(0, suggested.path.length - folderName(suggested.path).length).replace(/[\\/]$/, '')}
+                        </span>
+                        <button className="btn small primary" onClick={() => void makeSuggested()}>
+                          Create folder
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </>
+            ) : undefined
+          }
           canSendEmpty={isClaude && !!handOff}
         />
-        {isClaude && (
-          <div className="composer-below">
-            <FolderPicker folder={cc?.folder ?? ''} onPick={(folder) => setCc({ folder })} autoOpen={!chat && !!cc && !cc.folder} />
-            <span className="plan-note inline">Claude Code · on your Claude subscription</span>
-          </div>
-        )}
-        {!isClaude && (
-          <div className="plan-note">
-            {p.planUsage ? 'Using ChatGPT plan' : 'Plan usage not granted at sign-in'} ·{' '}
-            <button className="link" onClick={() => void api.openUsage()}>
-              Manage usage
+        <div className="composer-below">
+          {isClaude ? (
+            <FolderPicker folder={cc?.folder ?? ''} onPick={(folder) => setCc({ folder })} autoOpen={!chat && !!cc && !cc.folder && !handOff?.folder} />
+          ) : !p.planUsage ? (
+            <button className="link plan-warn" onClick={() => void api.openUsage()} title="Plotter can’t use your ChatGPT plan until you allow it at sign-in">
+              Plan usage not granted
             </button>
-          </div>
-        )}
+          ) : (
+            <span />
+          )}
+          {isClaude ? (
+            <EffortMenu title="Effort" efforts={CLAUDE_EFFORTS} effort={cc?.effort ?? 'xhigh'} setEffort={(effort) => setCc({ effort })} />
+          ) : (
+            <EffortMenu efforts={p.model?.efforts ?? []} effort={p.effort} setEffort={p.setEffort} />
+          )}
+        </div>
       </div>
 
       {voice && (

@@ -3,7 +3,6 @@ import type { ChatMessage, HandOff } from '../../shared/api'
 import { Markdown } from './Markdown'
 import { badgeFor, sizeLabel } from './attachments'
 import { PictureViewer } from '@private/renderer/ImageViewer'
-import { PDF_EXPORT, PdfBadge } from '@private/renderer/PdfPreview'
 import { ClaudeBuddy, ClaudeCodeIcon } from './ClaudeBuddy'
 import { ClaudeTurn } from '@private/renderer/ClaudeCode'
 import icon from '../../assets/icon.png'
@@ -22,16 +21,17 @@ export function Message({
   typing,
   activity,
   chatId,
-  onPdf,
-  onClaudeCode
+  onProject,
+  projectBusy = false
 }: {
   m: ChatMessage
   typing: boolean
   activity?: string | null
   /** The chat it is in (a Claude Code reply's Stop button needs it). */
   chatId?: string
-  onPdf?: (id: string) => void
-  onClaudeCode?: (m: ChatMessage) => void
+  /** "Create project" (on a chat's last reply): sums the chat up into a brief and hands it to Claude Code. */
+  onProject?: () => void
+  projectBusy?: boolean
 }): React.JSX.Element {
   if (m.role === 'user')
     return (
@@ -68,12 +68,6 @@ export function Message({
           {m.error && m.error !== 'Stopped.' && <div className="error">{m.error}</div>}
           {m.cc.state !== 'running' && m.text && (
             <div className="msg-actions">
-              {PDF_EXPORT && (
-                <button title="Convert this reply to a PDF" disabled={!onPdf} onClick={() => onPdf?.(m.id)}>
-                  <PdfBadge size={16} />
-                  Convert to PDF
-                </button>
-              )}
               <button title="Copy Claude Code's answer" onClick={() => void navigator.clipboard.writeText(m.text)}>
                 Copy
               </button>
@@ -107,21 +101,20 @@ export function Message({
             <i />
           </span>
         ) : null}
-        {m.sources && m.sources.length > 0 && !typing && <Sources sources={m.sources} />}
         {m.error && m.error !== 'Stopped.' && <div className="error">{m.error}</div>}
         {m.error === 'Stopped.' && <div className="stopped">Stopped</div>}
-        {!typing && m.text && (PDF_EXPORT || onClaudeCode) && (
+        {!typing && m.text && ((m.sources?.length ?? 0) > 0 || onProject) && (
           <div className="msg-actions">
-            {PDF_EXPORT && (
-              <button title="Convert this reply to a PDF" disabled={!onPdf} onClick={() => onPdf?.(m.id)}>
-                <PdfBadge size={16} />
-                Convert to PDF
-              </button>
-            )}
-            {onClaudeCode && (
-              <button title="Hand this to your own Claude Code to carry out" onClick={() => onClaudeCode(m)}>
-                <ClaudeCodeIcon size={16} />
-                Send to Claude Code
+            {m.sources && m.sources.length > 0 && <Sources sources={m.sources} />}
+            {onProject && (
+              <button
+                className="project-btn"
+                title="Sum up this whole chat into a brief and start building it with Claude Code"
+                disabled={projectBusy}
+                onClick={onProject}
+              >
+                {projectBusy ? <span className="mini-spin" /> : <ClaudeCodeIcon size={16} />}
+                {projectBusy ? 'Preparing the project…' : 'Create project'}
               </button>
             )}
           </div>
@@ -175,7 +168,7 @@ export function HandOffCard({ from, onRemove }: { from: HandOff; onRemove?: () =
         <img src={icon} alt="" className="handoff-icon" />
         <span className="handoff-meta">
           <span className="handoff-label">
-            <span className="handoff-from">Reply from</span>
+            <span className="handoff-from">{from.kind === 'brief' ? 'Project brief from' : 'Reply from'}</span>
             <b>{from.chat}</b>
             {visuals > 0 && <span className="handoff-chip">{visuals === 1 ? '1 visual' : `${visuals} visuals`}</span>}
           </span>

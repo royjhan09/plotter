@@ -60,7 +60,8 @@ export function installDevBridge(): void {
       remove: (id) => call('chats:remove', id),
       update: (id, patch) => call('chats:update', id, patch),
       title: (userText, replyText) => call('chats:title', userText, replyText),
-      suggest: (kind, userText, replyText) => call('chats:suggest', kind, userText, replyText)
+      suggest: (kind, userText, replyText) => call('chats:suggest', kind, userText, replyText),
+      brief: (chatId) => call('chats:brief', chatId)
     },
     reply: {
       send: (request) => call('reply:send', request),
@@ -108,6 +109,8 @@ export function installDevBridge(): void {
       send: (chatId, messageId) => call('claudeCode:send', chatId, messageId),
       stop: (chatId) => call('claudeCode:stop', chatId),
       openFolder: (folder) => call('claudeCode:openFolder', folder),
+      suggestFolder: (name) => call('claudeCode:suggestFolder', name),
+      makeFolder: (path) => call('claudeCode:makeFolder', path),
       onUpdate: (l) => {
         listeners.claudeCode.add(l)
         return () => listeners.claudeCode.delete(l)

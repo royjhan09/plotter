@@ -55,12 +55,25 @@ export interface ChatMessage {
   at: number
 }
 
-/** A reply handed from a ChatGPT chat to Claude Code. */
+/** A reply (or a project brief) handed from a ChatGPT chat to Claude Code. */
 export interface HandOff {
   /** The title of the chat it came from. */
   chat: string
-  /** The reply's full text (Markdown, visuals included). */
+  /** The reply's full text, or the brief (Markdown, visuals included). */
   text: string
+  /** brief: a project brief made from the whole chat ("Create project"). */
+  kind?: 'reply' | 'brief'
+  /** A brief's suggested name for the project's new folder (kebab-case). */
+  folder?: string
+}
+
+/** A chat summarised into a brief Claude Code can start building from. */
+export interface ProjectBrief {
+  title: string
+  /** Suggested folder name (kebab-case). */
+  folder: string
+  /** The brief, in Markdown. */
+  brief: string
 }
 
 export interface Chat {
@@ -306,6 +319,8 @@ export interface PlotterApi {
     title: (userText: string, replyText: string) => Promise<string>
     /** A one-line guess at the user's next message, shown greyed out in an empty message box (Tab fills it in). */
     suggest: (kind: ChatKind, userText: string, replyText: string) => Promise<string>
+    /** "Create project": the whole chat summarised by ChatGPT into a brief for Claude Code. */
+    brief: (chatId: string) => Promise<ProjectBrief>
   }
   reply: {
     send: (request: SendRequest) => Promise<void>
@@ -350,6 +365,10 @@ export interface PlotterApi {
     send: (chatId: string, messageId: string) => Promise<void>
     stop: (chatId: string) => Promise<void>
     openFolder: (folder: string) => Promise<void>
+    /** Where a new project folder with this name would go (next to recent projects; not created yet). */
+    suggestFolder: (name: string) => Promise<string>
+    /** Creates a new, empty project folder and returns its path. */
+    makeFolder: (path: string) => Promise<string>
     onUpdate: (listener: (update: ClaudeCodeUpdate) => void) => () => void
   }
   python: {

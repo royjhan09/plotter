@@ -92,9 +92,6 @@ interface Props {
   setDraft: (v: string | ((prev: string) => string)) => void
   attachments: Attachment[]
   setAttachments: (f: (prev: Attachment[]) => Attachment[]) => void
-  efforts: EffortLevel[]
-  effort: string
-  setEffort: (e: string) => void
   pending: boolean
   ready: boolean
   placeholder: string
@@ -127,7 +124,7 @@ export function Composer(p: Props): React.JSX.Element {
   const suggesting = !!p.suggestion && !p.draft && !p.research && !p.pending
   const input = useRef<HTMLTextAreaElement>(null)
   const filePicker = useRef<HTMLInputElement>(null)
-  const [menu, setMenu] = useState<'plus' | 'effort' | null>(null)
+  const [menu, setMenu] = useState<'plus' | null>(null)
   const [dictation, setDictation] = useState<'off' | 'recording' | 'transcribing'>('off')
   // a picture opened large from its thumbnail, or being drawn on
   const [viewing, setViewing] = useState<{ id: string; from: RectSource } | null>(null)
@@ -397,41 +394,6 @@ export function Composer(p: Props): React.JSX.Element {
           </>
         ) : (
           <>
-            {p.efforts.length > 0 && (
-              <div className="pop-anchor">
-                <button
-                  className="effort-btn"
-                  title="Reasoning level"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setMenu(menu === 'effort' ? null : 'effort')
-                  }}
-                >
-                  {effortLabel(p.effort)} <Chevron />
-                </button>
-                {menu === 'effort' && (
-                  <div className="pop right" onClick={(e) => e.stopPropagation()}>
-                    <div className="pop-title">Reasoning</div>
-                    {p.efforts.map((l) => (
-                      <button
-                        key={l.effort}
-                        className={`pop-item effort ${l.effort === p.effort ? 'on' : ''}`}
-                        onClick={() => {
-                          p.setEffort(l.effort)
-                          setMenu(null)
-                        }}
-                      >
-                        <span className="effort-text">
-                          <span className="effort-name">{effortLabel(l.effort)}</span>
-                          {l.description && <span className="effort-desc">{l.description}</span>}
-                        </span>
-                        {l.effort === p.effort && <Check />}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
             <button className="icon-btn" title="Dictate" disabled={dictation !== 'off'} onClick={() => void startDictation()}>
               <Mic />
             </button>
@@ -476,6 +438,59 @@ function LiveWave({ level }: { level: () => number }): React.JSX.Element {
       {bars.map((v, i) => (
         <i key={i} style={{ height: `${Math.round(4 + v * 26)}px` }} />
       ))}
+    </div>
+  )
+}
+
+/**
+ * The reasoning (or Claude Code effort) menu, on the row below the message box so the box keeps its room.
+ * It opens upward, from the right.
+ */
+export function EffortMenu({ efforts, effort, setEffort, title = 'Reasoning' }: { efforts: EffortLevel[]; effort: string; setEffort: (e: string) => void; title?: string }): React.JSX.Element | null {
+  const [open, setOpen] = useState(false)
+  const box = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!open) return
+    const away = (e: MouseEvent): void => {
+      if (!box.current?.contains(e.target as Node)) setOpen(false)
+    }
+    const esc = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('mousedown', away)
+    window.addEventListener('keydown', esc)
+    return () => {
+      document.removeEventListener('mousedown', away)
+      window.removeEventListener('keydown', esc)
+    }
+  }, [open])
+  if (!efforts.length) return null
+  return (
+    <div className="pop-anchor effort-below" ref={box}>
+      <button className={`effort-btn small ${open ? 'open' : ''}`} title={title} onClick={() => setOpen(!open)}>
+        {effortLabel(effort)} <Chevron />
+      </button>
+      {open && (
+        <div className="pop right">
+          <div className="pop-title">{title}</div>
+          {efforts.map((l) => (
+            <button
+              key={l.effort}
+              className={`pop-item effort ${l.effort === effort ? 'on' : ''}`}
+              onClick={() => {
+                setEffort(l.effort)
+                setOpen(false)
+              }}
+            >
+              <span className="effort-text">
+                <span className="effort-name">{effortLabel(l.effort)}</span>
+                {l.description && <span className="effort-desc">{l.description}</span>}
+              </span>
+              {l.effort === effort && <Check />}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

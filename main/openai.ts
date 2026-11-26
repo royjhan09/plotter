@@ -1,5 +1,5 @@
 import { accessToken } from './auth'
-import type { HistoryItem, Model, ToolRun } from '../shared/api'
+import type { Chat, HistoryItem, Model, ProjectBrief, ToolRun } from '../shared/api'
 
 /**
  * Calls to the Responses API with the ChatGPT-plan access token. Preview rules
@@ -382,4 +382,64 @@ export async function generateSuggestion(kind: 'chatgpt' | 'claude', userText: s
     .replace(/^["'“”‘’「『]+|["'“”‘’」』]+$/g, '')
     .trim()
     .slice(0, 120)
+}
+
+const BRIEF_INSTRUCTIONS = `You turn a chat between a user and ChatGPT into a project brief for Claude Code, a coding agent that will build the project in a new, empty folder. It sees only your brief, not the chat.
+
+Pick out what matters for building and leave out the rest (greetings, detours, ideas the user dropped, citations). Where the chat changed its mind, keep only the final decision. Keep concrete details exactly: names, texts on the page, colours, sizes, data, URLs, the order of sections. If the chat has visuals (code blocks tagged ui, chart or mermaid) that show what to build, copy the relevant ones in full; they are the design. Write in the language the user wrote in, but keep code and file names in English.
+
+Reply with JSON only, no code fence:
+{"title": "<the project's name, short>", "folder": "<a short kebab-case folder name, ascii only>", "brief": "<the brief in Markdown>"}
+
+The brief has these sections:
+## Goal (what to build and for whom, two or three sentences)
+## What it must do (the features, as a list)
+## Design (layout, colours, type, components, with the visuals copied in)
+## Content (exact texts, data, assets to use)
+## Tech (a suggested stack that fits; say if the chat chose one)
+## First steps (what to build first, so Claude Code can start right away)
+## Open questions (anything the chat left undecided; Claude Code should choose sensibly and say what it chose)`
+
+/** "Create project": the whole chat, summarised by ChatGPT into a brief Claude Code can start building from. */
+export async function generateProjectBrief(chat: Chat): Promise<ProjectBrief> {
+  const model = await primaryModel()
+  const effort = model.efforts.find((e) => e.effort === 'medium')?.effort ?? model.defaultEffort
+  const turns = chat.messages
+    .filter((m) => m.text.trim() && !m.cc)
+    .map((m) => `### ${m.role === 'user' ? 'User' : 'ChatGPT'}\n${m.text.replace(/\[\[tool:[^\]]+\]\]/g, '').trim()}`)
+  // keep the start (what the user asked for) and as much of the end as fits
+  let transcript = turns.join('\n\n')
+  const LIMIT = 120_000
+  if (transcript.length > LIMIT) transcript = `${transcript.slice(0, 20_000)}\n\n[…the middle of the chat is left out…]\n\n${transcript.slice(-(LIMIT - 20_000))}`
+  if (!transcript) throw new Error('This chat has nothing to make a project from yet.')
+  let out = ''
+  await streamRound(
+    {
+      model: model.slug,
+      effort,
+      instructions: BRIEF_INSTRUCTIONS,
+      input: [toInput({ role: 'user', text: `The chat, titled "${chat.title}":\n\n${transcript}` })],
+      tools: [],
+      verbosity: 'medium'
+    },
+    { onDelta: (t) => (out += t), onActivity: () => undefined, onSource: () => undefined },
+    AbortSignal.timeout(180_000)
+  )
+  const json = out.slice(out.indexOf('{'), out.lastIndexOf('}') + 1)
+  let parsed: Partial<ProjectBrief> = {}
+  try {
+    parsed = JSON.parse(json) as Partial<ProjectBrief>
+  } catch {
+    // not JSON after all: use the text as the brief
+    parsed = { brief: out.trim() }
+  }
+  const brief = String(parsed.brief ?? '').trim()
+  if (!brief) throw new Error('ChatGPT did not write a brief. Try again.')
+  const folder =
+    String(parsed.folder ?? '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 40) || 'new-project'
+  return { title: String(parsed.title ?? chat.title).trim() || chat.title, folder, brief }
 }

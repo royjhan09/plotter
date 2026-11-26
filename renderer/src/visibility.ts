@@ -74,6 +74,13 @@ export const VISIBILITY: VisibilityGroup[] = [
       { name: 'Memory, Run Python, Canvas, deep research', now: 'public', advice: 'must-public', why: 'Tools and modes ChatGPT uses during replies.', tradeoff: 'Same as above.' },
       { name: 'Connectors (Google, Notion)', now: 'public', advice: 'must-public', why: 'Tools ChatGPT calls during replies.', tradeoff: 'Same as above.' },
       { name: 'Chat titles and Tab suggestions', now: 'public', advice: 'must-public', why: 'Small ChatGPT requests made after replies.', tradeoff: 'Same as above.' },
+      {
+        name: 'Create project (the brief)',
+        now: 'public',
+        advice: 'must-public',
+        why: 'ChatGPT sums the chat up into a brief (main/openai.ts). Handing it to Claude Code and making the new folder are private.',
+        tradeoff: 'Shows how the brief is asked for, nothing of the Claude Code side.'
+      },
       { name: 'Voice mode and dictation', now: 'public', advice: 'must-public', why: 'Voice mode sends your speech to ChatGPT, and needs dictation (speech to text) to do it.', tradeoff: 'Dictation stays with voice mode so the public app is complete.' },
       {
         name: 'Handing Market tools to a ChatGPT reply',

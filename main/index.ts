@@ -2,7 +2,7 @@ import { writeFile } from 'node:fs/promises'
 import { app, BrowserWindow, dialog, ipcMain, shell, nativeImage, nativeTheme, protocol, session } from 'electron'
 import { join } from 'node:path'
 import { authState, cancelSignIn, loadSession, signIn, signOut } from './auth'
-import { forgetModel, generateSuggestion, generateTitle, primaryModel, ReplyError } from './openai'
+import { forgetModel, generateProjectBrief, generateSuggestion, generateTitle, primaryModel, ReplyError } from './openai'
 import { reply } from './assistant'
 import { onPythonStatus, pythonStatus, PY_SCHEME } from './python'
 import { connect as connectService, disconnect as disconnectService, listConnectors, setEnabled as setConnectorEnabled, setGoogleClient, setNotionToken } from './connectors'
@@ -13,7 +13,7 @@ import { getUiFrame, putUiFrame, UI_FRAME_CSP } from './uiFrames'
 import { showInExplorer } from './frontExplorer'
 import { pdfHandlers } from '@private/main/pdf'
 import { checkMarketTool, closeAllMarket, listMarket, removeMarketTool, saveMarketTool, setMarketConnected } from '@private/main/market'
-import { claudeCodeAvailable, recentFolders, sendToClaude, settleStale, stopAllClaude, stopClaude } from '@private/main/claudeCode'
+import { claudeCodeAvailable, makeProjectFolder, recentFolders, suggestProjectFolder, sendToClaude, settleStale, stopAllClaude, stopClaude } from '@private/main/claudeCode'
 import { USAGE_URL, type Chat, type ChatMetaPatch, type MarketToolInput, type ConnectorId, type Features, type ReplyEvent, type SendRequest } from '../shared/api'
 
 app.setName('Plotter')
@@ -130,6 +130,11 @@ export const handlers: Record<string, (...args: never[]) => unknown> = {
   },
   'chats:title': (userText: string, replyText: string) => generateTitle(userText, replyText),
   'chats:suggest': (kind: string, userText: string, replyText: string) => generateSuggestion(kind === 'claude' ? 'claude' : 'chatgpt', String(userText ?? ''), String(replyText ?? '')),
+  'chats:brief': (id: string) => {
+    const chat = getChat(String(id))
+    if (!chat) throw new Error('That chat no longer exists.')
+    return generateProjectBrief(chat)
+  },
   'ui:put': (html: string, dark: boolean) => putUiFrame(String(html), !!dark),
 
   'features:get': () => readFeatures(),
@@ -160,6 +165,8 @@ export const handlers: Record<string, (...args: never[]) => unknown> = {
     return r.canceled ? null : (r.filePaths[0] ?? null)
   },
   'claudeCode:send': (chatId: string, messageId: string) => sendToClaude(String(chatId), String(messageId), (u) => emit('claudeCode:update', u)),
+  'claudeCode:suggestFolder': (name: string) => suggestProjectFolder(String(name ?? '')),
+  'claudeCode:makeFolder': (path: string) => makeProjectFolder(String(path ?? '')),
   'claudeCode:stop': (chatId: string) => stopClaude(String(chatId)),
   'claudeCode:openFolder': async (folder: string) => {
     if (typeof folder !== 'string' || !folder) return

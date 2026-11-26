@@ -18,3 +18,11 @@ export async function sendToClaude(_chatId: string, _messageId: string, _emit: (
 export function stopClaude(_chatId: string): void {}
 
 export function stopAllClaude(): void {}
+
+export function suggestProjectFolder(_name: string): string {
+  throw new Error('Claude Code chats are not part of this build.')
+}
+
+export function makeProjectFolder(_path: string): string {
+  throw new Error('Claude Code chats are not part of this build.')
+}
