@@ -6,7 +6,7 @@ import { VoiceMode } from './VoiceMode'
 import { badgeFor, sizeLabel, toAttachment } from './attachments'
 import { useThemeSetting, type Theme } from './theme'
 import { CanvasContext, CanvasPanel } from './Canvas'
-import { CustomizePanel, Settings } from './Settings'
+import { CustomizePanel, Settings, type Tab as SettingsTab } from './Settings'
 import { PictureViewer } from './ImageViewer'
 import { PdfBadge, PdfPreview } from './PdfPreview'
 import { ChatList } from './ChatList'
@@ -137,8 +137,8 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
   }
   const [searching, setSearching] = useState(false)
   const [query, setQuery] = useState('')
-  const [settingsTab, setSettingsTab] = useState<'features' | 'memory' | 'connectors'>('features')
-  const openSettings = (tab: 'features' | 'memory' | 'connectors'): void => {
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>('account')
+  const openSettings = (tab: SettingsTab): void => {
     setSettingsTab(tab)
     setSettingsOpen(true)
     setPanel(null)
@@ -283,6 +283,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
   }, [chat?.messages])
 
   const openChat = async (id: string): Promise<void> => {
+    setSettingsOpen(false)
     if (pending) return
     const c = await api.chats.get(id)
     if (c) setChat(c)
@@ -310,6 +311,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
   }
 
   const newChat = (): void => {
+    setSettingsOpen(false)
     if (pending) return
     setChat(null)
     setDraft('')
@@ -447,7 +449,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
         <div className="rail-fill" />
         <div className="rail-bottom">
           <ThemeButton theme={theme} onChange={setTheme} />
-          <button className="rail-btn" title="Settings" onClick={() => openSettings('features')}>
+          <button className={`rail-btn ${settingsOpen ? 'on' : ''}`} title="Settings" onClick={() => (settingsOpen ? setSettingsOpen(false) : openSettings('general'))}>
             <RailIcon name="settings" />
           </button>
           <button
@@ -470,7 +472,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
               email={auth.account.email}
               onClose={() => setAccountMenu(false)}
               onUsage={() => void api.openUsage()}
-              onSettings={() => openSettings('features')}
+              onSettings={() => openSettings('account')}
               onSignOut={() => void signOut()}
             />
           )}
@@ -526,7 +528,28 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
         )}
       </aside>
 
+      {settingsOpen && (
+        <Settings
+          initialTab={settingsTab}
+          onClose={() => setSettingsOpen(false)}
+          account={auth.account}
+          planUsage={auth.planUsage}
+          theme={theme}
+          setTheme={setTheme}
+          onUsage={() => void api.openUsage()}
+          onSignOut={() => void signOut()}
+          chats={chats}
+          onOpenChat={(id) => {
+            setSettingsOpen(false)
+            void openChat(id)
+          }}
+          onUpdateChat={updateChat}
+          onDeleteChat={(c) => setDeleting({ id: c.id, title: c.title })}
+        />
+      )}
+
       <main
+        hidden={settingsOpen}
         className="main"
         onDragOver={(e) => {
           if (e.dataTransfer.types.includes('Files')) e.preventDefault()
@@ -617,7 +640,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
         </div>
       </main>
 
-      {canvas && <CanvasPanel doc={canvas} onChange={setCanvas} onClose={() => setCanvas(null)} />}
+      {canvas && !settingsOpen && <CanvasPanel doc={canvas} onChange={setCanvas} onClose={() => setCanvas(null)} />}
 
       {pdf && (
         <PdfPreview
@@ -639,7 +662,6 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
         />
       )}
 
-      {settingsOpen && <Settings initialTab={settingsTab} onClose={() => setSettingsOpen(false)} />}
 
       {voice && (
         <VoiceMode

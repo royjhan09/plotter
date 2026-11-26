@@ -3037,3 +3037,137 @@ body,
   margin: 0 0 10px;
   padding: 0;
 }
+
+/* ---------- Settings as its own page (as in ChatGPT) ---------- */
+.main[hidden] {
+  display: none;
+}
+.settings-page {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  display: grid;
+  grid-template-columns: 250px 1fr;
+  background: var(--paper);
+}
+.settings-page .settings-nav {
+  background: var(--cream);
+  border-right: 1px solid var(--sand);
+  padding: 14px 10px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.settings-page .settings-heading {
+  font-size: 20px;
+  padding: 8px 10px 10px;
+}
+.settings-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  padding: 6px 8px;
+  border-radius: 8px;
+}
+.settings-back:hover {
+  background: var(--sand);
+  color: var(--ink);
+}
+.settings-search {
+  margin: 0 4px 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--sand);
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  outline: none;
+}
+.settings-search:focus {
+  border-color: var(--orange);
+}
+.settings-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 10px;
+}
+.settings-group-label {
+  font-size: 12px;
+  color: var(--muted);
+  padding: 8px 12px 4px;
+}
+.settings-page .settings-nav button:not(.settings-back) {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--ink);
+}
+.settings-page .settings-nav button:not(.settings-back):hover:not(.on) {
+  background: var(--sand);
+}
+.settings-page .settings-body {
+  overflow-y: auto;
+  padding: 44px 32px 60px;
+  background: #fff;
+}
+:root[data-theme='dark'] .settings-page .settings-body {
+  background: #212121;
+}
+.settings-content {
+  max-width: 720px;
+  margin: 0 auto;
+}
+.settings-page .settings-body h3 {
+  font-size: 26px;
+  margin: 0 0 4px;
+}
+.settings-page .settings-lead {
+  font-size: 14px;
+  margin-bottom: 26px;
+}
+.setting-value {
+  color: var(--muted);
+  font-size: 14px;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+.segmented {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--sand);
+}
+.segmented button {
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  padding: 5px 14px;
+  border-radius: 999px;
+  color: var(--muted);
+}
+.segmented button.on {
+  background: var(--paper);
+  color: var(--ink);
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+.archived-title {
+  font-weight: 600;
+  text-align: left;
+  padding: 0;
+}
+.btn.danger-text {
+  color: var(--bad);
+}

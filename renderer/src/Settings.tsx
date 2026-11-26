@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import type { ConnectorStatus, Features, Memory, PythonStatus } from '../../shared/api'
+import type { ChatMetaPatch, ChatSummary, ConnectorStatus, Features, Memory, PythonStatus } from '../../shared/api'
+import type { Theme } from './theme'
 
 const api = window.plotter
 
-type Tab = 'features' | 'memory' | 'connectors'
+export type Tab = 'account' | 'general' | 'features' | 'memory' | 'connectors' | 'archived'
 
 const FEATURE_INFO: { key: keyof Features; name: string; text: string }[] = [
   { key: 'webSearch', name: 'Web search', text: 'Search the web and open links you give. Your question is sent to the web search.' },
@@ -30,42 +31,247 @@ function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boolean) =
 
 const errText = (e: unknown): string => (e instanceof Error ? e.message : String(e)).replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
 
-export function Settings({ onClose, initialTab = 'features' }: { onClose: () => void; initialTab?: Tab }): React.JSX.Element {
+/** Line icons for the settings navigation. */
+function NavIcon({ tab }: { tab: Tab | 'back' }): React.JSX.Element {
+  const p = { viewBox: '0 0 24 24', width: 18, height: 18, fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const }
+  switch (tab) {
+    case 'back':
+      return (
+        <svg {...p}>
+          <path d="M15 5 8 12l7 7" />
+        </svg>
+      )
+    case 'account':
+      return (
+        <svg {...p}>
+          <circle cx="12" cy="12" r="9" />
+          <circle cx="12" cy="10" r="3" />
+          <path d="M6.5 18.5a6.5 6.5 0 0 1 11 0" />
+        </svg>
+      )
+    case 'general':
+      return (
+        <svg {...p}>
+          <circle cx="12" cy="12" r="3" />
+          <path d="M12 2.5v2.5M12 19v2.5M4.6 4.6l1.8 1.8M17.6 17.6l1.8 1.8M2.5 12H5M19 12h2.5M4.6 19.4l1.8-1.8M17.6 6.4l1.8-1.8" />
+        </svg>
+      )
+    case 'features':
+      return (
+        <svg {...p}>
+          <path d="M4 7h10M18 7h2M4 17h4M12 17h8" />
+          <circle cx="16" cy="7" r="2" />
+          <circle cx="10" cy="17" r="2" />
+        </svg>
+      )
+    case 'memory':
+      return (
+        <svg {...p}>
+          <path d="M9 4a3 3 0 0 0-3 3 3 3 0 0 0-2 5 3 3 0 0 0 2 5 3 3 0 0 0 6 0V7a3 3 0 0 0-3-3ZM15 4a3 3 0 0 1 3 3 3 3 0 0 1 2 5 3 3 0 0 1-2 5 3 3 0 0 1-6 0" />
+        </svg>
+      )
+    case 'connectors':
+      return (
+        <svg {...p}>
+          <path d="M9 7V3M15 7V3M7 7h10v4a5 5 0 0 1-10 0ZM12 16v5" />
+        </svg>
+      )
+    case 'archived':
+      return (
+        <svg {...p}>
+          <rect x="3" y="4" width="18" height="5" rx="1.5" />
+          <path d="M5 9v9a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9M10 13h4" />
+        </svg>
+      )
+  }
+}
+
+const NAV: { group: string; items: { tab: Tab; label: string; words: string }[] }[] = [
+  { group: 'Account', items: [{ tab: 'account', label: 'Account', words: 'name email plan usage sign out log out chatgpt' }] },
+  {
+    group: 'App',
+    items: [
+      { tab: 'general', label: 'General', words: 'theme appearance dark light mode' },
+      { tab: 'features', label: 'Features', words: 'web search python canvas tools' },
+      { tab: 'memory', label: 'Memory', words: 'remember forget memories' },
+      { tab: 'connectors', label: 'Connectors', words: 'google gmail calendar drive notion' }
+    ]
+  },
+  { group: 'Data', items: [{ tab: 'archived', label: 'Archived chats', words: 'archive unarchive delete chats' }] }
+]
+
+export interface SettingsProps {
+  initialTab?: Tab
+  onClose: () => void
+  account: { name?: string; email?: string }
+  planUsage: boolean
+  theme: Theme
+  setTheme: (t: Theme) => void
+  onUsage: () => void
+  onSignOut: () => void
+  chats: ChatSummary[]
+  onOpenChat: (id: string) => void
+  onUpdateChat: (id: string, patch: ChatMetaPatch) => void
+  onDeleteChat: (chat: ChatSummary) => void
+}
+
+/** Settings as its own page (as in ChatGPT): navigation on the left, the chosen section in the middle. */
+export function Settings(props: SettingsProps): React.JSX.Element {
+  const { initialTab = 'account', onClose } = props
   const [tab, setTab] = useState<Tab>(initialTab)
+  const [search, setSearch] = useState('')
+  useEffect(() => setTab(initialTab), [initialTab])
   useEffect(() => {
     const esc = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape' && !(e.target instanceof HTMLInputElement)) onClose()
     }
     window.addEventListener('keydown', esc)
     return () => window.removeEventListener('keydown', esc)
   }, [onClose])
+  const q = search.trim().toLowerCase()
   return (
-    <div className="modal-back" onClick={onClose}>
-      <div className="settings" onClick={(e) => e.stopPropagation()}>
-        <nav className="settings-nav">
-          <div className="settings-heading">Settings</div>
-          {(
-            [
-              ['features', 'Features'],
-              ['memory', 'Memory'],
-              ['connectors', 'Connectors']
-            ] as [Tab, string][]
-          ).map(([t, label]) => (
-            <button key={t} className={tab === t ? 'on' : ''} onClick={() => setTab(t)}>
-              {label}
-            </button>
-          ))}
-        </nav>
-        <section className="settings-body">
-          <button className="settings-close" onClick={onClose} title="Close">
-            ×
-          </button>
+    <div className="settings-page">
+      <nav className="settings-nav">
+        <button className="settings-back" onClick={onClose} title="Back to the chat (Esc)">
+          <NavIcon tab="back" />
+          Back to chat
+        </button>
+        <div className="settings-heading">Settings</div>
+        <input className="settings-search" placeholder="Search settings" value={search} onChange={(e) => setSearch(e.target.value)} />
+        {NAV.map((g) => {
+          const items = g.items.filter((i) => !q || `${i.label} ${i.words}`.toLowerCase().includes(q))
+          if (!items.length) return null
+          return (
+            <div key={g.group} className="settings-group">
+              <div className="settings-group-label">{g.group}</div>
+              {items.map((i) => (
+                <button key={i.tab} className={tab === i.tab ? 'on' : ''} onClick={() => setTab(i.tab)}>
+                  <NavIcon tab={i.tab} />
+                  {i.label}
+                </button>
+              ))}
+            </div>
+          )
+        })}
+      </nav>
+      <section className="settings-body">
+        <div className="settings-content">
+          {tab === 'account' && <AccountTab {...props} />}
+          {tab === 'general' && <GeneralTab theme={props.theme} setTheme={props.setTheme} />}
           {tab === 'features' && <FeaturesTab />}
           {tab === 'memory' && <MemoryTab />}
           {tab === 'connectors' && <ConnectorsTab />}
-        </section>
-      </div>
+          {tab === 'archived' && <ArchivedTab {...props} />}
+        </div>
+      </section>
     </div>
+  )
+}
+
+function AccountTab({ account, planUsage, onUsage, onSignOut }: SettingsProps): React.JSX.Element {
+  const [confirm, setConfirm] = useState(false)
+  return (
+    <>
+      <h3>Account</h3>
+      <p className="settings-lead">The ChatGPT account Plotter signs in with.</p>
+      <div className="setting-row">
+        <div className="setting-text">
+          <div className="setting-name">Name</div>
+          <div className="setting-desc">The name on your ChatGPT account</div>
+        </div>
+        <span className="setting-value">{account.name || '—'}</span>
+      </div>
+      <div className="setting-row">
+        <div className="setting-text">
+          <div className="setting-name">Email</div>
+          <div className="setting-desc">The email your ChatGPT account uses</div>
+        </div>
+        <span className="setting-value">{account.email || '—'}</span>
+      </div>
+      <div className="setting-row">
+        <div className="setting-text">
+          <div className="setting-name">Plan usage</div>
+          <div className="setting-desc">{planUsage ? 'Replies in Plotter count toward your ChatGPT plan.' : 'Plan usage was not granted at sign-in.'}</div>
+        </div>
+        <button className="btn ghost" onClick={onUsage}>
+          Manage usage
+        </button>
+      </div>
+      <div className="setting-row">
+        <div className="setting-text">
+          <div className="setting-name">Sign out</div>
+          <div className="setting-desc">Sign out of ChatGPT on this PC. Your chats stay here.</div>
+        </div>
+        {confirm ? (
+          <div className="row-actions">
+            <button className="btn ghost" onClick={() => setConfirm(false)}>
+              Cancel
+            </button>
+            <button className="btn danger" onClick={onSignOut}>
+              Sign out
+            </button>
+          </div>
+        ) : (
+          <button className="btn ghost" onClick={() => setConfirm(true)}>
+            Sign out…
+          </button>
+        )}
+      </div>
+    </>
+  )
+}
+
+function GeneralTab({ theme, setTheme }: { theme: Theme; setTheme: (t: Theme) => void }): React.JSX.Element {
+  return (
+    <>
+      <h3>General</h3>
+      <p className="settings-lead">How Plotter looks on this PC.</p>
+      <div className="setting-row">
+        <div className="setting-text">
+          <div className="setting-name">Theme</div>
+          <div className="setting-desc">Light or dark. The moon/sun button on the left switches it too.</div>
+        </div>
+        <div className="segmented" role="radiogroup" aria-label="Theme">
+          {(['light', 'dark'] as Theme[]).map((t) => (
+            <button key={t} role="radio" aria-checked={theme === t} className={theme === t ? 'on' : ''} onClick={() => setTheme(t)}>
+              {t === 'light' ? 'Light' : 'Dark'}
+            </button>
+          ))}
+        </div>
+      </div>
+    </>
+  )
+}
+
+function ArchivedTab({ chats, onOpenChat, onUpdateChat, onDeleteChat }: SettingsProps): React.JSX.Element {
+  const archived = chats.filter((c) => c.archived)
+  return (
+    <>
+      <h3>Archived chats</h3>
+      <p className="settings-lead">Chats you archived from the ⋯ menu. They are kept on this PC, just out of the Recent list.</p>
+      {archived.length === 0 ? (
+        <div className="empty-box">No archived chats.</div>
+      ) : (
+        archived.map((c) => (
+          <div key={c.id} className="setting-row">
+            <div className="setting-text">
+              <button className="link archived-title" onClick={() => onOpenChat(c.id)}>
+                {c.title}
+              </button>
+              <div className="setting-desc">{new Date(c.updatedAt).toLocaleDateString()}</div>
+            </div>
+            <div className="row-actions">
+              <button className="btn ghost" onClick={() => onUpdateChat(c.id, { archived: false })}>
+                Unarchive
+              </button>
+              <button className="btn ghost danger-text" onClick={() => onDeleteChat(c)}>
+                Delete
+              </button>
+            </div>
+          </div>
+        ))
+      )}
+    </>
   )
 }
 
