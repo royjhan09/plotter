@@ -100,8 +100,8 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
   const onLeftKind = useCallback((k: ChatKind) => setPaneKind((p) => (p.left === k ? p : { ...p, left: k })), [])
   const onRightKind = useCallback((k: ChatKind) => setPaneKind((p) => (p.right === k ? p : { ...p, right: k })), [])
   // What one side's chat sent to the other (that side answers it right away).
-  const [leftIn, setLeftIn] = useState<{ from: HandOff; n: number } | undefined>(undefined)
-  const [rightIn, setRightIn] = useState<{ from: HandOff; n: number } | undefined>(undefined)
+  const [leftIn, setLeftIn] = useState<{ from: HandOff; n: number; attach?: boolean } | undefined>(undefined)
+  const [rightIn, setRightIn] = useState<{ from: HandOff; n: number; attach?: boolean } | undefined>(undefined)
   useEffect(
     () =>
       api.onSideDelivery((d) => {
@@ -591,7 +591,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
         }}
         onDrop={onPanesDrop}
       >
-        <ChatPane {...paneProps} chatId={leftId} onChatId={onLeftId} side="left" split={split} focused={!split || focus === 'left'} onFocus={() => setFocus('left')} newChat={leftNew} onSendToClaude={(task, from, projectId) => newClaudeChat(true, task, from, projectId)} beside={split ? sideInfo('right') : undefined} incoming={leftIn} projects={projects} onOpenProject={setProjectOpen} onKind={onLeftKind} />
+        <ChatPane {...paneProps} chatId={leftId} onChatId={onLeftId} side="left" split={split} focused={!split || focus === 'left'} onFocus={() => setFocus('left')} newChat={leftNew} onSendToClaude={(task, from, projectId) => newClaudeChat(true, task, from, projectId)} beside={split ? sideInfo('right') : undefined} incoming={leftIn} projects={projects} onOpenProject={setProjectOpen} onKind={onLeftKind} sendBeside={split ? (from) => setRightIn((prev) => ({ from, attach: true, n: (prev?.n ?? 0) + 1 })) : undefined} />
         {split && (
           <ChatPane
             {...paneProps}
@@ -609,6 +609,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
             projects={projects}
             onOpenProject={setProjectOpen}
             onKind={onRightKind}
+            sendBeside={(from) => setLeftIn((prev) => ({ from, attach: true, n: (prev?.n ?? 0) + 1 }))}
           />
         )}
         {dropSide && (

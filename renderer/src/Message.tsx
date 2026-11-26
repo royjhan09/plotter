@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import type { ChatMessage, HandOff } from '../../shared/api'
+import type { ChatKind, ChatMessage, HandOff } from '../../shared/api'
 import { Markdown } from './Markdown'
 import { badgeFor, sizeLabel } from './attachments'
 import { PictureViewer } from '@private/renderer/ImageViewer'
@@ -22,7 +22,8 @@ export function Message({
   activity,
   chatId,
   onProject,
-  projectBusy = false
+  projectBusy = false,
+  side
 }: {
   m: ChatMessage
   typing: boolean
@@ -32,6 +33,8 @@ export function Message({
   /** "Create project" (on a chat's last reply): sums the chat up into a brief and hands it to Claude Code. */
   onProject?: () => void
   projectBusy?: boolean
+  /** In split view: sends this reply to the chat beside (which answers it). */
+  side?: SideAction
 }): React.JSX.Element {
   if (m.role === 'user')
     return (
@@ -53,6 +56,7 @@ export function Message({
             )}
           </div>
         )}
+        {m.toSide && <div className="to-side-label">To the chat beside</div>}
         {m.from && <HandOffCard from={m.from} />}
         {m.text && <div className="bubble">{m.text}</div>}
       </div>
@@ -68,6 +72,7 @@ export function Message({
           {m.error && m.error !== 'Stopped.' && <div className="error">{m.error}</div>}
           {m.cc.state !== 'running' && m.text && (
             <div className="msg-actions">
+              {side && <SendBeside side={side} m={m} />}
               <button title="Copy Claude Code's answer" onClick={() => void navigator.clipboard.writeText(m.text)}>
                 Copy
               </button>
@@ -103,9 +108,10 @@ export function Message({
         ) : null}
         {m.error && m.error !== 'Stopped.' && <div className="error">{m.error}</div>}
         {m.error === 'Stopped.' && <div className="stopped">Stopped</div>}
-        {!typing && m.text && ((m.sources?.length ?? 0) > 0 || onProject) && (
+        {!typing && m.text && ((m.sources?.length ?? 0) > 0 || onProject || side) && (
           <div className="msg-actions">
             {m.sources && m.sources.length > 0 && <Sources sources={m.sources} />}
+            {side && <SendBeside side={side} m={m} />}
             {onProject && (
               <button
                 className="project-btn"
@@ -223,3 +229,40 @@ function Sources({ sources }: { sources: { url: string; title: string }[] }): Re
     </div>
   )
 }
+
+/** The chat beside, for the "Send to …" button on a reply. */
+export interface SideAction {
+  kind: ChatKind
+  /** Which way it is: the arrow points at it. */
+  dir: 'left' | 'right'
+  send: (m: ChatMessage) => void
+}
+
+export const sideName = (k: ChatKind): string => (k === 'claude' ? 'Claude Code' : 'ChatGPT')
+
+/** Sends a reply to the chat beside, at once; shows "Sent" for a moment. */
+function SendBeside({ side, m }: { side: SideAction; m: ChatMessage }): React.JSX.Element {
+  const [sent, setSent] = useState(false)
+  return (
+    <button
+      className={`send-beside ${side.kind} ${sent ? 'sent' : ''}`}
+      title={`Put this reply in the ${sideName(side.kind)} chat’s message box beside, ready to send`}
+      disabled={sent}
+      onClick={() => {
+        side.send(m)
+        setSent(true)
+        setTimeout(() => setSent(false), 2500)
+      }}
+    >
+      {side.dir === 'left' && <Arrow dir="left" />}
+      {sent ? `Added to ${sideName(side.kind)}` : `Send to ${sideName(side.kind)}`}
+      {side.dir === 'right' && <Arrow dir="right" />}
+    </button>
+  )
+}
+
+export const Arrow = ({ dir }: { dir: 'left' | 'right' }): React.JSX.Element => (
+  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    {dir === 'right' ? <path d="M5 12h14M13 6l6 6-6 6" /> : <path d="M19 12H5M11 6l-6 6 6 6" />}
+  </svg>
+)

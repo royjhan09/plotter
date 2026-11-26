@@ -5,7 +5,7 @@ import { VoiceMode } from './VoiceMode'
 import { toAttachment } from './attachments'
 import { CanvasContext } from './Canvas'
 import { PDF_EXPORT, PdfBadge } from '@private/renderer/PdfPreview'
-import { HandOffCard, Message } from './Message'
+import { Arrow, HandOffCard, Message, sideName } from './Message'
 import { ProjectIcon } from './Projects'
 import { RailIcon, ThemeButton } from './RailIcon'
 import { useClaudeTheme, type Theme } from './theme'
@@ -78,10 +78,13 @@ export interface ChatPaneProps {
   /** The chat open on the other side (side by side), so this chat can send something to it. */
   beside?: BesideChat
   /** Something the chat beside sent here; a new n means "it just arrived": this chat answers it right away. */
-  incoming?: { from: HandOff; n: number }
+  /** attach: put it in the message box as a card (the user adds what to do and sends it) instead of answering at once. */
+  incoming?: { from: HandOff; n: number; attach?: boolean }
   /** All projects (for the project name in the top bar). */
   projects: Project[]
   onOpenProject: (id: string) => void
+  /** Sends something straight to the chat beside (the "Send to …" button on a reply). */
+  sendBeside?: (from: HandOff) => void
   /** Which kind of chat this side shows now (so the other side knows what is beside it). */
   onKind: (kind: ChatKind) => void
   /** The app's light/dark (a ChatGPT chat follows and switches it; a Claude Code chat has its own, dark by default). */
@@ -118,6 +121,11 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
   // a ChatGPT reply handed to this (new) Claude Code chat, shown as a card in the message box
   const [handOff, setHandOff] = useState<HandOff | null>(null)
   const handOffRef = useRef<HandOff | null>(null)
+  // the "→ Claude Code" toggle: the next message is meant for the chat beside (this chat writes it up and sends it)
+  const [toSide, setToSide] = useState(false)
+  useEffect(() => {
+    if (!p.beside) setToSide(false)
+  }, [p.beside])
   // the project a new chat starts in (its first message saves it there)
   const [newProject, setNewProject] = useState<string | undefined>(p.newChat.projectId)
   handOffRef.current = handOff
@@ -415,8 +423,10 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
     const from = incoming ?? handOff ?? undefined
     // the user's own message may ask Claude Code to send something to the chat beside; a delivered one may not (no ping-pong)
     const beside = incoming ? undefined : p.beside
+    const asSide = !incoming && toSide && !!beside
     const clearBox = (): void => {
       if (incoming) return
+      setToSide(false)
       setDraft('')
       setAttachments([])
       setHandOff(null)
@@ -428,7 +438,7 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
         return toast(incoming ? 'The other chat sent a message here. Select a folder below, then press send.' : 'Select the folder Claude Code should work in (below the message box).')
       }
       clearBox()
-      const created = await startClaudeChat(text, ccNew.folder, 'edit', ccNew.effort, { from, files, beside, projectId: newProject })
+      const created = await startClaudeChat(text, ccNew.folder, 'edit', ccNew.effort, { from, files, beside, projectId: newProject, toSide: asSide })
       chatRef.current = created
       setChat(created)
       onChatId(created.id)
@@ -436,7 +446,7 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
       return
     }
     clearBox()
-    const next = await sendClaudeTurn(current, text, { from, files, beside })
+    const next = await sendClaudeTurn(current, text, { from, files, beside, toSide: asSide })
     if (chatRef.current?.id === next.id) {
       // keep any update that arrived while sending
       const seen = new Map(chatRef.current.messages.map((m) => [m.id, m]))
@@ -457,7 +467,7 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
     if (typed) setHandOff(null)
     const now = Date.now()
     const asResearch = research && typed
-    const user: ChatMessage = { id: newId(), role: 'user', text, at: now, ...(files.length ? { attachments: files } : {}), ...(asResearch ? { research: true } : {}), ...(incoming ? { from: incoming } : {}) }
+    const user: ChatMessage = { id: newId(), role: 'user', text, at: now, ...(files.length ? { attachments: files } : {}), ...(asResearch ? { research: true } : {}), ...(incoming ? { from: incoming } : {}), ...(typed && toSide && p.beside ? { toSide: true } : {}) }
     const reply: ChatMessage = { id: newId(), role: 'assistant', text: '', at: now }
     const current = chatRef.current
     const base: Chat = current ?? { id: newId(), title: incoming ? `From ${incoming.chat}`.slice(0, 60) : titleFrom(text, files), model: p.model.slug, messages: [], createdAt: now, updatedAt: now, ...(newProject ? { projectId: newProject } : {}) }
@@ -466,6 +476,7 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
     chatRef.current = next
     setChat(next)
     if (typed) {
+      setToSide(false)
       setDraft('')
       setAttachments([])
       setResearch(false)
@@ -488,7 +499,7 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
         research: asResearch,
         canvas: canvas.current,
         // only a message the user typed or spoke may send something to the chat beside (no ping-pong)
-        ...(p.beside && typed ? { beside: p.beside } : {})
+        ...(p.beside && typed ? { beside: p.beside, ...(toSide ? { toSide: true } : {}) } : {})
       })
     } catch (e) {
       const failed = { ...next, messages: [...history, { ...reply, error: cleanError(e) }] }
@@ -514,8 +525,16 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
     if (isClaude) void sendClaude(from)
     else void sendMessage(undefined, from).catch(() => undefined)
   }
+  // only deliveries that arrive while this pane is open (a pane shown again must not re-send an old one)
+  const seenIncoming = useRef(p.incoming?.n ?? 0)
+  const paneRef = useRef<HTMLElement>(null)
   useEffect(() => {
-    if (p.incoming) deliverRef.current(p.incoming.from)
+    if (!p.incoming || p.incoming.n <= seenIncoming.current) return
+    seenIncoming.current = p.incoming.n
+    if (p.incoming.attach) {
+      setHandOff(p.incoming.from)
+      setTimeout(() => paneRef.current?.querySelector<HTMLTextAreaElement>('.composer textarea')?.focus(), 50)
+    } else deliverRef.current(p.incoming.from)
   }, [p.incoming])
 
   const sendRef = useRef(sendMessage)
@@ -558,6 +577,7 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
   const lastReply = messages.reduce((at, m, i) => (m.role === 'assistant' && m.text && !m.cc ? i : at), -1)
   return (
     <main
+      ref={paneRef}
       className={`main pane ${isClaude ? `claude theme-${ccTheme}` : ''} ${p.split ? 'split' : ''} ${p.focused ? 'focused' : ''}`}
       onMouseDown={p.onFocus}
       onDragOver={(e) => {
@@ -669,13 +689,22 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
                 activity={activity}
                 onProject={isClaude || !CLAUDE_CODE || i !== lastReply ? undefined : () => void createProject()}
                 projectBusy={briefBusy}
+                side={
+                  p.beside && p.sendBeside && m.role === 'assistant'
+                    ? {
+                        kind: p.beside.kind,
+                        dir: p.side === 'left' ? 'right' : 'left',
+                        send: (msg) => p.sendBeside!({ chat: chat?.title || 'Chat', text: msg.text, kind: 'side', sender: isClaude ? 'claude' : 'chatgpt' })
+                      }
+                    : undefined
+                }
               />
             ))}
           </div>
         )}
       </div>
 
-      <div className="composer-wrap">
+      <div className={`composer-wrap ${toSide ? 'to-side' : ''}`}>
         {limitHit && (
           <div className="limit">
             <span>You’ve reached your ChatGPT plan’s usage limit for now.</span>
@@ -693,15 +722,21 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
           pending={isClaude ? ccBusy : !!pending}
           ready={isClaude ? true : !!p.model}
           placeholder={
-            isClaude
+            toSide && p.beside
+              ? `What should go to the ${sideName(p.beside.kind)} chat? This chat writes it up and sends it`
+              : isClaude
               ? ccBusy
                 ? 'Claude Code is working…'
                 : handOff
-                  ? 'Add what Claude Code should do with it (optional)'
+                  ? handOff.kind === 'side'
+                    ? 'Say what Claude Code should do with it (optional), then send'
+                    : 'Add what Claude Code should do with it (optional)'
                   : cc?.folder
                   ? `Tell Claude Code what to do in ${folderName(cc.folder)}`
                   : 'Select a folder below first'
-              : p.model
+              : handOff
+                ? 'Say what to do with it (optional), then send'
+                : p.model
                 ? 'Ask Plotter anything'
                 : p.modelError
                   ? 'Plotter could not load its model'
@@ -752,6 +787,18 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
             </button>
           ) : (
             <span />
+          )}
+          {p.beside && (
+            <button
+              className={`to-side-btn ${toSide ? 'on' : ''} ${p.beside.kind}`}
+              title={toSide ? 'Back to talking to this chat' : `Send your next message to the ${sideName(p.beside.kind)} chat beside. This chat adds the context it needs.`}
+              onClick={() => setToSide(!toSide)}
+              aria-pressed={toSide}
+            >
+              {p.side === 'right' && <Arrow dir="left" />}
+              {toSide ? `To ${sideName(p.beside.kind)}` : sideName(p.beside.kind)}
+              {p.side === 'left' && <Arrow dir="right" />}
+            </button>
           )}
           {isClaude ? (
             <EffortMenu title="Effort" efforts={CLAUDE_EFFORTS} effort={cc?.effort ?? 'xhigh'} setEffort={(effort) => setCc({ effort })} />

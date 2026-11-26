@@ -15,6 +15,8 @@ export interface ClaudeSendOptions {
   files?: Attachment[]
   beside?: BesideChat
   projectId?: string
+  /** The user meant the message for the chat beside: Claude Code writes it up and sends it there. */
+  toSide?: boolean
 }
 
 export async function sendClaudeTurn(_chat: Chat, _text: string, _opts?: ClaudeSendOptions): Promise<Chat> {

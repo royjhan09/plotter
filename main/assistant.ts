@@ -173,6 +173,10 @@ export async function reply(req: SendRequest, handlers: ConversationHandlers, si
   }
   if (req.beside) {
     parts.push(SIDE_INSTRUCTIONS(req.beside))
+    if (req.toSide)
+      parts.push(
+        `The user switched on "send to the ${sideName(req.beside)}" for their latest message: it is meant for that chat, not for you. Call side_chat_context, then send_to_side_chat once with a message that carries out what the user wrote: their words plus only the context from this chat that the other chat needs and does not have. Then reply to the user in one short line saying what you sent. Do not answer the message yourself.`
+      )
     tools.push(...sideTools(req.beside, title))
   }
   if (f.canvas || req.canvas) parts.push(CANVAS_INSTRUCTIONS)

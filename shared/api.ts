@@ -52,6 +52,8 @@ export interface ChatMessage {
   cc?: ClaudeCodeTurn
   /** A ChatGPT reply handed to Claude Code with this message (shown as a card; sent along as context). */
   from?: HandOff
+  /** The user meant this message for the chat beside (the "→" toggle): this chat writes it up and sends it there. */
+  toSide?: boolean
   at: number
 }
 
@@ -301,6 +303,8 @@ export interface SendRequest {
   canvas?: CanvasDoc | null
   /** The chat open beside this one, when the user typed this message (so the reply may send something to it). */
   beside?: BesideChat
+  /** The user meant this message for the chat beside: the reply must send it there. */
+  toSide?: boolean
 }
 
 /** Settings → Features. */

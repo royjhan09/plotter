@@ -5233,3 +5233,77 @@ body,
 .project-delete-confirm span {
   flex: 1;
 }
+
+/* ---------- sending to the chat beside ---------- */
+/* on a reply: "Send to Claude Code →", in the other chat's colour */
+.msg-actions .send-beside {
+  font-weight: 600;
+  color: var(--ink);
+  border: 1px solid var(--sand);
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+.msg-actions .send-beside.claude {
+  color: #7048e8;
+  border-color: rgba(112, 72, 232, 0.35);
+}
+.msg-actions .send-beside.chatgpt {
+  color: var(--orange);
+  border-color: var(--orange-soft);
+}
+.msg-actions .send-beside:hover:not(:disabled) {
+  background: var(--cream);
+}
+.msg-actions .send-beside.sent {
+  opacity: 0.7;
+}
+.pane.theme-dark .msg-actions .send-beside.claude {
+  color: var(--cc-accent-text, #c8b6ff);
+}
+/* under the message box: the arrow toggle */
+.to-side-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 10px;
+  margin-left: auto;
+  margin-right: 4px;
+  border-radius: 999px;
+  border: 1px dashed var(--sand-strong);
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.to-side-btn:hover {
+  color: var(--ink);
+  border-style: solid;
+}
+.to-side-btn.on.claude {
+  background: #7048e8;
+  border: 1px solid #7048e8;
+  color: #fff;
+}
+.to-side-btn.on.chatgpt {
+  background: var(--orange);
+  border: 1px solid var(--orange);
+  color: #fff;
+}
+.composer-wrap.to-side .composer {
+  border-color: var(--orange);
+  box-shadow: 0 0 0 3px rgba(238, 129, 68, 0.18);
+}
+.pane:not(.claude) .composer-wrap.to-side .composer {
+  border-color: #7048e8;
+  box-shadow: 0 0 0 3px rgba(112, 72, 232, 0.18);
+}
+/* in a sent message: it was meant for the chat beside */
+.to-side-label {
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-bottom: 4px;
+  text-align: right;
+}
