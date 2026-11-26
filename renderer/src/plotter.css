@@ -2215,3 +2215,28 @@ body,
 .sidebar .chat-list {
   margin-top: 2px;
 }
+
+/* top bar: new-chat pencil + the chat's title (like ChatGPT) */
+.topbar {
+  gap: 10px;
+  padding: 8px 16px;
+  min-height: 52px;
+}
+.topbar-new {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: var(--ink);
+  display: grid;
+  place-items: center;
+}
+.topbar-new:hover:not(:disabled) {
+  background: var(--sand);
+}
+.topbar .chat-heading {
+  color: var(--ink);
+  font-size: 15px;
+}

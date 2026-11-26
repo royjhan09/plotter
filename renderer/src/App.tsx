@@ -392,9 +392,6 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
           >
             <RailIcon name="home" />
           </button>
-          <button className="rail-btn" title="New chat" onClick={newChat} disabled={!!pending}>
-            <RailIcon name="new" />
-          </button>
           <button
             className={`rail-btn ${shownPanel === 'customize' ? 'on' : ''}`}
             title="Customize"
@@ -511,8 +508,9 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
         }}
       >
         <header className="topbar">
-          <span className="topbar-name">Plotter</span>
-          {model && <span className="topbar-model">{model.displayName}</span>}
+          <button className="topbar-new" title="New chat" onClick={newChat} disabled={!!pending}>
+            <RailIcon name="new" />
+          </button>
           <span className="chat-heading">{chat?.title ?? ''}</span>
         </header>
 
