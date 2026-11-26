@@ -1,4 +1,4 @@
-import type { Chat, ChatMessage, ClaudeCodeMode } from '../../shared/api'
+import type { Attachment, Chat, ChatMessage, ClaudeCodeMode, HandOff } from '../../shared/api'
 
 /**
  * Public stand-in for Claude Code chats, which live in Plotter's private folder. In a build without it,
@@ -10,11 +10,11 @@ const off = (): never => {
   throw new Error('Claude Code chats are not part of this build.')
 }
 
-export async function sendClaudeTurn(_chat: Chat, _text: string): Promise<Chat> {
+export async function sendClaudeTurn(_chat: Chat, _text: string, _from?: HandOff, _files?: Attachment[]): Promise<Chat> {
   return off()
 }
 
-export async function startClaudeChat(_task: string, _folder: string, _mode: ClaudeCodeMode, _effort?: string): Promise<Chat> {
+export async function startClaudeChat(_task: string, _folder: string, _mode: ClaudeCodeMode, _effort?: string, _from?: HandOff, _files?: Attachment[]): Promise<Chat> {
   return off()
 }
 

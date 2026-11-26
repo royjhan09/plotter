@@ -50,7 +50,17 @@ export interface ChatMessage {
   error?: string
   /** A Claude Code reply: its live steps and state (text holds its final answer). */
   cc?: ClaudeCodeTurn
+  /** A ChatGPT reply handed to Claude Code with this message (shown as a card; sent along as context). */
+  from?: HandOff
   at: number
+}
+
+/** A reply handed from a ChatGPT chat to Claude Code. */
+export interface HandOff {
+  /** The title of the chat it came from. */
+  chat: string
+  /** The reply's full text (Markdown, visuals included). */
+  text: string
 }
 
 export interface Chat {

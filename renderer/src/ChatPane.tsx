@@ -1,11 +1,11 @@
 import { useCallback, useContext, useEffect, useRef, useState } from 'react'
-import type { Attachment, Chat, ChatKind, ChatMessage, ClaudeChatConfig, Model, ReplyEvent } from '../../shared/api'
+import type { Attachment, Chat, ChatKind, ChatMessage, ClaudeChatConfig, HandOff, Model, ReplyEvent } from '../../shared/api'
 import { Composer } from './Composer'
 import { VoiceMode } from './VoiceMode'
 import { toAttachment } from './attachments'
 import { CanvasContext } from './Canvas'
 import { PDF_EXPORT, PdfBadge } from '@private/renderer/PdfPreview'
-import { Message } from './Message'
+import { HandOffCard, Message } from './Message'
 import { RailIcon, ThemeButton } from './RailIcon'
 import { useClaudeTheme, type Theme } from './theme'
 import { ClaudeBuddy, folderName } from './ClaudeBuddy'
@@ -63,9 +63,9 @@ export interface ChatPaneProps {
   savePdf: (messageId: string | undefined, target: { id: string; title: string }) => void
   pdfBusy: boolean
   /** "Send to Claude Code" from a reply or the + menu: starts a Claude Code chat (opened beside this one). */
-  onSendToClaude: (task: string) => void
-  /** What this side's new chat is, and text to start it with; a new n means "start a new chat now". */
-  newChat: { kind: ChatKind; seed?: string; n: number }
+  onSendToClaude: (task: string, from?: HandOff) => void
+  /** What this side's new chat is, text to start it with and a reply handed to it; a new n means "start a new chat now". */
+  newChat: { kind: ChatKind; seed?: string; from?: HandOff; n: number }
   /** The app's light/dark (a ChatGPT chat follows and switches it; a Claude Code chat has its own, dark by default). */
   theme: Theme
   setTheme: (t: Theme) => void
@@ -97,6 +97,8 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
   const [newKind, setNewKind] = useState<ChatKind>(p.newChat.kind)
   const [ccNew, setCcNew] = useState<ClaudeChatConfig | null>(null)
   const [ccMissing, setCcMissing] = useState<string | null>(null)
+  // a ChatGPT reply handed to this (new) Claude Code chat, shown as a card in the message box
+  const [handOff, setHandOff] = useState<HandOff | null>(null)
   const isClaude = chat ? chat.kind === 'claude' : newKind === 'claude'
   const cc = chat ? chat.cc : ccNew
   const ccBusy = !!chat && chat.kind === 'claude' && chat.messages.some((m) => m.cc?.state === 'running')
@@ -172,7 +174,9 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
     if (p.newChat.n === 0) return
     setNewKind(p.newChat.kind)
     if (p.newChat.kind === 'claude') setCcNew(null)
-    if (p.newChat.seed !== undefined) setDraft(p.newChat.seed)
+    setDraft(p.newChat.seed ?? '')
+    setHandOff(p.newChat.from ?? null)
+    if (p.newChat.from) setAttachments([])
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [p.newChat.n])
 
@@ -319,12 +323,17 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
   const sendClaude = async (): Promise<void> => {
     const current = chatRef.current
     const text = draft.trim()
-    if (!text || ccBusy) return
+    const files = attachments.filter((a) => a.kind === 'text' || a.kind === 'sheet' || a.kind === 'doc')
+    if ((!text && !handOff && !files.length) || ccBusy) return
+    if (attachments.length > files.length) toast('Claude Code chats take text files only; pictures and PDFs were left out.')
+    const from = handOff ?? undefined
     if (!current) {
       // the first message creates the chat, in the folder chosen in the top bar
       if (!ccNew?.folder) return toast('Select the folder Claude Code should work in (below the message box).')
       setDraft('')
-      const created = await startClaudeChat(text, ccNew.folder, 'edit', ccNew.effort)
+      setAttachments([])
+      setHandOff(null)
+      const created = await startClaudeChat(text, ccNew.folder, 'edit', ccNew.effort, from, files)
       chatRef.current = created
       setChat(created)
       onChatId(created.id)
@@ -332,7 +341,9 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
       return
     }
     setDraft('')
-    const next = await sendClaudeTurn(current, text)
+    setAttachments([])
+    setHandOff(null)
+    const next = await sendClaudeTurn(current, text, from, files)
     if (chatRef.current?.id === next.id) {
       // keep any update that arrived while sending
       const seen = new Map(chatRef.current.messages.map((m) => [m.id, m]))
@@ -533,7 +544,7 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
                 typing={!!pending && i === messages.length - 1 && m.role === 'assistant'}
                 activity={activity}
                 onPdf={p.pdfBusy || !chat ? undefined : (id) => p.savePdf(id, chat)}
-                onClaudeCode={isClaude || !CLAUDE_CODE ? undefined : (msg) => p.onSendToClaude(msg.text)}
+                onClaudeCode={isClaude || !CLAUDE_CODE ? undefined : (msg) => p.onSendToClaude('', { chat: chat?.title || 'ChatGPT chat', text: msg.text })}
               />
             ))}
           </div>
@@ -564,7 +575,9 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
             isClaude
               ? ccBusy
                 ? 'Claude Code is working…'
-                : cc?.folder
+                : handOff
+                  ? 'Add what Claude Code should do with it (optional)'
+                  : cc?.folder
                   ? `Tell Claude Code what to do in ${folderName(cc.folder)}`
                   : 'Select a folder below first'
               : p.model
@@ -581,7 +594,9 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
           setResearch={setResearch}
           onClaudeCode={isClaude || !CLAUDE_CODE ? undefined : () => p.onSendToClaude(draft)}
           variant={isClaude ? 'claude' : 'chatgpt'}
-          suggestion={suggestion}
+          suggestion={handOff ? undefined : suggestion}
+          topSlot={handOff ? <HandOffCard from={handOff} onRemove={() => setHandOff(null)} /> : undefined}
+          canSendEmpty={isClaude && !!handOff}
         />
         {isClaude && (
           <div className="composer-below">

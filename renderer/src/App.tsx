@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { AuthState, CanvasDoc, ChatKind, ChatMetaPatch, ChatSummary, Model } from '../../shared/api'
+import type { AuthState, CanvasDoc, ChatKind, ChatMetaPatch, ChatSummary, HandOff, Model } from '../../shared/api'
 import { useThemeSetting } from './theme'
 import { CanvasContext, CanvasPanel } from './Canvas'
 import { CustomizePanel, Settings, type Tab as SettingsTab } from './Settings'
@@ -89,10 +89,10 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
   const side = split ? focus : 'left'
   const setSideId = (s: 'left' | 'right', id: string | null): void => (s === 'left' ? setLeftId(id) : setRightId(id))
   // What a side's *new* chat is (a ChatGPT chat, or a Claude Code chat), and text to start its message box with.
-  const [leftNew, setLeftNew] = useState<{ kind: ChatKind; seed?: string; n: number }>({ kind: 'chatgpt', n: 0 })
-  const [rightNew, setRightNew] = useState<{ kind: ChatKind; seed?: string; n: number }>({ kind: 'chatgpt', n: 0 })
-  const setSideNew = (s: 'left' | 'right', kind: ChatKind, seed?: string): void =>
-    (s === 'left' ? setLeftNew : setRightNew)((prev) => ({ kind, seed, n: prev.n + 1 }))
+  const [leftNew, setLeftNew] = useState<{ kind: ChatKind; seed?: string; from?: HandOff; n: number }>({ kind: 'chatgpt', n: 0 })
+  const [rightNew, setRightNew] = useState<{ kind: ChatKind; seed?: string; from?: HandOff; n: number }>({ kind: 'chatgpt', n: 0 })
+  const setSideNew = (s: 'left' | 'right', kind: ChatKind, seed?: string, from?: HandOff): void =>
+    (s === 'left' ? setLeftNew : setRightNew)((prev) => ({ kind, seed, from, n: prev.n + 1 }))
   const onLeftId = useCallback((id: string | null) => setLeftId(id), [])
   const onRightId = useCallback((id: string | null) => setRightId(id), [])
 
@@ -206,12 +206,12 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
   }
 
   /** Opens a new Claude Code chat right away (on this side, or beside it), optionally with its first message typed in. */
-  const newClaudeChat = (beside: boolean, seed?: string): void => {
+  const newClaudeChat = (beside: boolean, seed?: string, from?: HandOff): void => {
     setSettingsOpen(false)
     setMarketOpen(false)
     const where: 'left' | 'right' = beside ? (side === 'left' ? 'right' : 'left') : side
     if (where === 'right') setSplit(true)
-    setSideNew(where, 'claude', seed)
+    setSideNew(where, 'claude', seed, from)
     setSideId(where, null)
     setFocus(where)
   }
@@ -505,7 +505,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
         }}
         onDrop={onPanesDrop}
       >
-        <ChatPane {...paneProps} chatId={leftId} onChatId={onLeftId} side="left" split={split} focused={!split || focus === 'left'} onFocus={() => setFocus('left')} newChat={leftNew} onSendToClaude={(task) => newClaudeChat(true, task)} />
+        <ChatPane {...paneProps} chatId={leftId} onChatId={onLeftId} side="left" split={split} focused={!split || focus === 'left'} onFocus={() => setFocus('left')} newChat={leftNew} onSendToClaude={(task, from) => newClaudeChat(true, task, from)} />
         {split && (
           <ChatPane
             {...paneProps}
@@ -517,7 +517,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
             onFocus={() => setFocus('right')}
             onClose={closeRight}
             newChat={rightNew}
-            onSendToClaude={(task) => newClaudeChat(true, task)}
+            onSendToClaude={(task, from) => newClaudeChat(true, task, from)}
           />
         )}
         {dropSide && (

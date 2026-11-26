@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import type { ChatMessage } from '../../shared/api'
+import type { ChatMessage, HandOff } from '../../shared/api'
 import { Markdown } from './Markdown'
 import { badgeFor, sizeLabel } from './attachments'
 import { PictureViewer } from '@private/renderer/ImageViewer'
@@ -53,6 +53,7 @@ export function Message({
             )}
           </div>
         )}
+        {m.from && <HandOffCard from={m.from} />}
         {m.text && <div className="bubble">{m.text}</div>}
       </div>
     )
@@ -106,26 +107,7 @@ export function Message({
             <i />
           </span>
         ) : null}
-        {m.sources && m.sources.length > 0 && !typing && (
-          <div className="sources">
-            <span className="sources-label">Sources</span>
-            {m.sources.map((s) => (
-              <a key={s.url} className="source" href={s.url} target="_blank" rel="noreferrer" title={s.url}>
-                <span className="source-badge">{siteName(s.url).slice(0, 1).toUpperCase()}</span>
-                <span className="source-text">
-                  {/^https?:\/\//.test(s.title) || !s.title.trim() || s.title.replace(/^www\./, '') === siteName(s.url) ? (
-                    <span className="source-title">{siteName(s.url)}</span>
-                  ) : (
-                    <>
-                      <span className="source-title">{s.title}</span>
-                      <span className="source-site">{siteName(s.url)}</span>
-                    </>
-                  )}
-                </span>
-              </a>
-            ))}
-          </div>
-        )}
+        {m.sources && m.sources.length > 0 && !typing && <Sources sources={m.sources} />}
         {m.error && m.error !== 'Stopped.' && <div className="error">{m.error}</div>}
         {m.error === 'Stopped.' && <div className="stopped">Stopped</div>}
         {!typing && m.text && (PDF_EXPORT || onClaudeCode) && (
@@ -160,5 +142,91 @@ function SentPicture({ src, name }: { src: string; name: string }): React.JSX.El
       </button>
       {open && <PictureViewer src={src} from={() => thumb.current?.getBoundingClientRect() ?? null} onClose={() => setOpen(false)} />}
     </>
+  )
+}
+
+/** A short plain-text preview of a reply, and how many visuals it has (charts, diagrams, mockups). */
+function preview(text: string): { excerpt: string; visuals: number } {
+  let visuals = 0
+  const plain = text
+    .replace(/```(chart|mermaid|ui)\b[\s\S]*?(```|$)/g, () => {
+      visuals++
+      return ' '
+    })
+    .replace(/```[\s\S]*?(```|$)/g, ' ')
+    .replace(/\[\[tool:[^\]]+\]\]/g, '')
+    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/[#>*_`|~-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  return { excerpt: plain.length > 180 ? `${plain.slice(0, 179)}…` : plain, visuals }
+}
+
+/**
+ * A ChatGPT reply handed to Claude Code: a card in the message box (with ×) and in the sent message
+ * (click to read the whole reply, visuals drawn). Claude Code gets the full reply as context.
+ */
+export function HandOffCard({ from, onRemove }: { from: HandOff; onRemove?: () => void }): React.JSX.Element {
+  const [open, setOpen] = useState(false)
+  const { excerpt, visuals } = preview(from.text)
+  return (
+    <div className={`handoff ${onRemove ? 'in-box' : 'in-msg'} ${open ? 'open' : ''}`}>
+      <button className="handoff-head" onClick={() => setOpen(!open)} title={open ? 'Hide the reply' : 'Show the whole reply'}>
+        <img src={icon} alt="" className="handoff-icon" />
+        <span className="handoff-meta">
+          <span className="handoff-label">
+            <span className="handoff-from">Reply from</span>
+            <b>{from.chat}</b>
+            {visuals > 0 && <span className="handoff-chip">{visuals === 1 ? '1 visual' : `${visuals} visuals`}</span>}
+          </span>
+          {!open && <span className="handoff-excerpt">{excerpt}</span>}
+        </span>
+      </button>
+      {onRemove && (
+        <button className="attach-x handoff-x" title="Remove" onClick={onRemove}>
+          ×
+        </button>
+      )}
+      {open && (
+        <div className="handoff-body">
+          <Markdown text={from.text} streaming={false} />
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** A reply's cited pages: one small pill (the first sites' badges and a count) that opens the list. */
+function Sources({ sources }: { sources: { url: string; title: string }[] }): React.JSX.Element {
+  const [open, setOpen] = useState(false)
+  const sites = [...new Set(sources.map((s) => siteName(s.url)))]
+  return (
+    <div className="sources">
+      <button className={`sources-pill ${open ? 'open' : ''}`} onClick={() => setOpen(!open)} aria-expanded={open}>
+        <span className="sources-stack">
+          {sites.slice(0, 3).map((site) => (
+            <span key={site} className="source-badge">
+              {site.slice(0, 1).toUpperCase()}
+            </span>
+          ))}
+        </span>
+        Sources · {sources.length}
+      </button>
+      {open && (
+        <div className="sources-list">
+          {sources.map((s) => {
+            const site = siteName(s.url)
+            const titled = !(/^https?:\/\//.test(s.title) || !s.title.trim() || s.title.replace(/^www\./, '') === site)
+            return (
+              <a key={s.url} className="source" href={s.url} target="_blank" rel="noreferrer" title={s.url}>
+                <span className="source-badge">{site.slice(0, 1).toUpperCase()}</span>
+                <span className="source-title">{titled ? s.title : site}</span>
+                {titled && <span className="source-site">{site}</span>}
+              </a>
+            )
+          })}
+        </div>
+      )}
+    </div>
   )
 }

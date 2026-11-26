@@ -113,7 +113,15 @@ interface Props {
   leadSlot?: React.ReactNode
   /** A guess at the next message, shown greyed out in the empty box; Tab fills it in. */
   suggestion?: string
+  /** Shown above the attachments (a ChatGPT reply handed to Claude Code). */
+  topSlot?: React.ReactNode
+  /** The box can be sent empty (something is attached in topSlot). */
+  canSendEmpty?: boolean
 }
+
+/** A paste longer than this becomes an attached text file instead of filling the box (as in ChatGPT). */
+const LONG_PASTE_CHARS = 3000
+const LONG_PASTE_LINES = 60
 
 export function Composer(p: Props): React.JSX.Element {
   const suggesting = !!p.suggestion && !p.draft && !p.research && !p.pending
@@ -128,7 +136,7 @@ export function Composer(p: Props): React.JSX.Element {
   const editingAttachment = editing ? p.attachments.find((x) => x.id === editing) : undefined
   const rec = useRef<Recording | null>(null)
   const speech = useSpeechStatus()
-  const canSend = (p.draft.trim().length > 0 || p.attachments.length > 0) && p.ready
+  const canSend = (p.draft.trim().length > 0 || p.attachments.length > 0 || !!p.canSendEmpty) && p.ready
 
   // Grow the box with its text.
   useEffect(() => {
@@ -211,6 +219,7 @@ export function Composer(p: Props): React.JSX.Element {
           </span>
         </div>
       )}
+      {p.topSlot}
       {p.attachments.length > 0 && (
         <div className="attach-row">
           {p.attachments.map((a) => (
@@ -347,6 +356,13 @@ export function Composer(p: Props): React.JSX.Element {
               if (files.length) {
                 e.preventDefault()
                 void addFiles(files)
+                return
+              }
+              const text = e.clipboardData.getData('text/plain')
+              if (text.length > LONG_PASTE_CHARS || text.split('\n').length > LONG_PASTE_LINES) {
+                e.preventDefault()
+                const n = p.attachments.filter((a) => a.name.startsWith('Pasted text')).length
+                void addFiles([new File([text], n ? `Pasted text ${n + 1}.txt` : 'Pasted text.txt', { type: 'text/plain' })])
               }
             }}
             onKeyDown={(e) => {
