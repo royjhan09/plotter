@@ -31,8 +31,8 @@ export function renderChart(el: HTMLElement, src: string): () => void {
   let chart: Chart | null = null
   try {
     const dark = currentTheme() === 'dark'
-    Chart.defaults.color = cssVar('--muted') || '#5c4a38'
-    Chart.defaults.borderColor = dark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(59, 42, 26, 0.10)'
+    Chart.defaults.color = cssVar('--muted') || '#6b6b6b'
+    Chart.defaults.borderColor = dark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)'
     const colors = palette()
     const cfg = JSON.parse(src) as ChartConfiguration & { title?: string }
     if (!cfg.type || !cfg.data) throw new Error('needs "type" and "data"')
@@ -87,37 +87,37 @@ function mermaidVariables(dark: boolean): Record<string, string> {
   const pies = Object.fromEntries(p.slice(0, 8).map((c, i) => [`pie${i + 1}`, c]))
   return dark
     ? {
-        primaryColor: '#3d2718',
+        primaryColor: '#3a2a20',
         primaryBorderColor: '#f06a1d',
-        primaryTextColor: '#f2e6d8',
+        primaryTextColor: '#ececec',
         secondaryColor: '#1d3122',
         secondaryBorderColor: '#51cf66',
-        tertiaryColor: '#221b15',
-        lineColor: '#a8927c',
-        textColor: '#f2e6d8',
-        mainBkg: '#3d2718',
+        tertiaryColor: '#2a2a2a',
+        lineColor: '#a3a3a3',
+        textColor: '#ececec',
+        mainBkg: '#3a2a20',
         nodeBorder: '#f06a1d',
-        clusterBkg: '#221b15',
-        edgeLabelBackground: '#1a1511',
-        noteBkgColor: '#31281f',
-        noteTextColor: '#f2e6d8',
-        noteBorderColor: '#45382c',
-        background: '#262019',
-        pieTitleTextColor: '#f2e6d8',
-        pieLegendTextColor: '#f2e6d8',
+        clusterBkg: '#2a2a2a',
+        edgeLabelBackground: '#212121',
+        noteBkgColor: '#2f2f2f',
+        noteTextColor: '#ececec',
+        noteBorderColor: '#424242',
+        background: '#2a2a2a',
+        pieTitleTextColor: '#ececec',
+        pieLegendTextColor: '#ececec',
         ...pies
       }
     : {
         primaryColor: '#fde3cf',
         primaryBorderColor: '#e8590c',
-        primaryTextColor: '#3b2a1a',
+        primaryTextColor: '#1f1f1f',
         secondaryColor: '#e3f7e6',
         secondaryBorderColor: '#40c057',
-        tertiaryColor: '#fff4e6',
-        lineColor: '#8a7460',
-        textColor: '#3b2a1a',
-        noteBkgColor: '#fff4e6',
-        noteBorderColor: '#ecd3b6',
+        tertiaryColor: '#f9f9f9',
+        lineColor: '#8a8a8a',
+        textColor: '#1f1f1f',
+        noteBkgColor: '#f9f9f9',
+        noteBorderColor: '#d6d6d6',
         ...pies
       }
 }

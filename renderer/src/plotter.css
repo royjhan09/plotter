@@ -1,11 +1,12 @@
-/* Plotter's look, taken from its icon: a cream ground, the orange seed-bot, two greens for the sprout. */
+/* Plotter's look: neutral, white and grey like a reading surface; the icon's orange and sprout greens are kept
+   for accents only (send/voice and New chat buttons, links, the logo). */
 :root {
-  --cream: #fff4e6;
-  --paper: #ffffff;
-  --sand: #f6e6d2;
-  --sand-strong: #ecd3b6;
-  --ink: #3b2a1a;
-  --muted: #8a7460;
+  --cream: #f9f9f9; /* sidebar */
+  --paper: #ffffff; /* chat */
+  --sand: #ececec; /* borders, hovers */
+  --sand-strong: #d6d6d6;
+  --ink: #1f1f1f;
+  --muted: #6b6b6b;
   --orange: #e8590c;
   --orange-soft: #ee8144;
   --orange-tint: #fde3cf;
@@ -14,38 +15,42 @@
   --leaf-tint: #e3f7e6;
   --bad: #c92a2a;
   --radius: 16px;
-  --shadow: 0 1px 2px rgba(59, 42, 26, 0.06), 0 6px 20px rgba(59, 42, 26, 0.07);
-  --shadow-pop: 0 10px 30px rgba(59, 42, 26, 0.16);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.05), 0 6px 20px rgba(0, 0, 0, 0.06);
+  --shadow-pop: 0 10px 30px rgba(0, 0, 0, 0.14);
   --surface: #ffffff;
-  --placeholder: #b39d88;
+  --bubble: #f4f4f4; /* your messages, selected chat */
+  --focus: #b5b5b5; /* message box border while typing */
+  --placeholder: #9b9b9b;
   --leaf-text: #2f7d3a;
-  --code-bg: #2b2118;
-  --stripe: rgba(246, 230, 210, 0.35);
-  --overlay: rgba(59, 42, 26, 0.3);
+  --code-bg: #1e1e1e;
+  --stripe: rgba(0, 0, 0, 0.025);
+  --overlay: rgba(0, 0, 0, 0.35);
   color-scheme: light;
 }
 
-/* Dark: the same seed-bot colours on warm soil instead of cream paper. */
+/* Dark: neutral dark greys, same accents. */
 :root[data-theme='dark'] {
-  --cream: #221b15;
-  --paper: #1a1511;
-  --sand: #31281f;
-  --sand-strong: #45382c;
-  --ink: #f2e6d8;
-  --muted: #a8927c;
+  --cream: #171717;
+  --paper: #212121;
+  --sand: #2f2f2f;
+  --sand-strong: #424242;
+  --ink: #ececec;
+  --muted: #a3a3a3;
   --orange: #f06a1d;
   --orange-soft: #f4975f;
-  --orange-tint: #3d2718;
+  --orange-tint: #3a2a20;
   --leaf: #51cf66;
   --leaf-light: #8ce99a;
   --leaf-tint: #1d3122;
   --bad: #ff8787;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 6px 20px rgba(0, 0, 0, 0.3);
   --shadow-pop: 0 12px 34px rgba(0, 0, 0, 0.5);
-  --surface: #262019;
-  --placeholder: #7d6a58;
+  --surface: #2a2a2a;
+  --bubble: #303030;
+  --focus: #5a5a5a;
+  --placeholder: #7a7a7a;
   --leaf-text: #8ce99a;
-  --code-bg: #120e0b;
+  --code-bg: #141414;
   --stripe: rgba(255, 255, 255, 0.03);
   --overlay: rgba(0, 0, 0, 0.55);
   color-scheme: dark;
@@ -252,8 +257,8 @@ button:disabled {
 }
 
 .chat-item.active {
-  background: var(--orange-tint);
-  box-shadow: inset 3px 0 0 var(--orange);
+  background: var(--bubble);
+  font-weight: 600;
 }
 
 .chat-title {
@@ -420,7 +425,7 @@ button:disabled {
 }
 
 .msg.user .bubble {
-  background: var(--orange-tint);
+  background: var(--bubble);
   border-radius: 20px 20px 6px 20px;
   padding: 10px 16px;
   max-width: 80%;
@@ -734,7 +739,7 @@ button:disabled {
 }
 
 .md li::marker {
-  color: var(--orange);
+  color: var(--muted);
 }
 
 /* ---------- composer ---------- */
@@ -779,7 +784,7 @@ button:disabled {
 }
 
 .composer:focus-within {
-  border-color: var(--orange-soft);
+  border-color: var(--focus);
 }
 
 .composer-row {
@@ -1235,7 +1240,7 @@ button:disabled {
   color: #ff8787;
 }
 :root[data-theme='dark'] .voice-orb {
-  background: radial-gradient(circle at 35% 30%, #4a3424, var(--orange-tint) 60%, #24170e);
+  background: radial-gradient(circle at 35% 30%, #3a3a3a, #2a2a2a 60%, #1c1c1c);
 }
 :root[data-theme='dark'] .md code {
   background: var(--sand-strong);
