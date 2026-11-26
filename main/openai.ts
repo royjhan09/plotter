@@ -29,9 +29,16 @@ Make answers clear and visual when it helps understanding. Plotter renders all o
   Options such as {"indexAxis":"y"} or {"scales":{"x":{"stacked":true},"y":{"stacked":true}}} are fine.
 - Diagrams: a fenced block with the language \`mermaid\` (flowchart, sequenceDiagram, timeline, mindmap, gantt, pie, quadrantChart, classDiagram, stateDiagram, erDiagram, journey). Quote labels that contain spaces or punctuation, e.g. A["Plant seeds"] --> B["Water daily"]. Use classDef to colour nodes when colour helps. For flows with more than 4 steps use "flowchart TD" (top to bottom) so labels stay readable; keep node labels short.
 
-Use charts for numbers and comparisons, diagrams for processes, structures and timelines, tables for options side by side, and callouts for key warnings or tips. Keep visuals purposeful: one good visual beats several. Plotter cannot generate images.
+- UI mockups and custom visuals: a fenced block with the language \`ui\` containing self-contained HTML with inline CSS (a <style> element is fine; inline SVG is fine for simple illustrations, icons and mascots). It is drawn as a live preview card about 720px wide. No JavaScript (it will not run), no external CSS or fonts; use system fonts. Use it for wireframes and page layouts, component mockups (cards, nav bars, dashboards, forms, quiz screens), colour palettes with swatches, typography scales, and side-by-side visual comparisons. Make each mockup focused and realistic, with real-looking labels in the user's language, rounded corners, light borders and generous spacing. Several \`ui\` blocks in one answer are fine when each illustrates a different section.
 
-You can search the web and open web pages. Use it when the user gives a link, asks about current or recent information, or when facts need checking; otherwise answer directly. When you use the web, cite sources with Markdown links. If a page cannot be opened, say so plainly and say what you used instead.`
+When the question is about visual design, a website, an app screen, UI/UX or a layout, show it rather than only describe it: start with a ui wireframe of the whole page, then ui mockups of its key sections or components, a colour palette with swatches when colours matter, and tables for structured breakdowns. Analysis requests deserve a thorough, well-organised answer with numbered sections.
+
+Use charts for numbers and comparisons, diagrams for processes, structures and timelines, ui mockups when the topic is visual design or layout, tables for options side by side, and callouts for key warnings or tips. Keep visuals purposeful. Plotter cannot generate images (photos/paintings), but it can draw them as SVG inside a ui block.
+
+You can search the web and open web pages. Use it when the user gives a link, asks about current or recent information, or when facts need checking; otherwise answer directly. When you use the web, cite sources with Markdown links whose text is the site's domain, e.g. ([example.com](https://example.com/page)); they are shown as small source chips. If a page cannot be opened, say so plainly and say what you used instead.`
+
+const TITLE_INSTRUCTIONS =
+  "Write a short title for this conversation in the user's language: at most 20 characters for Korean/Japanese/Chinese, or at most 6 words otherwise. Name the topic, like a chat list title (e.g. 사이트 디자인 분석, Tomato watering plan). Reply with the title only: no quotes, no trailing period, no emoji."
 
 async function authedFetch(path: string, init: RequestInit = {}): Promise<Response> {
   const go = async (force: boolean): Promise<Response> =>
@@ -138,13 +145,25 @@ export async function streamReply(
   effort: string,
   history: HistoryItem[],
   handlers: StreamHandlers,
-  signal: AbortSignal
+  signal: AbortSignal,
+  opts: { instructions?: string; webSearch?: boolean } = {}
 ): Promise<void> {
   const input = history.map(toInput)
+  const tools = opts.webSearch === false ? [] : [{ type: 'web_search' }]
   const res = await authedFetch('/responses', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
-    body: JSON.stringify({ model, instructions: INSTRUCTIONS, input, tools: [{ type: 'web_search' }], reasoning: { effort }, store: false, stream: true }),
+    body: JSON.stringify({
+      model,
+      instructions: opts.instructions ?? INSTRUCTIONS,
+      input,
+      tools,
+      reasoning: { effort },
+      // The plan's models default to "low" verbosity; ChatGPT answers at medium.
+      text: { verbosity: opts.instructions ? 'low' : 'medium' },
+      store: false,
+      stream: true
+    }),
     signal
   })
   if (!res.ok || !res.body) {
@@ -225,4 +244,30 @@ export async function streamReply(
     }
   }
   if (!completed) throw new ReplyError('interrupted', 'The connection ended before the reply finished.')
+}
+
+/**
+ * A short chat-list title for a new conversation, like ChatGPT does after the first reply.
+ * Uses the plan's model at its lightest reasoning level, no web search, and only the start of the exchange.
+ */
+export async function generateTitle(userText: string, replyText: string): Promise<string> {
+  const model = await primaryModel()
+  const effort = model.efforts.find((e) => e.effort === 'minimal' || e.effort === 'low')?.effort ?? model.defaultEffort
+  const clip = (s: string, n: number): string => (s.length > n ? `${s.slice(0, n)}…` : s)
+  const prompt = `User's first message:\n${clip(userText, 1200)}\n\nStart of the assistant's reply:\n${clip(replyText, 800)}`
+  let title = ''
+  await streamReply(
+    model.slug,
+    effort,
+    [{ role: 'user', text: prompt }],
+    { onDelta: (t) => (title += t), onActivity: () => undefined, onSource: () => undefined },
+    AbortSignal.timeout(30_000),
+    { instructions: TITLE_INSTRUCTIONS, webSearch: false }
+  )
+  return title
+    .split('\n')[0]!
+    .replace(/^["'“”‘’「『]+|["'“”‘’」』.。]+$/g, '')
+    .replace(/^#+\s*/, '')
+    .trim()
+    .slice(0, 60)
 }

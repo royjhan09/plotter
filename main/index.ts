@@ -1,7 +1,7 @@
 import { app, BrowserWindow, ipcMain, shell, nativeImage, nativeTheme, session } from 'electron'
 import { join } from 'node:path'
 import { authState, cancelSignIn, loadSession, signIn, signOut } from './auth'
-import { forgetModel, primaryModel, ReplyError, streamReply } from './openai'
+import { forgetModel, generateTitle, primaryModel, ReplyError, streamReply } from './openai'
 import { onSpeechStatus, speechStatus, transcribe, warmSpeech } from './speech'
 import { getChat, listChats, readSettings, removeChat, saveChat, updateSettings } from './store'
 import { startDevBridge } from './devBridge'
@@ -102,6 +102,7 @@ export const handlers: Record<string, (...args: never[]) => unknown> = {
     updateSettings({ lastModel: chat.model })
   },
   'chats:remove': (id: string) => removeChat(id),
+  'chats:title': (userText: string, replyText: string) => generateTitle(userText, replyText),
 
   'reply:send': (req: SendRequest) => {
     const ctrl = new AbortController()

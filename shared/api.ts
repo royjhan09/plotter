@@ -18,6 +18,8 @@ export interface ChatMessage {
   role: Role
   text: string
   attachments?: Attachment[]
+  /** How long the model worked before the first words appeared. */
+  thoughtMs?: number
   /** Web pages a reply cited (web search). */
   sources?: { url: string; title: string }[]
   /** Set when a reply stopped early: the user stopped it, or it failed. */
@@ -28,6 +30,8 @@ export interface ChatMessage {
 export interface Chat {
   id: string
   title: string
+  /** True once the model has named the chat. */
+  titled?: boolean
   model: string
   messages: ChatMessage[]
   createdAt: number
@@ -109,6 +113,8 @@ export interface PlotterApi {
     get: (id: string) => Promise<Chat | null>
     save: (chat: Chat) => Promise<void>
     remove: (id: string) => Promise<void>
+    /** A short title for a new chat, written by the model from the first exchange. */
+    title: (userText: string, replyText: string) => Promise<string>
   }
   reply: {
     send: (request: SendRequest) => Promise<void>

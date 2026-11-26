@@ -50,7 +50,8 @@ export function installDevBridge(): void {
       list: () => call('chats:list'),
       get: (id) => call('chats:get', id),
       save: (chat) => call('chats:save', chat),
-      remove: (id) => call('chats:remove', id)
+      remove: (id) => call('chats:remove', id),
+      title: (userText, replyText) => call('chats:title', userText, replyText)
     },
     reply: {
       send: (request) => call('reply:send', request),

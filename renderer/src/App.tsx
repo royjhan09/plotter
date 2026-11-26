@@ -130,6 +130,29 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
     return () => clearTimeout(t)
   }, [toast])
 
+  /** Ask the model for a short title and store it, whether or not the chat is still open. */
+  const nameChat = useCallback(
+    async (chatId: string, userText: string, replyText: string): Promise<void> => {
+      try {
+        const title = await api.chats.title(userText, replyText)
+        if (!title) return
+        const open = chatRef.current?.id === chatId ? chatRef.current : null
+        const stored = open ?? (await api.chats.get(chatId))
+        if (!stored) return
+        const named = { ...stored, title, titled: true }
+        if (open) {
+          chatRef.current = named
+          setChat(named)
+        }
+        await api.chats.save(named)
+        refreshList()
+      } catch {
+        // keep the first-message title if naming fails (e.g. usage limit)
+      }
+    },
+    [refreshList]
+  )
+
   // Stream events from the main process. Refs, not state updaters, so each event is applied exactly once.
   useEffect(
     () =>
@@ -152,7 +175,8 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
           return
         }
         if (ev.type === 'delta') {
-          msgs[msgs.length - 1] = { ...last, text: last.text + ev.text }
+          const first = !last.text && last.thoughtMs === undefined
+          msgs[msgs.length - 1] = { ...last, text: last.text + ev.text, ...(first ? { thoughtMs: Date.now() - last.at } : {}) }
           chatRef.current = { ...current, messages: msgs }
           setChat(chatRef.current)
           return
@@ -168,6 +192,9 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
         setChat(done)
         setPending(null)
         void api.chats.save(done).then(refreshList)
+        // After the first exchange, let the model name the chat (like ChatGPT's chat list).
+        const users = done.messages.filter((m) => m.role === 'user')
+        if (users.length === 1 && last.text && !done.titled) void nameChat(done.id, users[0]!.text, last.text)
         const w = waiters.current.get(ev.requestId)
         waiters.current.delete(ev.requestId)
         if (w) {
@@ -175,7 +202,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
           else w.resolve(last.text)
         }
       }),
-    [refreshList]
+    [refreshList, nameChat]
   )
 
   useEffect(() => {
@@ -481,6 +508,9 @@ function Message({ m, typing, activity }: { m: ChatMessage; typing: boolean; act
     <div className="msg assistant">
       <img src={icon} alt="" className="sprout" />
       <div className="body">
+        {m.thoughtMs !== undefined && m.thoughtMs >= 2000 && m.text && (
+          <div className="thought">Thought for {Math.round(m.thoughtMs / 1000)}s</div>
+        )}
         {typing && activity && (
           <div className="activity">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">

@@ -1440,3 +1440,42 @@ body,
   font-size: 11px;
   color: var(--muted);
 }
+
+/* "Thought for 7s" above a reply */
+.thought {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+/* inline web citation chips: ([example.com](url)) */
+.md a.cite {
+  display: inline-block;
+  font-size: 11.5px;
+  line-height: 1.6;
+  padding: 0 8px;
+  margin: 0 1px;
+  border-radius: 999px;
+  background: var(--cream);
+  border: 1px solid var(--sand);
+  color: var(--muted);
+  text-decoration: none;
+  vertical-align: 1px;
+  white-space: nowrap;
+}
+.md a.cite:hover {
+  color: var(--ink);
+  border-color: var(--sand-strong);
+}
+
+/* ```ui previews (sandboxed HTML mockups) */
+.viz.ui {
+  padding: 16px;
+}
+.ui-frame {
+  display: block;
+  width: 100%;
+  height: 120px;
+  border: 0;
+  background: transparent;
+}
