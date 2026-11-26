@@ -2,9 +2,10 @@ import { useRef, useState } from 'react'
 import type { ChatMessage } from '../../shared/api'
 import { Markdown } from './Markdown'
 import { badgeFor, sizeLabel } from './attachments'
-import { PictureViewer } from './ImageViewer'
-import { PdfBadge } from './PdfPreview'
-import { ClaudeBuddy, ClaudeCodeIcon, ClaudeTurn } from './ClaudeCode'
+import { PictureViewer } from '@private/renderer/ImageViewer'
+import { PDF_EXPORT, PdfBadge } from '@private/renderer/PdfPreview'
+import { ClaudeBuddy, ClaudeCodeIcon } from './ClaudeBuddy'
+import { ClaudeTurn } from '@private/renderer/ClaudeCode'
 import icon from '../../assets/icon.png'
 
 function siteName(url: string): string {
@@ -66,10 +67,12 @@ export function Message({
           {m.error && m.error !== 'Stopped.' && <div className="error">{m.error}</div>}
           {m.cc.state !== 'running' && m.text && (
             <div className="msg-actions">
-              <button title="Convert this reply to a PDF" disabled={!onPdf} onClick={() => onPdf?.(m.id)}>
-                <PdfBadge size={16} />
-                Convert to PDF
-              </button>
+              {PDF_EXPORT && (
+                <button title="Convert this reply to a PDF" disabled={!onPdf} onClick={() => onPdf?.(m.id)}>
+                  <PdfBadge size={16} />
+                  Convert to PDF
+                </button>
+              )}
               <button title="Copy Claude Code's answer" onClick={() => void navigator.clipboard.writeText(m.text)}>
                 Copy
               </button>
@@ -125,12 +128,14 @@ export function Message({
         )}
         {m.error && m.error !== 'Stopped.' && <div className="error">{m.error}</div>}
         {m.error === 'Stopped.' && <div className="stopped">Stopped</div>}
-        {!typing && m.text && (
+        {!typing && m.text && (PDF_EXPORT || onClaudeCode) && (
           <div className="msg-actions">
-            <button title="Convert this reply to a PDF" disabled={!onPdf} onClick={() => onPdf?.(m.id)}>
-              <PdfBadge size={16} />
-              Convert to PDF
-            </button>
+            {PDF_EXPORT && (
+              <button title="Convert this reply to a PDF" disabled={!onPdf} onClick={() => onPdf?.(m.id)}>
+                <PdfBadge size={16} />
+                Convert to PDF
+              </button>
+            )}
             {onClaudeCode && (
               <button title="Hand this to your own Claude Code to carry out" onClick={() => onClaudeCode(m)}>
                 <ClaudeCodeIcon size={16} />

@@ -3,14 +3,33 @@
     "target": "ES2023",
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "lib": ["ES2023"],
+    "lib": [
+      "ES2023"
+    ],
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "types": ["node", "electron-vite/node"]
+    "types": [
+      "node",
+      "electron-vite/node"
+    ],
+    "paths": {
+      "@private/*": [
+        "./private/*",
+        "./private-stub/*"
+      ]
+    }
   },
-  "include": ["electron.vite.config.ts", "main/**/*", "preload/**/*", "shared/**/*", "tests/**/*"]
+  "include": [
+    "electron.vite.config.ts",
+    "main/**/*",
+    "preload/**/*",
+    "shared/**/*",
+    "tests/**/*",
+    "private/main/**/*",
+    "private-stub/main/**/*"
+  ]
 }

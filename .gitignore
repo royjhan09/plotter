@@ -2,3 +2,6 @@ node_modules/
 out/
 release/
 *.log
+
+# Private parts of Plotter (their own repo, never pushed here). See private-stub/ for the public stand-ins.
+/private/

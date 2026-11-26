@@ -14,7 +14,7 @@ async function start(): Promise<void> {
   if (import.meta.env.DEV && !window.plotter) (await import('./devBridgeClient')).installDevBridge()
   const root = createRoot(document.getElementById('root')!)
   if (printChat) {
-    const { PrintView } = await import('./PrintView')
+    const { PrintView } = await import('@private/renderer/PrintView')
     root.render(<PrintView chatId={printChat} messageId={params.get('msg') ?? undefined} />)
     return
   }

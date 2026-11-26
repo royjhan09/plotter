@@ -3,12 +3,13 @@ import type { AuthState, CanvasDoc, ChatKind, ChatMetaPatch, ChatSummary, Model 
 import { useThemeSetting } from './theme'
 import { CanvasContext, CanvasPanel } from './Canvas'
 import { CustomizePanel, Settings, type Tab as SettingsTab } from './Settings'
-import { PdfPreview } from './PdfPreview'
+import { PDF_EXPORT, PdfPreview } from '@private/renderer/PdfPreview'
 import { ChatList } from './ChatList'
-import { ClaudeBuddy } from './ClaudeCode'
+import { ClaudeBuddy } from './ClaudeBuddy'
+import { CLAUDE_CODE } from '@private/renderer/ClaudeCode'
 import { ChatPane, announceRename, cleanError } from './ChatPane'
 import { RailIcon } from './RailIcon'
-import { Market } from './Market'
+import { MARKET, Market } from '@private/renderer/Market'
 import icon from '../../assets/icon.png'
 
 const api = window.plotter
@@ -359,18 +360,19 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
         </div>
         <div className="rail-fill" />
         <div className="rail-bottom">
-          <button
-            className={`rail-btn ${marketOpen ? 'on' : ''}`}
-            title="Market: your tools"
-            onClick={() => {
-              setSettingsOpen(false)
-    setMarketOpen(false)
-              setPanel(null)
-              setMarketOpen(!marketOpen)
-            }}
-          >
-            <RailIcon name="market" />
-          </button>
+          {MARKET && (
+            <button
+              className={`rail-btn ${marketOpen ? 'on' : ''}`}
+              title="Market: your tools"
+              onClick={() => {
+                setSettingsOpen(false)
+                setPanel(null)
+                setMarketOpen(!marketOpen)
+              }}
+            >
+              <RailIcon name="market" />
+            </button>
+          )}
           <button className={`rail-btn ${settingsOpen ? 'on' : ''}`} title="Settings" onClick={() => (settingsOpen ? setSettingsOpen(false) : openSettings('general'))}>
             <RailIcon name="settings" />
           </button>
@@ -440,6 +442,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
             >
               <img src={icon} alt="" className="side-item-icon" /> New chat
             </button>
+            {CLAUDE_CODE && (
             <button
               className="side-item claude-new"
               title="New Claude Code chat (or drag it to a side)"
@@ -450,6 +453,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
             >
               <ClaudeBuddy size={20} /> New chat
             </button>
+            )}
             <ChatList
               chats={chats}
               activeIds={[leftId, split ? rightId : null].filter((x): x is string => !!x)}
@@ -461,7 +465,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
               }}
               onUpdate={updateChat}
               onDelete={(c) => setDeleting({ id: c.id, title: c.title })}
-              onPdf={(c) => savePdf(undefined, c)}
+              onPdf={PDF_EXPORT ? (c) => savePdf(undefined, c) : undefined}
               onOpenBeside={(id) => {
                 openChat(id, side === 'left' || !split ? 'right' : 'left')
                 if (!pinned) setPanel(null)

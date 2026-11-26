@@ -1,15 +1,15 @@
 /**
- * Which parts of Plotter are public (in the GitHub repo), which are private, and which could be.
+ * Which parts of Plotter are public (in the GitHub repo), which are private, and why.
  *
  * The rule: code that uses your ChatGPT plan stays public, because OpenAI's plan-usage track for apps
- * like Plotter is for "open-source and locally hosted apps". Code that doesn't use ChatGPT can move to a
- * private folder that the build pulls in when present: no effect on speed (it is compiled into the same
- * app), the costs are a second repo to keep and a public repo that no longer has those features.
- * Code already pushed stays visible in the public history even after it moves.
+ * like Plotter is for "open-source and locally hosted apps". Code that doesn't use ChatGPT lives in
+ * ./private: a separate, git-ignored repo that the build pulls in when present. No effect on speed: it is
+ * compiled into the same app. Without it (a public checkout) small stand-ins in ./private-stub switch
+ * those features off. Code pushed before the move stays visible in the public history.
  */
 
 export type Visibility = 'private' | 'public'
-export type Advice = 'keep-private' | 'must-public' | 'can-private' | 'partly'
+export type Advice = 'keep-private' | 'must-public' | 'stay-public'
 
 export interface VisibilityItem {
   name: string
@@ -17,7 +17,7 @@ export interface VisibilityItem {
   now: Visibility
   advice: Advice
   why: string
-  /** What making it private would cost (speed, upkeep, behaviour). */
+  /** The tradeoff of where it is. */
   tradeoff: string
 }
 
@@ -27,12 +27,12 @@ export interface VisibilityGroup {
   items: VisibilityItem[]
 }
 
-const NO_SPEED = 'No effect on speed: it would be compiled into the same app.'
+const MOVED = 'In the private folder. The public repo has a stand-in that switches it off. Versions pushed before the move are still in the public history.'
 
 export const VISIBILITY: VisibilityGroup[] = [
   {
-    title: 'Already private: only on this PC',
-    lead: 'Your data never goes in the repo. It lives in AppData\\Roaming\\Plotter.',
+    title: 'Your data: only on this PC',
+    lead: 'Never in the repo. It lives in AppData\\Roaming\\Plotter (and Claude Code’s own folder).',
     items: [
       { name: 'Your chats (ChatGPT and Claude Code)', now: 'private', advice: 'keep-private', why: 'Stored as files on this PC.', tradeoff: 'Nothing to change.' },
       { name: 'Sign-in to ChatGPT', now: 'private', advice: 'keep-private', why: 'Tokens are encrypted with Windows (DPAPI) on this PC.', tradeoff: 'Nothing to change.' },
@@ -49,8 +49,18 @@ export const VISIBILITY: VisibilityGroup[] = [
     ]
   },
   {
-    title: 'Must stay public: uses your ChatGPT plan',
-    lead: 'This is the code OpenAI’s open-source track covers. Keeping it public is what makes using your plan in Plotter fit the rules.',
+    title: 'Private code: in the private folder',
+    lead: 'Features that don’t use ChatGPT, moved to C:\\Coding\\plotter\\private (its own repo, ignored by the public one). Plotter runs exactly the same.',
+    items: [
+      { name: 'Claude Code chats', now: 'private', advice: 'keep-private', why: 'Runs your own Claude Code, not ChatGPT: the runner, the folder menu and the reply view.', tradeoff: MOVED },
+      { name: 'The Market', now: 'private', advice: 'keep-private', why: 'Registering tools, the page, the MCP connections and the bridge for Claude Code.', tradeoff: MOVED },
+      { name: 'PDF export and preview', now: 'private', advice: 'keep-private', why: 'Prints a chat on this PC.', tradeoff: MOVED },
+      { name: 'Picture viewer and drawing on pictures', now: 'private', advice: 'keep-private', why: 'Runs on this PC.', tradeoff: `${MOVED} The public stand-in still shows a picture full size, without the zoom or drawing.` }
+    ]
+  },
+  {
+    title: 'Public: uses your ChatGPT plan',
+    lead: 'The code OpenAI’s open-source track covers. Keeping it public is what makes using your plan in Plotter fit the rules.',
     items: [
       {
         name: 'ChatGPT sign-in and plan usage',
@@ -60,39 +70,40 @@ export const VISIBILITY: VisibilityGroup[] = [
         tradeoff: 'Making it private would mean switching to a paid OpenAI API key instead of your plan.'
       },
       { name: 'Chat replies (streaming, reasoning level, web search)', now: 'public', advice: 'must-public', why: 'Every reply is a ChatGPT request.', tradeoff: 'Same as above.' },
-      { name: 'Visuals in replies (charts, diagrams, maths, mockups)', now: 'public', advice: 'must-public', why: 'Part of how ChatGPT is asked to reply, and how its replies are drawn.', tradeoff: 'Splitting them out would separate the instructions from the drawing for no gain.' },
-      { name: 'Memory', now: 'public', advice: 'must-public', why: 'A tool ChatGPT calls during replies.', tradeoff: 'Same as chat replies.' },
-      { name: 'Run Python', now: 'public', advice: 'must-public', why: 'Runs code ChatGPT writes, as a ChatGPT tool.', tradeoff: 'Same as chat replies.' },
-      { name: 'Canvas and deep research', now: 'public', advice: 'must-public', why: 'Ways of asking ChatGPT to answer.', tradeoff: 'Same as chat replies.' },
-      { name: 'Connectors (Google, Notion)', now: 'public', advice: 'must-public', why: 'Tools ChatGPT calls during replies.', tradeoff: 'Same as chat replies.' },
-      { name: 'Chat titles and Tab suggestions', now: 'public', advice: 'must-public', why: 'Small ChatGPT requests made after replies.', tradeoff: 'Same as chat replies.' },
-      { name: 'Voice mode', now: 'public', advice: 'must-public', why: 'Your speech becomes a ChatGPT message.', tradeoff: 'Same as chat replies.' }
+      { name: 'Visuals in replies (charts, diagrams, maths, mockups)', now: 'public', advice: 'must-public', why: 'Part of how ChatGPT is asked to reply, and how its replies are drawn.', tradeoff: 'Same as above.' },
+      { name: 'Memory, Run Python, Canvas, deep research', now: 'public', advice: 'must-public', why: 'Tools and modes ChatGPT uses during replies.', tradeoff: 'Same as above.' },
+      { name: 'Connectors (Google, Notion)', now: 'public', advice: 'must-public', why: 'Tools ChatGPT calls during replies.', tradeoff: 'Same as above.' },
+      { name: 'Chat titles and Tab suggestions', now: 'public', advice: 'must-public', why: 'Small ChatGPT requests made after replies.', tradeoff: 'Same as above.' },
+      { name: 'Voice mode and dictation', now: 'public', advice: 'must-public', why: 'Voice mode sends your speech to ChatGPT, and needs dictation (speech to text) to do it.', tradeoff: 'Dictation stays with voice mode so the public app is complete.' },
+      {
+        name: 'Handing Market tools to a ChatGPT reply',
+        now: 'public',
+        advice: 'must-public',
+        why: 'The one piece of the Market inside a ChatGPT request (main/marketChat.ts).',
+        tradeoff: 'Shows that connected tools are offered to ChatGPT, nothing about which tools or how they work.'
+      }
     ]
   },
   {
-    title: 'Can be private: doesn’t use ChatGPT',
-    lead: 'These could move to a private folder the build pulls in. Plotter would run exactly the same.',
+    title: 'Public: kept public on purpose',
+    lead: 'These don’t use ChatGPT, but hiding them would cost more than it gains.',
     items: [
       {
-        name: 'Claude Code chats',
+        name: 'Two chats side by side, drag and drop',
         now: 'public',
-        advice: 'can-private',
-        why: 'Run your own Claude Code, not ChatGPT.',
-        tradeoff: `${NO_SPEED} The public repo would no longer have Claude Code chats.`
+        advice: 'stay-public',
+        why: 'Woven into the app’s main layout.',
+        tradeoff: 'Moving it would mean restructuring the app for little benefit; no effect on speed either way.'
       },
+      { name: 'Chat list: pin, rename, archive, search', now: 'public', advice: 'stay-public', why: 'Ordinary app plumbing.', tradeoff: 'Low value to hide.' },
+      { name: 'Settings, themes, characters and look', now: 'public', advice: 'stay-public', why: 'Appearance and preferences.', tradeoff: 'Low value to hide.' },
       {
-        name: 'The Market (registering and connecting tools)',
+        name: 'The hooks for the private parts',
         now: 'public',
-        advice: 'partly',
-        why: 'The registry, its page and the Claude Code bridge don’t use ChatGPT. Only the small piece that hands your tools to a ChatGPT reply does.',
-        tradeoff: `${NO_SPEED} That one piece stays public; everything else can move.`
-      },
-      { name: 'PDF export and preview', now: 'public', advice: 'can-private', why: 'Prints a chat on this PC.', tradeoff: NO_SPEED },
-      { name: 'Two chats side by side, drag and drop', now: 'public', advice: 'can-private', why: 'Layout only.', tradeoff: NO_SPEED },
-      { name: 'Picture viewer and drawing on pictures', now: 'public', advice: 'can-private', why: 'Runs on this PC.', tradeoff: NO_SPEED },
-      { name: 'Dictation (speech to text)', now: 'public', advice: 'can-private', why: 'Runs a speech model on this PC.', tradeoff: NO_SPEED },
-      { name: 'Chat list: pin, rename, archive, search', now: 'public', advice: 'can-private', why: 'Organises files on this PC.', tradeoff: `${NO_SPEED} Low value to hide: it’s ordinary app plumbing.` },
-      { name: 'Settings, themes, characters and look', now: 'public', advice: 'can-private', why: 'Appearance and preferences.', tradeoff: `${NO_SPEED} Low value to hide.` }
+        advice: 'stay-public',
+        why: 'A few lines in the chat code that call the private features, and the stand-ins that switch them off.',
+        tradeoff: 'They show the features exist, not how they work.'
+      }
     ]
   }
 ]
@@ -100,6 +111,5 @@ export const VISIBILITY: VisibilityGroup[] = [
 export const ADVICE_LABEL: Record<Advice, string> = {
   'keep-private': 'Private',
   'must-public': 'Keep public',
-  'can-private': 'Can be private',
-  partly: 'Mostly can be private'
+  'stay-public': 'Public by choice'
 }

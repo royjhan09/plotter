@@ -2,7 +2,7 @@ import { INSTRUCTIONS, WEB_INSTRUCTIONS, runConversation, type ConversationHandl
 import { addMemory, listMemories, readFeatures, removeMemory } from './store'
 import { pythonTool } from './python'
 import { connectorTools } from './connectors'
-import { marketTools } from './market'
+import { marketTools } from './marketChat'
 import type { Attachment, SendRequest } from '../shared/api'
 
 /**

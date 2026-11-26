@@ -522,22 +522,22 @@ function VisibilityTab(): React.JSX.Element {
     <>
       <h3>Public &amp; private</h3>
       <p className="settings-lead">
-        What anyone can see in Plotter’s GitHub repo, what stays on this PC, and what could move to a private folder. The rule: code that uses your ChatGPT plan stays
-        public (OpenAI’s plan-usage track is for open-source apps); the rest can be private. Moving a feature to a private folder doesn’t slow Plotter down: it’s still built
-        into the same app. The costs are a second repo to keep, and that code already pushed stays in the public history.
+        What anyone can see in Plotter’s GitHub repo, and what stays private. The rule: code that uses your ChatGPT plan stays public (OpenAI’s plan-usage track is for
+        open-source apps); the rest lives in a private folder that’s built into the same app, so nothing is slower. The costs are a second repo to keep, and that code
+        pushed before the move stays in the public history.
       </p>
       <div className="vis-summary">
         <div className="vis-stat">
           <b>{count((a) => a.now === 'private')}</b>
-          <span>private now</span>
+          <span>private</span>
         </div>
         <div className="vis-stat">
           <b>{count((a) => a.advice === 'must-public')}</b>
-          <span>must stay public</span>
+          <span>public: uses ChatGPT</span>
         </div>
         <div className="vis-stat accent">
-          <b>{count((a) => a.advice === 'can-private' || a.advice === 'partly')}</b>
-          <span>public now, can be private</span>
+          <b>{count((a) => a.advice === 'stay-public')}</b>
+          <span>public by choice</span>
         </div>
       </div>
       {VISIBILITY.map((g) => (
@@ -552,7 +552,7 @@ function VisibilityTab(): React.JSX.Element {
                 <div className="vis-trade">{it.tradeoff}</div>
               </div>
               <div className="vis-badges">
-                <span className={`vis-badge now-${it.now}`}>{it.now === 'private' ? '🔒 Private now' : '🌐 Public now'}</span>
+                <span className={`vis-badge now-${it.now}`}>{it.now === 'private' ? '🔒 Private' : '🌐 Public'}</span>
                 {it.advice !== 'keep-private' && <span className={`vis-badge advice-${it.advice}`}>{ADVICE_LABEL[it.advice]}</span>}
               </div>
             </div>

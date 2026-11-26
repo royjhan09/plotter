@@ -11,8 +11,9 @@ import { clearMemories, getChat, listChats, listMemories, readFeatures, readSett
 import { startDevBridge } from './devBridge'
 import { getUiFrame, putUiFrame, UI_FRAME_CSP } from './uiFrames'
 import { showInExplorer } from './frontExplorer'
-import { checkMarketTool, closeAllMarket, listMarket, removeMarketTool, saveMarketTool, setMarketConnected } from './market'
-import { claudeCodeAvailable, recentFolders, sendToClaude, settleStale, stopAllClaude, stopClaude } from './claudeCode'
+import { pdfHandlers } from '@private/main/pdf'
+import { checkMarketTool, closeAllMarket, listMarket, removeMarketTool, saveMarketTool, setMarketConnected } from '@private/main/market'
+import { claudeCodeAvailable, recentFolders, sendToClaude, settleStale, stopAllClaude, stopClaude } from '@private/main/claudeCode'
 import { USAGE_URL, type Chat, type ChatMetaPatch, type MarketToolInput, type ConnectorId, type Features, type ReplyEvent, type SendRequest } from '../shared/api'
 
 app.setName('Plotter')
@@ -207,7 +208,8 @@ export const handlers: Record<string, (...args: never[]) => unknown> = {
   },
 
   openUsage: () => shell.openExternal(USAGE_URL),
-
+  // PDF export (private: see @private/main/pdf)
+  ...pdfHandlers(() => win, BROWSER_ONLY)
 }
 
 function registerIpc(): void {

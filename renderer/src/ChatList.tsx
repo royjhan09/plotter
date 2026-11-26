@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ChatMetaPatch, ChatSummary } from '../../shared/api'
-import { ClaudeBuddy } from './ClaudeCode'
+import { ClaudeBuddy } from './ClaudeBuddy'
 import icon from '../../assets/icon.png'
 
 /** Small line icons for the chat rows and their ⋯ menu. */
@@ -86,7 +86,7 @@ interface Props {
   onOpen: (id: string) => void
   onUpdate: (id: string, patch: ChatMetaPatch) => void
   onDelete: (chat: ChatSummary) => void
-  onPdf: (chat: ChatSummary) => void
+  onPdf?: (chat: ChatSummary) => void
   /** Open this chat on the other side (side by side). */
   onOpenBeside: (id: string) => void
   /** A row started being dragged (towards the chat area). */
@@ -254,7 +254,7 @@ export function ChatList({ chats, activeIds, query, visible, onOpen, onUpdate, o
           {!menuChat.archived && item(menuChat.pinned ? 'unpin' : 'pin', menuChat.pinned ? 'Unpin' : 'Pin', 'P', () => onUpdate(menuChat.id, { pinned: !menuChat.pinned }))}
           {item('rename', 'Rename', 'R', () => setRenaming(menuChat.id))}
           {item('split', 'Open side by side', '', () => onOpenBeside(menuChat.id))}
-          {item('pdf', 'Convert to PDF', '', () => onPdf(menuChat))}
+          {onPdf && item('pdf', 'Convert to PDF', '', () => onPdf(menuChat))}
           {item(menuChat.archived ? 'unarchive' : 'archive', menuChat.archived ? 'Unarchive' : 'Archive', 'A', () => onUpdate(menuChat.id, { archived: !menuChat.archived }))}
           <div className="row-menu-sep" />
           {item('trash', 'Delete', '', () => onDelete(menuChat), true)}

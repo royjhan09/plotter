@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Attachment, EffortLevel, SpeechStatus } from '../../shared/api'
-import { ClaudeCodeIcon } from './ClaudeCode'
+import { ClaudeCodeIcon } from './ClaudeBuddy'
 import { ACCEPT, badgeFor, sizeLabel, toAttachment } from './attachments'
 import { startRecording, type Recording } from './audio'
-import { PictureViewer, SketchEditor, type RectSource } from './ImageViewer'
+import { DRAWING, PictureViewer, SketchEditor, type RectSource } from '@private/renderer/ImageViewer'
 
 const api = window.plotter
 
@@ -246,10 +246,14 @@ export function Composer(p: Props): React.JSX.Element {
         <PictureViewer
           src={viewingAttachment.data}
           from={viewing!.from}
-          onEdit={() => {
-            setEditing(viewingAttachment.id)
-            setViewing(null)
-          }}
+          onEdit={
+            DRAWING
+              ? () => {
+                  setEditing(viewingAttachment.id)
+                  setViewing(null)
+                }
+              : undefined
+          }
           onClose={() => setViewing(null)}
         />
       )}
@@ -299,17 +303,18 @@ export function Composer(p: Props): React.JSX.Element {
                 <Telescope /> Deep research
                 {p.research && <span className="pop-check">✓</span>}
               </button>
-              <button
-                className="pop-item"
-                disabled={!p.onClaudeCode}
-                title={p.onClaudeCode ? 'Hand a coding task to your own Claude Code' : 'Open or start a chat first'}
-                onClick={() => {
-                  setMenu(null)
-                  p.onClaudeCode?.()
-                }}
-              >
-                <ClaudeCodeIcon /> Send to Claude Code
-              </button>
+              {p.onClaudeCode && (
+                <button
+                  className="pop-item"
+                  title="Hand a coding task to your own Claude Code"
+                  onClick={() => {
+                    setMenu(null)
+                    p.onClaudeCode?.()
+                  }}
+                >
+                  <ClaudeCodeIcon /> Send to Claude Code
+                </button>
+              )}
             </div>
           )}
           <input

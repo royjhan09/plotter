@@ -4653,8 +4653,8 @@ body,
   border: 1px solid var(--sand-strong);
   color: var(--muted);
 }
-.vis-badge.advice-can-private,
-.vis-badge.advice-partly {
+.vis-badge.advice-stay-public,
+.vis-badge.advice-none {
   background: var(--orange-tint);
   color: var(--orange);
 }

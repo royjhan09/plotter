@@ -48,6 +48,13 @@ reply continues (`main/openai.ts` `runConversation`, `main/assistant.ts`).
 
 Docs: https://developers.openai.com/siwc
 
+## Private add-ons
+
+Plotter's own author keeps a few features that don't use ChatGPT in a separate private folder (`private/`,
+ignored by this repo). The build uses it when it is present; without it, the stand-ins in `private-stub/`
+switch those features off and the app works without them. Everything that uses your ChatGPT plan is in this
+repo. See Settings › Public & private for the full list.
+
 ## License
 
 MIT

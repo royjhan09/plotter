@@ -4,11 +4,12 @@ import { Composer } from './Composer'
 import { VoiceMode } from './VoiceMode'
 import { toAttachment } from './attachments'
 import { CanvasContext } from './Canvas'
-import { PdfBadge } from './PdfPreview'
+import { PDF_EXPORT, PdfBadge } from '@private/renderer/PdfPreview'
 import { Message } from './Message'
 import { RailIcon, ThemeButton } from './RailIcon'
 import { useClaudeTheme, type Theme } from './theme'
-import { ClaudeBuddy, FolderPicker, folderName, sendClaudeTurn, startClaudeChat } from './ClaudeCode'
+import { ClaudeBuddy, folderName } from './ClaudeBuddy'
+import { CLAUDE_CODE, FolderPicker, sendClaudeTurn, startClaudeChat } from '@private/renderer/ClaudeCode'
 import icon from '../../assets/icon.png'
 
 const api = window.plotter
@@ -449,6 +450,7 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
             disabled={!!pending}
             onClick={(e) => {
               e.stopPropagation()
+              if (!CLAUDE_CODE) return newChat('chatgpt') // only one kind of chat in this build
               setNewMenu(!newMenu)
             }}
           >
@@ -474,7 +476,7 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
           )}
         </div>
         <span className="chat-heading">{chat?.title ?? ''}</span>
-        {messages.length > 0 && (
+        {PDF_EXPORT && messages.length > 0 && (
           <button className="topbar-pdf" title="Convert this chat to a PDF" onClick={() => chat && p.savePdf(undefined, chat)} disabled={!!pending || ccBusy || p.pdfBusy}>
             <PdfBadge />
             {!p.split && 'Convert chat to PDF'}
@@ -531,7 +533,7 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
                 typing={!!pending && i === messages.length - 1 && m.role === 'assistant'}
                 activity={activity}
                 onPdf={p.pdfBusy || !chat ? undefined : (id) => p.savePdf(id, chat)}
-                onClaudeCode={isClaude ? undefined : (msg) => p.onSendToClaude(msg.text)}
+                onClaudeCode={isClaude || !CLAUDE_CODE ? undefined : (msg) => p.onSendToClaude(msg.text)}
               />
             ))}
           </div>
@@ -577,7 +579,7 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
           onError={toast}
           research={research}
           setResearch={setResearch}
-          onClaudeCode={isClaude ? undefined : () => p.onSendToClaude(draft)}
+          onClaudeCode={isClaude || !CLAUDE_CODE ? undefined : () => p.onSendToClaude(draft)}
           variant={isClaude ? 'claude' : 'chatgpt'}
           suggestion={suggestion}
         />
