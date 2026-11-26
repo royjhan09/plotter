@@ -1940,7 +1940,278 @@ body,
   .shell.with-canvas {
     grid-template-columns: minmax(300px, 1fr) minmax(320px, 1fr);
   }
-  .shell.with-canvas > .sidebar {
-    display: none;
+}
+
+/* ---------- rail + sliding chat list (like ChatGPT) ---------- */
+.shell {
+  position: relative;
+  grid-template-columns: 56px 1fr;
+}
+.shell.pinned {
+  grid-template-columns: 56px 264px 1fr;
+}
+.shell.with-canvas {
+  grid-template-columns: 56px minmax(360px, 1fr) minmax(380px, 46%);
+}
+.shell.with-canvas.pinned {
+  grid-template-columns: 56px 264px minmax(360px, 1fr) minmax(380px, 46%);
+}
+
+.rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 0 12px;
+  background: var(--cream);
+  border-right: 1px solid var(--sand);
+  z-index: 31;
+  min-height: 0;
+}
+.rail-top,
+.rail-bottom {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.rail-top {
+  padding-bottom: 8px;
+}
+.rail-bottom {
+  position: relative;
+  gap: 6px;
+}
+.rail-fill {
+  flex: 1;
+}
+.rail-logo {
+  border: 0;
+  background: none;
+  padding: 4px;
+  margin-bottom: 8px;
+  border-radius: 10px;
+}
+.rail-logo img {
+  width: 32px;
+  height: 32px;
+  display: block;
+}
+.rail-btn {
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+}
+.rail-btn:hover:not(:disabled),
+.rail-logo:hover {
+  background: var(--sand);
+  color: var(--ink);
+}
+.rail-btn.on {
+  background: var(--orange-tint);
+  color: var(--orange);
+}
+.rail .theme-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+}
+.rail-avatar {
+  border: 0;
+  background: none;
+  padding: 3px;
+  border-radius: 50%;
+  margin-top: 4px;
+}
+.rail-avatar:hover,
+.rail-avatar.open {
+  box-shadow: 0 0 0 2px var(--orange-soft);
+}
+.rail .account-menu {
+  left: 46px;
+  right: auto;
+  bottom: 0;
+  width: 270px;
+  z-index: 40;
+}
+.account-menu-who {
+  padding: 6px 10px 4px;
+}
+.account-menu-name {
+  font-weight: 650;
+}
+
+/* the chat list: an overlay that slides out from the rail… */
+.sidebar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 56px;
+  width: 272px;
+  z-index: 30;
+  transform: translateX(calc(-100% - 60px));
+  visibility: hidden;
+  transition:
+    transform 0.2s ease,
+    visibility 0.2s;
+  box-shadow: 8px 0 30px rgba(0, 0, 0, 0.12);
+}
+.sidebar.open {
+  transform: none;
+  visibility: visible;
+}
+/* …or docked beside the chat when pinned */
+.shell.pinned .sidebar {
+  position: static;
+  width: auto;
+  transform: none;
+  visibility: visible;
+  box-shadow: none;
+  transition: none;
+}
+.sidebar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 4px 14px 8px;
+}
+.sidebar-title {
+  font-weight: 700;
+  font-size: 18px;
+}
+.pin-btn {
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 9px;
+  background: none;
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+}
+.pin-btn:hover {
+  background: var(--sand);
+  color: var(--ink);
+}
+.chat-list-label {
+  font-size: 12px;
+  color: var(--muted);
+  padding: 4px 10px 6px;
+}
+
+/* narrow windows with the canvas open: the docked list becomes an overlay again */
+@media (max-width: 1150px) {
+  .shell.with-canvas,
+  .shell.with-canvas.pinned {
+    grid-template-columns: 56px minmax(300px, 1fr) minmax(320px, 1fr);
   }
+  .shell.with-canvas.pinned .sidebar {
+    position: absolute;
+    width: 272px;
+    transform: translateX(calc(-100% - 60px));
+    visibility: hidden;
+    box-shadow: 8px 0 30px rgba(0, 0, 0, 0.12);
+  }
+  .shell.with-canvas.pinned .sidebar.open {
+    transform: none;
+    visibility: visible;
+  }
+}
+
+/* panel as a floating card next to the rail (ChatGPT-style), in Plotter's cream */
+.sidebar {
+  top: 6px;
+  bottom: 6px;
+  left: 60px;
+  border: 1px solid var(--sand);
+  border-radius: 16px;
+  padding: 12px 10px;
+}
+.shell.pinned .sidebar {
+  margin: 6px 0 6px 4px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+.head-btns {
+  display: flex;
+  gap: 2px;
+}
+.pin-btn.on {
+  background: var(--orange-tint);
+  color: var(--orange);
+}
+.chat-search {
+  margin: 0 4px 10px;
+  border: 1px solid var(--sand-strong);
+  border-radius: 10px;
+  padding: 7px 12px;
+  font: inherit;
+  background: var(--surface);
+  color: var(--ink);
+  outline: none;
+}
+.chat-search:focus {
+  border-color: var(--orange-soft);
+}
+.side-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  border: 0;
+  background: none;
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 14px;
+  color: var(--ink);
+}
+.side-item:hover:not(:disabled) {
+  background: var(--sand);
+}
+.side-item svg {
+  color: var(--muted);
+  flex: none;
+}
+.side-meta {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--muted);
+}
+.side-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 10px;
+  font-size: 14px;
+}
+.side-row .switch {
+  transform: scale(0.85);
+}
+.customize {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+.customize .chat-list-label {
+  margin-top: 8px;
+}
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--sand-strong);
+  flex: none;
+}
+.dot.on {
+  background: var(--leaf);
+}
+.dot.paused {
+  background: #f59f00;
+}
+.sidebar .chat-list {
+  margin-top: 2px;
 }

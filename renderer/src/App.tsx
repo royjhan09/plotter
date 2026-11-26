@@ -6,7 +6,7 @@ import { VoiceMode } from './VoiceMode'
 import { badgeFor, sizeLabel, toAttachment } from './attachments'
 import { useThemeSetting, type Theme } from './theme'
 import { CanvasContext, CanvasPanel } from './Canvas'
-import { Settings } from './Settings'
+import { CustomizePanel, Settings } from './Settings'
 import icon from '../../assets/icon.png'
 
 const api = window.plotter
@@ -94,6 +94,50 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
   const [showWelcome, setShowWelcome] = useState(auth.planUsage && !auth.welcomeSeen)
   const [theme, setTheme] = useThemeSetting()
   const [accountMenu, setAccountMenu] = useState(false)
+  // Rail panels (Chats, Customize): hovering an icon slides its own panel out; leaving closes it a moment later.
+  // "Docked" keeps a panel open beside the chat.
+  type PanelKind = 'chats' | 'customize'
+  const [panel, setPanel] = useState<PanelKind | null>(null)
+  const [pinned, setPinned] = useState(() => localStorage.getItem('plotter.sidebarPinned') === '1')
+  const [dockedPanel, setDockedPanel] = useState<PanelKind>(() => (localStorage.getItem('plotter.dockedPanel') === 'customize' ? 'customize' : 'chats'))
+  const shownPanel: PanelKind | null = panel ?? (pinned ? dockedPanel : null)
+  const hoverTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const hoverIn = (kind: PanelKind): void => {
+    clearTimeout(hoverTimer.current)
+    hoverTimer.current = setTimeout(() => setPanel(kind), panel ? 0 : 120)
+  }
+  const hoverKeep = (): void => clearTimeout(hoverTimer.current)
+  const hoverOut = (): void => {
+    clearTimeout(hoverTimer.current)
+    hoverTimer.current = setTimeout(() => setPanel(null), 300)
+  }
+  const clickPanel = (kind: PanelKind): void => {
+    clearTimeout(hoverTimer.current)
+    if (pinned) {
+      setDockedPanel(kind)
+      localStorage.setItem('plotter.dockedPanel', kind)
+      setPanel(null)
+    } else setPanel((p) => (p === kind ? null : kind))
+  }
+  const togglePin = (): void => {
+    const kind = shownPanel ?? 'chats'
+    setDockedPanel(kind)
+    localStorage.setItem('plotter.dockedPanel', kind)
+    setPinned((p) => {
+      localStorage.setItem('plotter.sidebarPinned', p ? '0' : '1')
+      return !p
+    })
+    setPanel(null)
+  }
+  const [searching, setSearching] = useState(false)
+  const [query, setQuery] = useState('')
+  const shownChats = query.trim() ? chats.filter((c) => c.title.toLowerCase().includes(query.trim().toLowerCase())) : chats
+  const [settingsTab, setSettingsTab] = useState<'features' | 'memory' | 'connectors'>('features')
+  const openSettings = (tab: 'features' | 'memory' | 'connectors'): void => {
+    setSettingsTab(tab)
+    setSettingsOpen(true)
+    setPanel(null)
+  }
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [research, setResearch] = useState(false)
   const [canvas, setCanvas] = useState<CanvasDoc | null>(null)
@@ -332,37 +376,44 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
 
   return (
     <CanvasContext.Provider value={canvasApi}>
-    <div className={`shell ${canvas ? 'with-canvas' : ''}`}>
-      <aside className="sidebar">
-        <div className="brand">
-          <img src={icon} alt="" />
-          <span>Plotter</span>
-        </div>
-        <button className="btn primary new" onClick={newChat} disabled={!!pending}>
-          <span className="plus">+</span> New chat
-        </button>
-        <nav className="chat-list">
-          {chats.length === 0 && <p className="empty-list">No chats yet. Plant the first one.</p>}
-          {chats.map((c) => (
-            <div key={c.id} className={`chat-item ${chat?.id === c.id ? 'active' : ''}`} onClick={() => void openChat(c.id)}>
-              <span className="chat-title">{c.title}</span>
-              <button
-                className="del"
-                title="Delete chat"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  if (confirm(`Delete “${c.title}”?`)) void removeChat(c.id)
-                }}
-              >
-                ×
-              </button>
-            </div>
-          ))}
-        </nav>
-        <div className="account">
+    <div className={`shell ${canvas ? 'with-canvas' : ''} ${pinned ? 'pinned' : ''}`}>
+      {/* The rail: always there. Hovering an icon slides its panel out (Chats, Customize); a docked panel stays. */}
+      <nav className="rail">
+        <div className="rail-top">
+          <button className="rail-logo" title="New chat" onClick={newChat} disabled={!!pending}>
+            <img src={icon} alt="Plotter" />
+          </button>
           <button
-            className={`account-btn ${accountMenu ? 'open' : ''}`}
-            title="Account"
+            className={`rail-btn ${shownPanel === 'chats' ? 'on' : ''}`}
+            title="Chats"
+            onMouseEnter={() => hoverIn('chats')}
+            onMouseLeave={hoverOut}
+            onClick={() => clickPanel('chats')}
+          >
+            <RailIcon name="home" />
+          </button>
+          <button className="rail-btn" title="New chat" onClick={newChat} disabled={!!pending}>
+            <RailIcon name="new" />
+          </button>
+          <button
+            className={`rail-btn ${shownPanel === 'customize' ? 'on' : ''}`}
+            title="Customize"
+            onMouseEnter={() => hoverIn('customize')}
+            onMouseLeave={hoverOut}
+            onClick={() => clickPanel('customize')}
+          >
+            <RailIcon name="customize" />
+          </button>
+        </div>
+        <div className="rail-fill" />
+        <div className="rail-bottom">
+          <ThemeButton theme={theme} onChange={setTheme} />
+          <button className="rail-btn" title="Settings" onClick={() => openSettings('features')}>
+            <RailIcon name="settings" />
+          </button>
+          <button
+            className={`rail-avatar ${accountMenu ? 'open' : ''}`}
+            title={auth.account.email ?? 'Account'}
             onClick={(e) => {
               e.stopPropagation()
               setAccountMenu((o) => !o)
@@ -373,22 +424,80 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
             ) : (
               <div className="avatar letter">{(auth.account.name ?? auth.account.email ?? '?')[0]?.toUpperCase()}</div>
             )}
-            <div className="who">
-              <div className="name">{auth.account.name ?? 'Signed in'}</div>
-              <div className="email">{auth.account.email}</div>
-            </div>
           </button>
-          <ThemeButton theme={theme} onChange={setTheme} />
           {accountMenu && (
             <AccountMenu
+              name={auth.account.name}
               email={auth.account.email}
               onClose={() => setAccountMenu(false)}
               onUsage={() => void api.openUsage()}
-              onSettings={() => setSettingsOpen(true)}
+              onSettings={() => openSettings('features')}
               onSignOut={() => void signOut()}
             />
           )}
         </div>
+      </nav>
+
+      {/* The panel: a card that slides over the chat on hover, or sits beside it when docked. */}
+      <aside className={`sidebar ${panel ? 'open' : ''}`} onMouseEnter={hoverKeep} onMouseLeave={hoverOut}>
+        {shownPanel === 'customize' ? (
+          <>
+            <div className="sidebar-head">
+              <span className="sidebar-title">Customize</span>
+              <button className="pin-btn" title={pinned ? 'Undock (open on hover)' : 'Dock'} onClick={togglePin}>
+                <RailIcon name={pinned ? 'unpin' : 'pin'} />
+              </button>
+            </div>
+            <CustomizePanel open={!!panel || pinned} onSettings={openSettings} />
+          </>
+        ) : (
+          <>
+            <div className="sidebar-head">
+              <span className="sidebar-title">Plotter</span>
+              <div className="head-btns">
+                <button className={`pin-btn ${searching ? 'on' : ''}`} title="Search chats" onClick={() => {
+                    if (searching) setQuery('')
+                    setSearching(!searching)
+                  }}>
+                  <RailIcon name="search" />
+                </button>
+                <button className="pin-btn" title={pinned ? 'Undock (open on hover)' : 'Dock'} onClick={togglePin}>
+                  <RailIcon name={pinned ? 'unpin' : 'pin'} />
+                </button>
+              </div>
+            </div>
+            {searching && <input className="chat-search" autoFocus placeholder="Search chats" value={query} onChange={(e) => setQuery(e.target.value)} />}
+            <button className="side-item" onClick={newChat} disabled={!!pending}>
+              <RailIcon name="new" /> New chat
+            </button>
+            <div className="chat-list-label">{query ? `Matching “${query}”` : 'Recent'}</div>
+            <nav className="chat-list">
+              {shownChats.length === 0 && <p className="empty-list">{query ? 'No chats match.' : 'No chats yet. Plant the first one.'}</p>}
+              {shownChats.map((c) => (
+                <div
+                  key={c.id}
+                  className={`chat-item ${chat?.id === c.id ? 'active' : ''}`}
+                  onClick={() => {
+                    void openChat(c.id)
+                    if (!pinned) setPanel(null)
+                  }}
+                >
+                  <span className="chat-title">{c.title}</span>
+                  <button
+                    className="del"
+                    title="Delete chat"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      if (confirm(`Delete “${c.title}”?`)) void removeChat(c.id)
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </nav>
+          </>
+        )}
       </aside>
 
       <main
@@ -473,7 +582,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
 
       {canvas && <CanvasPanel doc={canvas} onChange={setCanvas} onClose={() => setCanvas(null)} />}
 
-      {settingsOpen && <Settings onClose={() => setSettingsOpen(false)} />}
+      {settingsOpen && <Settings initialTab={settingsTab} onClose={() => setSettingsOpen(false)} />}
 
       {voice && (
         <VoiceMode
@@ -614,7 +723,7 @@ function ThemeButton({ theme, onChange }: { theme: Theme; onChange: (t: Theme) =
 }
 
 /** Opens from the account button; Sign out lives here so it can't be clicked by accident. */
-function AccountMenu(p: { email?: string; onClose: () => void; onUsage: () => void; onSettings: () => void; onSignOut: () => void }): React.JSX.Element {
+function AccountMenu(p: { name?: string; email?: string; onClose: () => void; onUsage: () => void; onSettings: () => void; onSignOut: () => void }): React.JSX.Element {
   useEffect(() => {
     const close = (): void => p.onClose()
     const esc = (e: KeyboardEvent): void => {
@@ -629,7 +738,10 @@ function AccountMenu(p: { email?: string; onClose: () => void; onUsage: () => vo
   }, [p])
   return (
     <div className="account-menu" onClick={(e) => e.stopPropagation()}>
-      {p.email && <div className="account-menu-email">{p.email}</div>}
+      <div className="account-menu-who">
+        {p.name && <div className="account-menu-name">{p.name}</div>}
+        {p.email && <div className="account-menu-email">{p.email}</div>}
+      </div>
       <button
         className="pop-item"
         onClick={() => {
@@ -669,5 +781,61 @@ function AccountMenu(p: { email?: string; onClose: () => void; onUsage: () => vo
         Sign out
       </button>
     </div>
+  )
+}
+
+/** Line icons for the rail. */
+function RailIcon({ name }: { name: 'new' | 'chats' | 'home' | 'customize' | 'search' | 'settings' | 'pin' | 'unpin' }): React.JSX.Element {
+  const common = { viewBox: '0 0 24 24', width: 20, height: 20, fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const }
+  if (name === 'new')
+    return (
+      <svg {...common}>
+        <path d="M12 20h9" />
+        <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+      </svg>
+    )
+  if (name === 'home')
+    return (
+      <svg {...common}>
+        <path d="M3 10.5 12 3l9 7.5" />
+        <path d="M5 9v11h5v-6h4v6h5V9" />
+      </svg>
+    )
+  if (name === 'customize')
+    return (
+      <svg {...common}>
+        <path d="M4 7h10M18 7h2M4 17h4M12 17h8" />
+        <circle cx="16" cy="7" r="2" />
+        <circle cx="10" cy="17" r="2" />
+      </svg>
+    )
+  if (name === 'search')
+    return (
+      <svg {...common}>
+        <circle cx="11" cy="11" r="6.5" />
+        <path d="m20 20-4.2-4.2" />
+      </svg>
+    )
+  if (name === 'chats')
+    return (
+      <svg {...common}>
+        <path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12Z" />
+        <path d="M8.5 10.5h7M8.5 13.5h4.5" />
+      </svg>
+    )
+  if (name === 'settings')
+    return (
+      <svg {...common}>
+        <circle cx="12" cy="12" r="3" />
+        <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z" />
+      </svg>
+    )
+  // pin / unpin: a sidebar outline, filled when docked
+  return (
+    <svg {...common}>
+      <rect x="3" y="4" width="18" height="16" rx="3" />
+      <path d="M9 4v16" />
+      {name === 'unpin' && <path d="M4.5 6h3M4.5 9h3M4.5 12h3" />}
+    </svg>
   )
 }

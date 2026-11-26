@@ -30,8 +30,8 @@ function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boolean) =
 
 const errText = (e: unknown): string => (e instanceof Error ? e.message : String(e)).replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
 
-export function Settings({ onClose }: { onClose: () => void }): React.JSX.Element {
-  const [tab, setTab] = useState<Tab>('features')
+export function Settings({ onClose, initialTab = 'features' }: { onClose: () => void; initialTab?: Tab }): React.JSX.Element {
+  const [tab, setTab] = useState<Tab>(initialTab)
   useEffect(() => {
     const esc = (e: KeyboardEvent): void => {
       if (e.key === 'Escape') onClose()
@@ -249,5 +249,46 @@ function ConnectorsTab(): React.JSX.Element {
         )}
       </div>
     </>
+  )
+}
+
+/** The rail's Customize panel: quick switches, connectors and memory, each a click away from Settings. */
+export function CustomizePanel({ open, onSettings }: { open: boolean; onSettings: (tab: Tab) => void }): React.JSX.Element {
+  const [f, setF] = useState<Features | null>(null)
+  const [conn, setConn] = useState<ConnectorStatus[]>([])
+  const [memCount, setMemCount] = useState(0)
+  useEffect(() => {
+    if (!open) return
+    void api.features.get().then(setF)
+    void api.connectors.list().then(setConn)
+    void api.memory.list().then((l) => setMemCount(l.length))
+  }, [open])
+  return (
+    <div className="customize">
+      <div className="chat-list-label">Tools</div>
+      {f &&
+        FEATURE_INFO.map((x) => (
+          <div key={x.key} className="side-row" title={x.text}>
+            <span className="side-row-name">{x.name}</span>
+            <Toggle on={f[x.key]} label={x.name} onChange={(v) => void api.features.set({ [x.key]: v }).then(setF)} />
+          </div>
+        ))}
+      <div className="chat-list-label">Connectors</div>
+      {conn.map((c) => (
+        <button key={c.id} className="side-item" onClick={() => onSettings('connectors')}>
+          <span className={`dot ${c.connected ? (c.enabled ? 'on' : 'paused') : ''}`} />
+          {c.name}
+          <span className="side-meta">{c.connected ? (c.enabled ? 'Connected' : 'Paused') : 'Set up'}</span>
+        </button>
+      ))}
+      <div className="chat-list-label">Memory</div>
+      <button className="side-item" onClick={() => onSettings('memory')}>
+        🧠 Saved memories
+        <span className="side-meta">{memCount}</span>
+      </button>
+      <button className="side-item" onClick={() => onSettings('features')}>
+        ⚙ All settings
+      </button>
+    </div>
   )
 }
