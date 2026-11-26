@@ -93,6 +93,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
   const [toast, setToast] = useState<string | null>(null)
   const [pdf, setPdf] = useState<{ bytes: Uint8Array | null; name: string; error?: string } | null>(null)
   const pdfJob = useRef(0)
+  const [deleting, setDeleting] = useState<{ id: string; title: string } | null>(null)
   const [activity, setActivity] = useState<string | null>(null)
   const [voice, setVoice] = useState(false)
   const [showWelcome, setShowWelcome] = useState(auth.planUsage && !auth.welcomeSeen)
@@ -316,7 +317,10 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
   }
 
   const removeChat = async (id: string): Promise<void> => {
-    if (pending?.chatId === id) return
+    if (pending?.chatId === id) {
+      setToast('Wait for the reply to finish (or stop it) before deleting this chat.')
+      return
+    }
     await api.chats.remove(id)
     if (chat?.id === id) setChat(null)
     refreshList()
@@ -510,7 +514,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
                     title="Delete chat"
                     onClick={(e) => {
                       e.stopPropagation()
-                      if (confirm(`Delete “${c.title}”?`)) void removeChat(c.id)
+                      setDeleting({ id: c.id, title: c.title }) // Plotter's own popup: the browser's confirm() is blocked in the dev pane
                     }}
                   >
                     ×
@@ -621,6 +625,17 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
           name={pdf.name}
           error={pdf.error}
           onClose={closePdf}
+        />
+      )}
+
+      {deleting && (
+        <ConfirmDelete
+          title={deleting.title}
+          onCancel={() => setDeleting(null)}
+          onDelete={() => {
+            setDeleting(null)
+            void removeChat(deleting.id)
+          }}
         />
       )}
 
@@ -835,6 +850,35 @@ function AccountMenu(p: { name?: string; email?: string; onClose: () => void; on
 }
 
 /** Line icons for the rail. */
+/** Asks before a chat is deleted. Esc or a click outside cancels. */
+function ConfirmDelete({ title, onCancel, onDelete }: { title: string; onCancel: () => void; onDelete: () => void }): React.JSX.Element {
+  useEffect(() => {
+    const esc = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') onCancel()
+    }
+    window.addEventListener('keydown', esc)
+    return () => window.removeEventListener('keydown', esc)
+  }, [onCancel])
+  return (
+    <div className="modal-back" onClick={onCancel}>
+      <div className="modal confirm-delete" role="alertdialog" aria-label="Delete chat" onClick={(e) => e.stopPropagation()}>
+        <h3>Delete chat?</h3>
+        <p>
+          <b>{title}</b> will be deleted from this PC. This can’t be undone.
+        </p>
+        <div className="confirm-actions">
+          <button className="btn ghost" onClick={onCancel}>
+            Cancel
+          </button>
+          <button className="btn danger" onClick={onDelete} autoFocus>
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function RailIcon({ name }: { name: 'new' | 'chats' | 'home' | 'customize' | 'search' | 'settings' | 'pin' | 'unpin' }): React.JSX.Element {
   const common = { viewBox: '0 0 24 24', width: 20, height: 20, fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const }
   if (name === 'new')

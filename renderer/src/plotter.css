@@ -2882,3 +2882,25 @@ body,
   white-space: nowrap;
   text-overflow: ellipsis;
 }
+
+/* delete-chat confirm */
+.confirm-delete {
+  text-align: left;
+}
+.confirm-delete h3 {
+  margin: 0 0 8px;
+}
+.confirm-delete p {
+  margin: 0 0 20px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.confirm-delete p b {
+  color: var(--ink);
+  font-weight: 600;
+}
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
