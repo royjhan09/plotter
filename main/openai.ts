@@ -29,7 +29,9 @@ Make answers clear and visual when it helps understanding. Plotter renders all o
   Options such as {"indexAxis":"y"} or {"scales":{"x":{"stacked":true},"y":{"stacked":true}}} are fine.
 - Diagrams: a fenced block with the language \`mermaid\` (flowchart, sequenceDiagram, timeline, mindmap, gantt, pie, quadrantChart, classDiagram, stateDiagram, erDiagram, journey). Quote labels that contain spaces or punctuation, e.g. A["Plant seeds"] --> B["Water daily"]. Use classDef to colour nodes when colour helps. For flows with more than 4 steps use "flowchart TD" (top to bottom) so labels stay readable; keep node labels short.
 
-Use charts for numbers and comparisons, diagrams for processes, structures and timelines, tables for options side by side, and callouts for key warnings or tips. Keep visuals purposeful: one good visual beats several. Plotter cannot generate images.`
+Use charts for numbers and comparisons, diagrams for processes, structures and timelines, tables for options side by side, and callouts for key warnings or tips. Keep visuals purposeful: one good visual beats several. Plotter cannot generate images.
+
+You can search the web and open web pages. Use it when the user gives a link, asks about current or recent information, or when facts need checking; otherwise answer directly. When you use the web, cite sources with Markdown links. If a page cannot be opened, say so plainly and say what you used instead.`
 
 async function authedFetch(path: string, init: RequestInit = {}): Promise<Response> {
   const go = async (force: boolean): Promise<Response> =>
@@ -96,6 +98,26 @@ function toInput(m: HistoryItem): unknown {
 
 export interface StreamHandlers {
   onDelta: (text: string) => void
+  /** Web search progress: what the model is doing right now, or null when it has finished looking. */
+  onActivity: (label: string | null) => void
+  onSource: (source: { url: string; title: string }) => void
+}
+
+type SearchAction = { type?: string; query?: string; url?: string; queries?: string[] }
+
+function hostOf(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '')
+  } catch {
+    return url
+  }
+}
+
+function activityLabel(action: SearchAction | undefined): string {
+  if (action?.type === "open_page" && action.url) return `Reading ${hostOf(action.url)}…`
+  if (action?.type === "find_in_page" && action.url) return `Looking through ${hostOf(action.url)}…`
+  const q = action?.query ?? action?.queries?.[0]
+  return q ? `Searching the web for “${q}”…` : "Searching the web…"
 }
 
 export class ReplyError extends Error {
@@ -122,7 +144,7 @@ export async function streamReply(
   const res = await authedFetch('/responses', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
-    body: JSON.stringify({ model, instructions: INSTRUCTIONS, input, reasoning: { effort }, store: false, stream: true }),
+    body: JSON.stringify({ model, instructions: INSTRUCTIONS, input, tools: [{ type: 'web_search' }], reasoning: { effort }, store: false, stream: true }),
     signal
   })
   if (!res.ok || !res.body) {
@@ -143,7 +165,15 @@ export async function streamReply(
   let completed = false
   const handle = (data: string): void => {
     if (!data || data === '[DONE]') return
-    let ev: { type?: string; delta?: string; response?: { error?: { code?: string; message?: string }; incomplete_details?: { reason?: string } }; code?: string; message?: string }
+    let ev: {
+      type?: string
+      delta?: string
+      item?: { type?: string; action?: SearchAction }
+      annotation?: { type?: string; url?: string; title?: string }
+      response?: { error?: { code?: string; message?: string }; incomplete_details?: { reason?: string } }
+      code?: string
+      message?: string
+    }
     try {
       ev = JSON.parse(data)
     } catch {
@@ -152,6 +182,17 @@ export async function streamReply(
     switch (ev.type) {
       case 'response.output_text.delta':
         if (ev.delta) handlers.onDelta(ev.delta)
+        break
+      case 'response.output_item.added':
+        if (ev.item?.type === 'web_search_call') handlers.onActivity(activityLabel(ev.item.action))
+        else if (ev.item?.type === 'message') handlers.onActivity(null)
+        break
+      case 'response.output_item.done':
+        if (ev.item?.type === 'web_search_call') handlers.onActivity(activityLabel(ev.item.action))
+        break
+      case 'response.output_text.annotation.added':
+        if (ev.annotation?.type === 'url_citation' && ev.annotation.url)
+          handlers.onSource({ url: ev.annotation.url.replace(/[?&]utm_source=openai$/, ''), title: ev.annotation.title || hostOf(ev.annotation.url) })
         break
       case 'response.completed':
         completed = true

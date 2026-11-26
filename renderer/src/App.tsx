@@ -87,6 +87,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
   const [pending, setPending] = useState<{ requestId: string; chatId: string } | null>(null)
   const [limitHit, setLimitHit] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
+  const [activity, setActivity] = useState<string | null>(null)
   const [voice, setVoice] = useState(false)
   const [showWelcome, setShowWelcome] = useState(auth.planUsage && !auth.welcomeSeen)
   const [theme, setTheme] = useThemeSetting()
@@ -139,12 +140,24 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
         const msgs = [...current.messages]
         const last = msgs[msgs.length - 1]
         if (!last || last.role !== 'assistant') return
+        if (ev.type === 'activity') {
+          setActivity(ev.label)
+          return
+        }
+        if (ev.type === 'source') {
+          if (last.sources?.some((s) => s.url === ev.url)) return
+          msgs[msgs.length - 1] = { ...last, sources: [...(last.sources ?? []), { url: ev.url, title: ev.title }] }
+          chatRef.current = { ...current, messages: msgs }
+          setChat(chatRef.current)
+          return
+        }
         if (ev.type === 'delta') {
           msgs[msgs.length - 1] = { ...last, text: last.text + ev.text }
           chatRef.current = { ...current, messages: msgs }
           setChat(chatRef.current)
           return
         }
+        setActivity(null)
         if (ev.type === 'error') {
           msgs[msgs.length - 1] = { ...last, error: ev.message }
           if (ev.usageLimit) setLimitHit(true)
@@ -355,7 +368,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
           ) : (
             <div className="thread">
               {messages.map((m, i) => (
-                <Message key={m.id} m={m} typing={!!pending && i === messages.length - 1 && m.role === 'assistant'} />
+                <Message key={m.id} m={m} typing={!!pending && i === messages.length - 1 && m.role === 'assistant'} activity={activity} />
               ))}
             </div>
           )}
@@ -432,7 +445,15 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
   )
 }
 
-function Message({ m, typing }: { m: ChatMessage; typing: boolean }): React.JSX.Element {
+function siteName(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '')
+  } catch {
+    return url
+  }
+}
+
+function Message({ m, typing, activity }: { m: ChatMessage; typing: boolean; activity?: string | null }): React.JSX.Element {
   if (m.role === 'user')
     return (
       <div className="msg user">
@@ -460,15 +481,44 @@ function Message({ m, typing }: { m: ChatMessage; typing: boolean }): React.JSX.
     <div className="msg assistant">
       <img src={icon} alt="" className="sprout" />
       <div className="body">
+        {typing && activity && (
+          <div className="activity">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <circle cx="11" cy="11" r="6.5" />
+              <path d="m20 20-4.2-4.2" />
+            </svg>
+            {activity}
+          </div>
+        )}
         {m.text ? (
           <Markdown text={m.text} streaming={typing} />
-        ) : typing ? (
+        ) : typing && !activity ? (
           <span className="dots">
             <i />
             <i />
             <i />
           </span>
         ) : null}
+        {m.sources && m.sources.length > 0 && !typing && (
+          <div className="sources">
+            <span className="sources-label">Sources</span>
+            {m.sources.map((s) => (
+              <a key={s.url} className="source" href={s.url} target="_blank" rel="noreferrer" title={s.url}>
+                <span className="source-badge">{siteName(s.url).slice(0, 1).toUpperCase()}</span>
+                <span className="source-text">
+                  {/^https?:\/\//.test(s.title) || !s.title.trim() ? (
+                    <span className="source-title">{siteName(s.url)}</span>
+                  ) : (
+                    <>
+                      <span className="source-title">{s.title}</span>
+                      <span className="source-site">{siteName(s.url)}</span>
+                    </>
+                  )}
+                </span>
+              </a>
+            ))}
+          </div>
+        )}
         {m.error && m.error !== 'Stopped.' && <div className="error">{m.error}</div>}
         {m.error === 'Stopped.' && <div className="stopped">Stopped</div>}
       </div>

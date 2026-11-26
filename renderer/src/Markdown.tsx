@@ -80,7 +80,9 @@ export function Markdown({ text, streaming = false }: { text: string; streaming?
   const ref = useRef<HTMLDivElement>(null)
   const theme = useTheme()
   const html = useMemo(() => {
-    const raw = md.parse(normalizeMath(text), { async: false })
+    // Web-search answers sometimes carry empty citation links like ([]()): drop them.
+    const tidy = text.replace(/\s*\(\[\]\([^)]*\)\)/g, '').replace(/\[\]\([^)]*\)/g, '')
+    const raw = md.parse(normalizeMath(tidy), { async: false })
     const clean = DOMPurify.sanitize(callouts(raw), { USE_PROFILES: { html: true, svg: true, mathMl: true }, ADD_ATTR: ['target'] })
     return clean.replace(/<a /g, '<a target="_blank" rel="noreferrer" ')
   }, [text])

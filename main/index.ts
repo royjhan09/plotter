@@ -106,7 +106,18 @@ export const handlers: Record<string, (...args: never[]) => unknown> = {
   'reply:send': (req: SendRequest) => {
     const ctrl = new AbortController()
     running.set(req.requestId, ctrl)
-    void streamReply(req.model, req.effort, req.history, { onDelta: (text) => sendReply({ requestId: req.requestId, type: 'delta', text }) }, ctrl.signal)
+    const id = req.requestId
+    void streamReply(
+      req.model,
+      req.effort,
+      req.history,
+      {
+        onDelta: (text) => sendReply({ requestId: id, type: 'delta', text }),
+        onActivity: (label) => sendReply({ requestId: id, type: 'activity', label }),
+        onSource: (s) => sendReply({ requestId: id, type: 'source', url: s.url, title: s.title })
+      },
+      ctrl.signal
+    )
       .then(() => sendReply({ requestId: req.requestId, type: 'done' }))
       .catch((err: unknown) => {
         if (ctrl.signal.aborted) {

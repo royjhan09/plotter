@@ -18,6 +18,8 @@ export interface ChatMessage {
   role: Role
   text: string
   attachments?: Attachment[]
+  /** Web pages a reply cited (web search). */
+  sources?: { url: string; title: string }[]
   /** Set when a reply stopped early: the user stopped it, or it failed. */
   error?: string
   at: number
@@ -65,6 +67,8 @@ export interface Model {
 /** Streamed reply events, keyed by the request id the window chose. */
 export type ReplyEvent =
   | { requestId: string; type: 'delta'; text: string }
+  | { requestId: string; type: 'activity'; label: string | null }
+  | { requestId: string; type: 'source'; url: string; title: string }
   | { requestId: string; type: 'done' }
   | { requestId: string; type: 'error'; code: string; message: string; usageLimit: boolean }
 
