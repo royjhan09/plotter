@@ -8,6 +8,9 @@ import 'katex/dist/katex.min.css'
 import 'highlight.js/styles/atom-one-dark.css'
 import { renderChart, renderMermaid, renderUi } from './visuals'
 import { useTheme } from './theme'
+import { CanvasCard, parseCanvas } from './Canvas'
+import { ToolRunCard } from './ToolRunCard'
+import type { ToolRun } from '../../shared/api'
 
 /**
  * Replies as rich Markdown: tables, highlighted code, math (KaTeX), coloured callouts (> [!TIP] …), and
@@ -88,9 +91,17 @@ function toHtml(text: string): string {
   return citeChips(clean).replace(/<a /g, '<a target="_blank" rel="noreferrer" ')
 }
 
-type Piece = { kind: 'text'; text: string } | { kind: 'visual'; lang: string; src: string } | { kind: 'pending'; lang: string }
+type Piece =
+  | { kind: 'text'; text: string }
+  | { kind: 'visual'; lang: string; src: string }
+  | { kind: 'canvas'; lang: string; src: string }
+  | { kind: 'tool'; id: string }
+  | { kind: 'pending'; lang: string }
 
-/** Splits a reply at top-level ```chart / ```mermaid / ```ui blocks. An unclosed block at the end is "pending". */
+/**
+ * Splits a reply at top-level ```chart / ```mermaid / ```ui / ```canvas blocks and [[tool:id]] markers
+ * (where a Plotter tool ran). An unclosed block at the end is "pending".
+ */
 function splitPieces(text: string): Piece[] {
   const lines = text.split('\n')
   const pieces: Piece[] = []
@@ -100,7 +111,13 @@ function splitPieces(text: string): Piece[] {
     buf = []
   }
   for (let i = 0; i < lines.length; i++) {
-    const open = /^```[ \t]*(chart|mermaid|ui)[ \t]*$/i.exec(lines[i]!.trimEnd())
+    const tool = /^\[\[tool:([\w-]+)\]\]$/.exec(lines[i]!.trim())
+    if (tool) {
+      flush()
+      pieces.push({ kind: 'tool', id: tool[1]! })
+      continue
+    }
+    const open = /^```[ \t]*(chart|mermaid|ui|canvas(?::[\w+#.-]+)?)[ \t]*$/i.exec(lines[i]!.trimEnd())
     if (!open) {
       buf.push(lines[i]!)
       continue
@@ -118,14 +135,17 @@ function splitPieces(text: string): Piece[] {
       pieces.push({ kind: 'pending', lang })
       return pieces
     }
-    pieces.push({ kind: 'visual', lang, src: lines.slice(i + 1, close).join('\n') })
+    const src = lines.slice(i + 1, close).join('\n')
+    if (lang.startsWith('canvas')) pieces.push({ kind: 'canvas', lang: lang.slice('canvas:'.length), src })
+    else pieces.push({ kind: 'visual', lang, src })
     i = close
   }
   flush()
   return pieces
 }
 
-const WAIT: Record<string, string> = { chart: 'Drawing chart…', mermaid: 'Drawing diagram…', ui: 'Drawing preview…' }
+const WAIT = (lang: string): string =>
+  lang.startsWith('canvas') ? 'Writing in canvas…' : ({ chart: 'Drawing chart…', mermaid: 'Drawing diagram…', ui: 'Drawing preview…' } as Record<string, string>)[lang] ?? 'Drawing…'
 
 /** One finished visual. Memoised on its source, so later text arriving does not redraw it. */
 const Visual = memo(function Visual({ lang, src }: { lang: string; src: string }): React.JSX.Element {
@@ -175,17 +195,22 @@ const TextPiece = memo(function TextPiece({ text, live }: { text: string; live: 
   return <div ref={ref} dangerouslySetInnerHTML={{ __html: html }} />
 })
 
-export function Markdown({ text, streaming = false }: { text: string; streaming?: boolean }): React.JSX.Element {
+export function Markdown({ text, streaming = false, runs }: { text: string; streaming?: boolean; runs?: ToolRun[] }): React.JSX.Element {
   const pieces = useMemo(() => splitPieces(text), [text])
   return (
     <div className="md">
       {pieces.map((p, i) => {
         const last = i === pieces.length - 1
         if (p.kind === 'visual') return <Visual key={i} lang={p.lang} src={p.src} />
+        if (p.kind === 'canvas') return <CanvasCard key={i} doc={parseCanvas(p.lang, p.src)} auto={streaming} />
+        if (p.kind === 'tool') {
+          const run = runs?.find((r) => r.id === p.id)
+          return run ? <ToolRunCard key={i} run={run} /> : null
+        }
         if (p.kind === 'pending')
           return streaming ? (
             <div key={i} className="viz">
-              <div className="viz-wait">{WAIT[p.lang]}</div>
+              <div className="viz-wait">{WAIT(p.lang)}</div>
             </div>
           ) : (
             // the reply ended inside an unclosed block: show what there is as code

@@ -18,6 +18,21 @@ bridge on `127.0.0.1:5199` (`main/devBridge.ts`). The bridge answers only the de
 built app never starts it. Only one Plotter can run at a time, so close the desktop app before you start
 `dev:browser`. `.claude/launch.json` lets Claude open `dev:browser` in its browser pane.
 
+## Features (Settings → Features / Memory / Connectors)
+
+| Feature | What it does | Where it runs |
+|---|---|---|
+| Web search | Searches and opens links, cites sources | OpenAI (built-in tool) |
+| Memory | Remembers facts you share; view/delete in Settings | Saved on this PC (`memories.json`), sent with each message |
+| Run Python | Exact maths, data analysis, matplotlib charts | Pyodide in a hidden, sandboxed window: no disk, no network; packages from Pyodide's CDN, SHA-256 checked, cached |
+| Excel & Word | `.xlsx` sheets (also as CSV for Python), `.docx` text | Read on this PC |
+| Canvas | Long documents/code in an editable side panel | Plotter window |
+| Deep research | Per message (+ menu): many searches, long cited report | OpenAI, high reasoning |
+| Connectors | Gmail, Calendar, Drive (Google) and Notion, read-only | Your own OAuth client / integration secret, stored encrypted |
+
+Plotter's own tools (memory, Python, connectors) are function tools: the model asks, Plotter runs them, and the
+reply continues (`main/openai.ts` `runConversation`, `main/assistant.ts`).
+
 ## How it works
 
 - `main/auth.ts`: OAuth with PKCE against `auth.openai.com`, using a loopback redirect

@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import type { Attachment, AuthState, Chat, ChatMessage, ChatSummary, Model, ReplyEvent } from '../../shared/api'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { Attachment, AuthState, CanvasDoc, Chat, ChatMessage, ChatSummary, Model, ReplyEvent } from '../../shared/api'
 import { Markdown } from './Markdown'
 import { Composer } from './Composer'
 import { VoiceMode } from './VoiceMode'
-import { sizeLabel, toAttachment } from './attachments'
+import { badgeFor, sizeLabel, toAttachment } from './attachments'
 import { useThemeSetting, type Theme } from './theme'
+import { CanvasContext, CanvasPanel } from './Canvas'
+import { Settings } from './Settings'
 import icon from '../../assets/icon.png'
 
 const api = window.plotter
@@ -92,6 +94,20 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
   const [showWelcome, setShowWelcome] = useState(auth.planUsage && !auth.welcomeSeen)
   const [theme, setTheme] = useThemeSetting()
   const [accountMenu, setAccountMenu] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [research, setResearch] = useState(false)
+  const [canvas, setCanvas] = useState<CanvasDoc | null>(null)
+  const canvasRef = useRef<CanvasDoc | null>(null)
+  canvasRef.current = canvas
+  const canvasApi = useMemo(() => ({ open: (doc: CanvasDoc) => setCanvas(doc), current: canvas }), [canvas])
+  // while Python is starting or downloading a library, say so in the reply's activity line
+  useEffect(
+    () =>
+      api.python.onStatus((s) => {
+        if (s.state === 'loading' && pendingRef.current) setActivity(s.detail)
+      }),
+    []
+  )
   const chatRef = useRef<Chat | null>(null)
   chatRef.current = chat
   const pendingRef = useRef(pending)
@@ -167,6 +183,13 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
           setActivity(ev.label)
           return
         }
+        if (ev.type === 'tool') {
+          // a Plotter tool ran (Python, memory, a connector): show its card where it happened
+          msgs[msgs.length - 1] = { ...last, text: `${last.text}\n\n[[tool:${ev.run.id}]]\n\n`, toolRuns: [...(last.toolRuns ?? []), ev.run] }
+          chatRef.current = { ...current, messages: msgs }
+          setChat(chatRef.current)
+          return
+        }
         if (ev.type === 'source') {
           if (last.sources?.some((s) => s.url === ev.url)) return
           msgs[msgs.length - 1] = { ...last, sources: [...(last.sources ?? []), { url: ev.url, title: ev.title }] }
@@ -236,7 +259,8 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
     const files = spoken === undefined ? attachments : []
     if ((!text && files.length === 0) || pendingRef.current || !model) return ''
     const now = Date.now()
-    const user: ChatMessage = { id: newId(), role: 'user', text, at: now, ...(files.length ? { attachments: files } : {}) }
+    const asResearch = research && spoken === undefined
+    const user: ChatMessage = { id: newId(), role: 'user', text, at: now, ...(files.length ? { attachments: files } : {}), ...(asResearch ? { research: true } : {}) }
     const reply: ChatMessage = { id: newId(), role: 'assistant', text: '', at: now }
     const current = chatRef.current
     const base: Chat = current ?? { id: newId(), title: titleFrom(text, files), model: model.slug, messages: [], createdAt: now, updatedAt: now }
@@ -247,6 +271,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
     if (spoken === undefined) {
       setDraft('')
       setAttachments([])
+      setResearch(false)
     }
     setLimitHit(false)
     const requestId = newId()
@@ -261,7 +286,9 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
         chatId: next.id,
         model: model.slug,
         effort,
-        history: history.map((m) => ({ role: m.role, text: m.text, ...(m.attachments ? { attachments: m.attachments } : {}) }))
+        history: history.map((m) => ({ role: m.role, text: m.text, ...(m.attachments ? { attachments: m.attachments } : {}) })),
+        research: asResearch,
+        canvas: canvasRef.current
       })
     } catch (e) {
       const failed = { ...next, messages: [...history, { ...reply, error: cleanError(e) }] }
@@ -304,7 +331,8 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
   const messages = chat?.messages ?? []
 
   return (
-    <div className="shell">
+    <CanvasContext.Provider value={canvasApi}>
+    <div className={`shell ${canvas ? 'with-canvas' : ''}`}>
       <aside className="sidebar">
         <div className="brand">
           <img src={icon} alt="" />
@@ -356,6 +384,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
               email={auth.account.email}
               onClose={() => setAccountMenu(false)}
               onUsage={() => void api.openUsage()}
+              onSettings={() => setSettingsOpen(true)}
               onSignOut={() => void signOut()}
             />
           )}
@@ -430,6 +459,8 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
             onStop={stop}
             onVoice={() => setVoice(true)}
             onError={setToast}
+            research={research}
+            setResearch={setResearch}
           />
           <div className="plan-note">
             {auth.planUsage ? 'Using ChatGPT plan' : 'Plan usage not granted at sign-in'} ·{' '}
@@ -439,6 +470,10 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
           </div>
         </div>
       </main>
+
+      {canvas && <CanvasPanel doc={canvas} onChange={setCanvas} onClose={() => setCanvas(null)} />}
+
+      {settingsOpen && <Settings onClose={() => setSettingsOpen(false)} />}
 
       {voice && (
         <VoiceMode
@@ -469,6 +504,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
         </div>
       )}
     </div>
+    </CanvasContext.Provider>
   )
 }
 
@@ -491,7 +527,7 @@ function Message({ m, typing, activity }: { m: ChatMessage; typing: boolean; act
                 <img key={a.id} src={a.data} alt={a.name} className="msg-image" />
               ) : (
                 <div key={a.id} className="attach file in-msg">
-                  <span className="file-badge">{a.kind === 'pdf' ? 'PDF' : 'TXT'}</span>
+                  <span className="file-badge">{badgeFor(a)}</span>
                   <span className="file-meta">
                     <span className="file-name">{a.name}</span>
                     <span className="file-size">{sizeLabel(a.size)}</span>
@@ -521,7 +557,7 @@ function Message({ m, typing, activity }: { m: ChatMessage; typing: boolean; act
           </div>
         )}
         {m.text ? (
-          <Markdown text={m.text} streaming={typing} />
+          <Markdown text={m.text} streaming={typing} runs={m.toolRuns} />
         ) : typing && !activity ? (
           <span className="dots">
             <i />
@@ -578,7 +614,7 @@ function ThemeButton({ theme, onChange }: { theme: Theme; onChange: (t: Theme) =
 }
 
 /** Opens from the account button; Sign out lives here so it can't be clicked by accident. */
-function AccountMenu(p: { email?: string; onClose: () => void; onUsage: () => void; onSignOut: () => void }): React.JSX.Element {
+function AccountMenu(p: { email?: string; onClose: () => void; onUsage: () => void; onSettings: () => void; onSignOut: () => void }): React.JSX.Element {
   useEffect(() => {
     const close = (): void => p.onClose()
     const esc = (e: KeyboardEvent): void => {
@@ -605,6 +641,19 @@ function AccountMenu(p: { email?: string; onClose: () => void; onUsage: () => vo
           <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
         </svg>
         Manage ChatGPT usage
+      </button>
+      <button
+        className="pop-item"
+        onClick={() => {
+          p.onClose()
+          p.onSettings()
+        }}
+      >
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="3" />
+          <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z" />
+        </svg>
+        Settings
       </button>
       <div className="account-menu-sep" />
       <button

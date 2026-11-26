@@ -1,4 +1,4 @@
-import type { PlotterApi, ReplyEvent, SpeechStatus } from '../../shared/api'
+import type { PlotterApi, PythonStatus, ReplyEvent, SpeechStatus } from '../../shared/api'
 
 /**
  * Development only: when the UI is opened in an ordinary browser (no Electron preload), stand in for
@@ -29,12 +29,13 @@ async function call<T>(channel: string, ...args: unknown[]): Promise<T> {
   return body.result as T
 }
 
-const listeners = { reply: new Set<(e: ReplyEvent) => void>(), speech: new Set<(s: SpeechStatus) => void>() }
+const listeners = { reply: new Set<(e: ReplyEvent) => void>(), speech: new Set<(s: SpeechStatus) => void>(), python: new Set<(s: PythonStatus) => void>() }
 
 export function installDevBridge(): void {
   if (window.plotter) return
   const events = new EventSource(`${BRIDGE}/events`)
   events.addEventListener('reply:event', (e) => listeners.reply.forEach((l) => l(JSON.parse((e as MessageEvent).data))))
+  events.addEventListener('python:status', (e) => listeners.python.forEach((l) => l(JSON.parse((e as MessageEvent).data))))
   events.addEventListener('speech:status', (e) => listeners.speech.forEach((l) => l(JSON.parse((e as MessageEvent).data))))
 
   const api: PlotterApi = {
@@ -59,6 +60,30 @@ export function installDevBridge(): void {
       onEvent: (l) => {
         listeners.reply.add(l)
         return () => listeners.reply.delete(l)
+      }
+    },
+    features: {
+      get: () => call('features:get'),
+      set: (patch) => call('features:set', patch)
+    },
+    memory: {
+      list: () => call('memory:list'),
+      remove: (id) => call('memory:remove', id),
+      clear: () => call('memory:clear')
+    },
+    connectors: {
+      list: () => call('connectors:list'),
+      setGoogleClient: (id, secret) => call('connectors:setGoogleClient', id, secret),
+      setNotionToken: (token) => call('connectors:setNotionToken', token),
+      connect: (id) => call('connectors:connect', id),
+      disconnect: (id) => call('connectors:disconnect', id),
+      setEnabled: (id, on) => call('connectors:setEnabled', id, on)
+    },
+    python: {
+      status: () => call('python:status'),
+      onStatus: (listener) => {
+        listeners.python.add(listener)
+        return () => listeners.python.delete(listener)
       }
     },
     speech: {

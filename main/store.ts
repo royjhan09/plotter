@@ -1,7 +1,7 @@
 import { app, safeStorage } from 'electron'
 import { mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
-import type { Chat, ChatSummary } from '../shared/api'
+import { DEFAULT_FEATURES, type Chat, type ChatSummary, type Features, type Memory } from '../shared/api'
 
 /** Plotter's files, all under its own user-data folder. */
 const root = (): string => app.getPath('userData')
@@ -45,6 +45,8 @@ export interface Settings {
   welcomeSeen?: boolean
   lastModel?: string
   theme?: 'light' | 'dark'
+  features?: Partial<Features>
+  connectorsEnabled?: Partial<Record<'google' | 'notion', boolean>>
 }
 
 const settingsPath = (): string => join(root(), 'settings.json')
@@ -101,4 +103,69 @@ export function saveChat(chat: Chat): void {
 
 export function removeChat(id: string): void {
   rmSync(join(chatsDir(), `${safeId(id)}.json`), { force: true })
+}
+
+// ---- features (Settings → Features) ----
+
+export function readFeatures(): Features {
+  return { ...DEFAULT_FEATURES, ...(readSettings().features ?? {}) }
+}
+
+export function updateFeatures(patch: Partial<Features>): Features {
+  const clean: Partial<Features> = {}
+  for (const k of Object.keys(DEFAULT_FEATURES) as (keyof Features)[]) if (typeof patch[k] === 'boolean') clean[k] = patch[k]
+  const next = { ...readFeatures(), ...clean }
+  updateSettings({ features: next })
+  return next
+}
+
+// ---- memory: facts the model saved about the user ----
+
+const memoriesPath = (): string => join(root(), 'memories.json')
+
+export function listMemories(): Memory[] {
+  try {
+    return JSON.parse(readFileSync(memoriesPath(), 'utf8')) as Memory[]
+  } catch {
+    return []
+  }
+}
+
+function writeMemories(list: Memory[]): Memory[] {
+  mkdirSync(root(), { recursive: true })
+  writeAtomic(memoriesPath(), JSON.stringify(list, null, 2))
+  return list
+}
+
+export function addMemory(text: string): Memory {
+  const m: Memory = { id: Math.random().toString(36).slice(2, 8), text: text.trim().slice(0, 500), at: Date.now() }
+  writeMemories([...listMemories(), m].slice(-200))
+  return m
+}
+
+export function removeMemory(id: string): Memory[] {
+  return writeMemories(listMemories().filter((m) => m.id !== id))
+}
+
+export function clearMemories(): Memory[] {
+  return writeMemories([])
+}
+
+// ---- connector credentials and tokens: encrypted like the sign-in ----
+
+const connectorsPath = (): string => join(root(), 'connectors.bin')
+
+export function readConnectorSecrets<T>(): T | null {
+  if (!existsSync(connectorsPath())) return null
+  try {
+    return JSON.parse(safeStorage.decryptString(readFileSync(connectorsPath()))) as T
+  } catch {
+    return null
+  }
+}
+
+export function writeConnectorSecrets(value: unknown): void {
+  if (!safeStorage.isEncryptionAvailable()) throw new Error('OS encryption is not available, so Plotter will not store connector sign-ins.')
+  mkdirSync(root(), { recursive: true })
+  writeAtomic(connectorsPath(), safeStorage.encryptString(JSON.stringify(value)))
 }

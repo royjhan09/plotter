@@ -3,3 +3,8 @@ declare module '*.png' {
   export default src
 }
 
+
+declare module 'mammoth/mammoth.browser' {
+  const mammoth: unknown
+  export default mammoth
+}

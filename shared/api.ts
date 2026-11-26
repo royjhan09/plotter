@@ -2,15 +2,35 @@
 
 export type Role = 'user' | 'assistant'
 
-/** A photo or file attached to a user message, kept inline as a data URL. */
+/** A photo or file attached to a user message, kept inline. */
 export interface Attachment {
   id: string
-  kind: 'image' | 'pdf' | 'text'
+  /** image/pdf go to the model as files; text, sheet and doc go as text (sheet/doc converted on this PC). */
+  kind: 'image' | 'pdf' | 'text' | 'sheet' | 'doc'
   name: string
   mime: string
   size: number
-  /** data:<mime>;base64,... for image and pdf; the file's text for text. */
+  /** data:<mime>;base64,... for image and pdf; readable text for text, sheet and doc. */
   data: string
+  /** The original file as a data URL (sheet, doc, csv…), so Python can open it. */
+  raw?: string
+  /** Spreadsheets: every sheet as CSV (Python reads them as /data/<file>__<sheet>.csv). */
+  sheets?: { name: string; csv: string }[]
+}
+
+/** Something Plotter did with one of its own tools while answering (shown in the reply as a card). */
+export interface ToolRun {
+  id: string
+  kind: 'python' | 'memory' | 'connector'
+  /** One line, e.g. "Ran Python", "Saved to memory", "Searched Gmail". */
+  title: string
+  /** Python: the code; connector: the request. */
+  code?: string
+  /** Text the tool produced (stdout, result, list…). */
+  output?: string
+  error?: string
+  /** Python: PNG figures as data URLs. */
+  figures?: string[]
 }
 
 export interface ChatMessage {
@@ -22,6 +42,10 @@ export interface ChatMessage {
   thoughtMs?: number
   /** Web pages a reply cited (web search). */
   sources?: { url: string; title: string }[]
+  /** Tool runs shown in the reply at [[tool:<id>]] markers. */
+  toolRuns?: ToolRun[]
+  /** The message was sent in deep research mode. */
+  research?: boolean
   /** Set when a reply stopped early: the user stopped it, or it failed. */
   error?: string
   at: number
@@ -73,6 +97,7 @@ export type ReplyEvent =
   | { requestId: string; type: 'delta'; text: string }
   | { requestId: string; type: 'activity'; label: string | null }
   | { requestId: string; type: 'source'; url: string; title: string }
+  | { requestId: string; type: 'tool'; run: ToolRun }
   | { requestId: string; type: 'done' }
   | { requestId: string; type: 'error'; code: string; message: string; usageLimit: boolean }
 
@@ -82,6 +107,13 @@ export interface HistoryItem {
   attachments?: Attachment[]
 }
 
+export interface CanvasDoc {
+  title: string
+  text: string
+  /** Empty for a document; a language name (python, js …) for code. */
+  lang: string
+}
+
 export interface SendRequest {
   requestId: string
   chatId: string
@@ -89,7 +121,45 @@ export interface SendRequest {
   effort: string
   /** The whole conversation so far, the new user message last (no previous_response_id in the preview). */
   history: HistoryItem[]
+  /** Deep research: many searches, a long cited report. */
+  research?: boolean
+  /** The canvas as it is now (the user may have edited it), when it is open. */
+  canvas?: CanvasDoc | null
 }
+
+/** Settings → Features. */
+export interface Features {
+  webSearch: boolean
+  memory: boolean
+  python: boolean
+  canvas: boolean
+}
+
+export const DEFAULT_FEATURES: Features = { webSearch: true, memory: true, python: true, canvas: true }
+
+export interface Memory {
+  id: string
+  text: string
+  at: number
+}
+
+export type ConnectorId = 'google' | 'notion'
+
+export interface ConnectorStatus {
+  id: ConnectorId
+  name: string
+  /** What it lets Plotter read. */
+  covers: string
+  /** Credentials entered (Google: OAuth client; Notion: integration secret). */
+  configured: boolean
+  connected: boolean
+  /** The user lets Plotter use it in chats. */
+  enabled: boolean
+  account?: string
+}
+
+/** Local Python (Pyodide) progress. */
+export type PythonStatus = { state: 'idle' } | { state: 'loading'; detail: string } | { state: 'ready' } | { state: 'error'; message: string }
 
 /** Local speech-to-text progress: the model downloads once, then loads. */
 export type SpeechStatus =
@@ -121,6 +191,30 @@ export interface PlotterApi {
     stop: (requestId: string) => Promise<void>
     onEvent: (listener: (event: ReplyEvent) => void) => () => void
   }
+  features: {
+    get: () => Promise<Features>
+    set: (patch: Partial<Features>) => Promise<Features>
+  }
+  memory: {
+    list: () => Promise<Memory[]>
+    remove: (id: string) => Promise<Memory[]>
+    clear: () => Promise<Memory[]>
+  }
+  connectors: {
+    list: () => Promise<ConnectorStatus[]>
+    /** Google: save the OAuth client the user created in Google Cloud. */
+    setGoogleClient: (clientId: string, clientSecret: string) => Promise<ConnectorStatus[]>
+    /** Notion: save the internal integration secret. */
+    setNotionToken: (token: string) => Promise<ConnectorStatus[]>
+    /** Google: open the browser to sign in and allow read-only access. */
+    connect: (id: ConnectorId) => Promise<ConnectorStatus[]>
+    disconnect: (id: ConnectorId) => Promise<ConnectorStatus[]>
+    setEnabled: (id: ConnectorId, enabled: boolean) => Promise<ConnectorStatus[]>
+  }
+  python: {
+    status: () => Promise<PythonStatus>
+    onStatus: (listener: (status: PythonStatus) => void) => () => void
+  }
   speech: {
     /** 16 kHz mono samples → text (language detected). */
     transcribe: (samples: Float32Array) => Promise<string>
@@ -137,7 +231,7 @@ export interface PlotterApi {
     sandbox: string
   }
   /** Window frame and Windows title bar follow the chosen theme. */
-  setTheme: (theme: "light" | "dark") => Promise<void>
+  setTheme: (theme: 'light' | 'dark') => Promise<void>
   openUsage: () => Promise<void>
 }
 

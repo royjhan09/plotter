@@ -1,5 +1,5 @@
 import { accessToken } from './auth'
-import type { HistoryItem, Model } from '../shared/api'
+import type { HistoryItem, Model, ToolRun } from '../shared/api'
 
 /**
  * Calls to the Responses API with the ChatGPT-plan access token. Preview rules
@@ -11,7 +11,7 @@ import type { HistoryItem, Model } from '../shared/api'
 const API = 'https://api.openai.com/v1'
 
 /** Tells the model what Plotter's window can draw, so it answers as visually as ChatGPT does. */
-const INSTRUCTIONS = `You are Plotter, a friendly, capable assistant in a personal desktop app. Reply in the user's language.
+export const INSTRUCTIONS = `You are Plotter, a friendly, capable assistant in a personal desktop app. Reply in the user's language.
 
 Make answers clear and visual when it helps understanding. Plotter renders all of the following:
 - Markdown: headings, **bold**, lists, checklists (- [ ] / - [x]), tables, links, emoji (🟩🟨🟥 work well as colour markers).
@@ -33,9 +33,9 @@ Make answers clear and visual when it helps understanding. Plotter renders all o
 
 When the question is about visual design, a website, an app screen, UI/UX or a layout, show it rather than only describe it: start with a ui wireframe of the whole page, then give most sections their own ui mockup (e.g. header, hero, feature cards, dashboard, key inner pages such as a quiz or exam screen, made interactive where that is how it is used), plus a colour palette with swatches and a typography scale when the visual style matters, and tables for structured breakdowns. Put each mockup right before or after the text that explains it. Each visual appears as soon as its block is written, so a rich answer with many visuals does not feel slow. Analysis requests deserve a thorough, well-organised answer with numbered sections.
 
-Use charts for numbers and comparisons, diagrams for processes, structures and timelines, ui mockups when the topic is visual design or layout, tables for options side by side, and callouts for key warnings or tips. Keep visuals purposeful. Plotter cannot generate images (photos/paintings), but it can draw them as SVG inside a ui block.
+Use charts for numbers and comparisons, diagrams for processes, structures and timelines, ui mockups when the topic is visual design or layout, tables for options side by side, and callouts for key warnings or tips. Keep visuals purposeful. Plotter cannot generate images (photos/paintings), but it can draw them as SVG inside a ui block.`
 
-You can search the web and open web pages. Use it when the user gives a link, asks about current or recent information, or when facts need checking; otherwise answer directly. When you use the web, cite sources with Markdown links whose text is the site's domain, e.g. ([example.com](https://example.com/page)); they are shown as small source chips. If a page cannot be opened, say so plainly and say what you used instead.`
+export const WEB_INSTRUCTIONS = `You can search the web and open web pages. Use it when the user gives a link, asks about current or recent information, or when facts need checking; otherwise answer directly. When you use the web, cite sources with Markdown links whose text is the site's domain, e.g. ([example.com](https://example.com/page)); they are shown as small source chips. If a page cannot be opened, say so plainly and say what you used instead.`
 
 const TITLE_INSTRUCTIONS =
   "Write a short title for this conversation in the user's language: at most 20 characters for Korean/Japanese/Chinese, or at most 6 words otherwise. Name the topic, like a chat list title (e.g. 사이트 디자인 분석, Tomato watering plan). Reply with the title only: no quotes, no trailing period, no emoji."
@@ -91,13 +91,19 @@ export async function primaryModel(): Promise<Model> {
 }
 
 /** One history item as Responses input. Attachments become input_image / input_file / input_text parts. */
-function toInput(m: HistoryItem): unknown {
-  if (m.role === 'assistant') return { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: m.text }] }
+export function toInput(m: HistoryItem): unknown {
+  if (m.role === 'assistant')
+    return { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: m.text.replace(/\n*\[\[tool:[\w-]+\]\]\n*/g, '\n\n') }] }
   const content: unknown[] = []
   for (const a of m.attachments ?? []) {
     if (a.kind === 'image') content.push({ type: 'input_image', image_url: a.data })
     else if (a.kind === 'pdf') content.push({ type: 'input_file', filename: a.name, file_data: a.data })
-    else content.push({ type: 'input_text', text: `Attached file "${a.name}":\n\n${a.data}` })
+    else if (a.kind === 'sheet')
+      content.push({
+        type: 'input_text',
+        text: `Attached spreadsheet "${a.name}". For run_python each sheet is a CSV: ${(a.sheets ?? []).map((sh) => `/data/${a.name.replace(/\.[^.]+$/, '')}__${sh.name}.csv`).join(', ')}\n\n${a.data}`
+      })
+    else content.push({ type: 'input_text', text: `Attached file "${a.name}" (run_python: /data/${a.name}${a.kind === 'doc' ? '.txt' : ''}):\n\n${a.data}` })
   }
   if (m.text || content.length === 0) content.push({ type: 'input_text', text: m.text })
   return { type: 'message', role: 'user', content }
@@ -105,9 +111,26 @@ function toInput(m: HistoryItem): unknown {
 
 export interface StreamHandlers {
   onDelta: (text: string) => void
-  /** Web search progress: what the model is doing right now, or null when it has finished looking. */
+  /** What the model is doing right now (searching, running a tool), or null when it is writing again. */
   onActivity: (label: string | null) => void
   onSource: (source: { url: string; title: string }) => void
+}
+
+export interface ConversationHandlers extends StreamHandlers {
+  /** A Plotter tool finished: show it in the reply. */
+  onToolRun: (run: ToolRun) => void
+}
+
+/** A tool Plotter runs itself when the model asks (memory, Python, connectors). */
+export interface LocalTool {
+  name: string
+  description: string
+  /** JSON schema of the arguments. */
+  parameters: Record<string, unknown>
+  /** Shown while it runs, e.g. "Running Python…". */
+  label: (args: Record<string, unknown>) => string
+  /** output goes back to the model; run (optional) is shown to the user. */
+  run: (args: Record<string, unknown>, signal: AbortSignal) => Promise<{ output: string; run?: Omit<ToolRun, 'id'> }>
 }
 
 type SearchAction = { type?: string; query?: string; url?: string; queries?: string[] }
@@ -121,10 +144,10 @@ function hostOf(url: string): string {
 }
 
 function activityLabel(action: SearchAction | undefined): string {
-  if (action?.type === "open_page" && action.url) return `Reading ${hostOf(action.url)}…`
-  if (action?.type === "find_in_page" && action.url) return `Looking through ${hostOf(action.url)}…`
+  if (action?.type === 'open_page' && action.url) return `Reading ${hostOf(action.url)}…`
+  if (action?.type === 'find_in_page' && action.url) return `Looking through ${hostOf(action.url)}…`
   const q = action?.query ?? action?.queries?.[0]
-  return q ? `Searching the web for “${q}”…` : "Searching the web…"
+  return q ? `Searching the web for “${q}”…` : 'Searching the web…'
 }
 
 export class ReplyError extends Error {
@@ -139,28 +162,29 @@ export class ReplyError extends Error {
   }
 }
 
-/** Streams one reply. Resolves only on response.completed; anything else throws a ReplyError. */
-export async function streamReply(
-  model: string,
-  effort: string,
-  history: HistoryItem[],
-  handlers: StreamHandlers,
-  signal: AbortSignal,
-  opts: { instructions?: string; webSearch?: boolean } = {}
-): Promise<void> {
-  const input = history.map(toInput)
-  const tools = opts.webSearch === false ? [] : [{ type: 'web_search' }]
+interface RoundRequest {
+  model: string
+  effort: string
+  instructions: string
+  input: unknown[]
+  tools: unknown[]
+  verbosity: 'low' | 'medium' | 'high'
+}
+
+/** One streamed request. Resolves with the response's output items on response.completed; anything else throws. */
+export async function streamRound(req: RoundRequest, handlers: StreamHandlers, signal: AbortSignal): Promise<{ output: unknown[] }> {
   const res = await authedFetch('/responses', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
     body: JSON.stringify({
-      model,
-      instructions: opts.instructions ?? INSTRUCTIONS,
-      input,
-      tools,
-      reasoning: { effort },
-      // The plan's models default to "low" verbosity; ChatGPT answers at medium.
-      text: { verbosity: opts.instructions ? 'low' : 'medium' },
+      model: req.model,
+      instructions: req.instructions,
+      input: req.input,
+      tools: req.tools,
+      reasoning: { effort: req.effort },
+      text: { verbosity: req.verbosity },
+      // Reasoning is handed back between tool rounds (store:false keeps nothing on OpenAI's side).
+      include: ['reasoning.encrypted_content'],
       store: false,
       stream: true
     }),
@@ -181,7 +205,9 @@ export async function streamReply(
 
   const reader = res.body.pipeThrough(new TextDecoderStream()).getReader()
   let buf = ''
-  let completed = false
+  let output: unknown[] | null = null
+  // Finished items as they stream (the plan endpoint's response.completed can carry an empty output list).
+  const items: unknown[] = []
   const handle = (data: string): void => {
     if (!data || data === '[DONE]') return
     let ev: {
@@ -189,7 +215,7 @@ export async function streamReply(
       delta?: string
       item?: { type?: string; action?: SearchAction }
       annotation?: { type?: string; url?: string; title?: string }
-      response?: { error?: { code?: string; message?: string }; incomplete_details?: { reason?: string } }
+      response?: { output?: unknown[]; error?: { code?: string; message?: string }; incomplete_details?: { reason?: string } }
       code?: string
       message?: string
     }
@@ -207,6 +233,7 @@ export async function streamReply(
         else if (ev.item?.type === 'message') handlers.onActivity(null)
         break
       case 'response.output_item.done':
+        if (ev.item) items.push(ev.item)
         if (ev.item?.type === 'web_search_call') handlers.onActivity(activityLabel(ev.item.action))
         break
       case 'response.output_text.annotation.added':
@@ -214,7 +241,7 @@ export async function streamReply(
           handlers.onSource({ url: ev.annotation.url.replace(/[?&]utm_source=openai$/, ''), title: ev.annotation.title || hostOf(ev.annotation.url) })
         break
       case 'response.completed':
-        completed = true
+        output = ev.response?.output ?? []
         break
       case 'response.failed': {
         const e = ev.response?.error
@@ -243,7 +270,63 @@ export async function streamReply(
       handle(data)
     }
   }
-  if (!completed) throw new ReplyError('interrupted', 'The connection ended before the reply finished.')
+  if (!output) throw new ReplyError('interrupted', 'The connection ended before the reply finished.')
+  return { output: (output as unknown[]).length ? output : items }
+}
+
+const MAX_TOOL_ROUNDS = 12
+
+/**
+ * One reply, including any Plotter tools the model asks for: stream → if it called tools, run them, add their
+ * results to the input and stream again → … until it answers without calling a tool (or MAX_TOOL_ROUNDS).
+ */
+export async function runConversation(
+  opts: { model: string; effort: string; instructions: string; history: HistoryItem[]; webSearch: boolean; tools: LocalTool[]; verbosity?: 'low' | 'medium' | 'high' },
+  handlers: ConversationHandlers,
+  signal: AbortSignal
+): Promise<void> {
+  const input: unknown[] = opts.history.map(toInput)
+  const byName = new Map(opts.tools.map((t) => [t.name, t]))
+  const tools: unknown[] = [
+    ...(opts.webSearch ? [{ type: 'web_search' }] : []),
+    ...opts.tools.map((t) => ({ type: 'function', name: t.name, description: t.description, parameters: t.parameters, strict: false }))
+  ]
+  let runSeq = 0
+  for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+    const { output } = await streamRound(
+      { model: opts.model, effort: opts.effort, instructions: opts.instructions, input, tools, verbosity: opts.verbosity ?? 'medium' },
+      handlers,
+      signal
+    )
+    const calls = output.filter((o): o is { type: 'function_call'; name: string; arguments: string; call_id: string } => (o as { type?: string }).type === 'function_call')
+    if (calls.length === 0) return
+    input.push(...output)
+    for (const c of calls) {
+      const tool = byName.get(c.name)
+      let args: Record<string, unknown> = {}
+      try {
+        args = JSON.parse(c.arguments || '{}') as Record<string, unknown>
+      } catch {
+        // leave empty; the tool reports what is missing
+      }
+      let result: string
+      if (!tool) result = JSON.stringify({ error: `Unknown tool ${c.name}` })
+      else {
+        handlers.onActivity(tool.label(args))
+        try {
+          const r = await tool.run(args, signal)
+          result = r.output
+          if (r.run) handlers.onToolRun({ id: `t${Date.now().toString(36)}${runSeq++}`, ...r.run })
+        } catch (err) {
+          if (signal.aborted) throw err
+          result = JSON.stringify({ error: err instanceof Error ? err.message : String(err) })
+        }
+      }
+      input.push({ type: 'function_call_output', call_id: c.call_id, output: result })
+    }
+    handlers.onActivity(null)
+  }
+  handlers.onDelta('\n\n_(Stopped after too many tool steps.)_')
 }
 
 /**
@@ -256,13 +339,10 @@ export async function generateTitle(userText: string, replyText: string): Promis
   const clip = (s: string, n: number): string => (s.length > n ? `${s.slice(0, n)}…` : s)
   const prompt = `User's first message:\n${clip(userText, 1200)}\n\nStart of the assistant's reply:\n${clip(replyText, 800)}`
   let title = ''
-  await streamReply(
-    model.slug,
-    effort,
-    [{ role: 'user', text: prompt }],
+  await streamRound(
+    { model: model.slug, effort, instructions: TITLE_INSTRUCTIONS, input: [toInput({ role: 'user', text: prompt })], tools: [], verbosity: 'low' },
     { onDelta: (t) => (title += t), onActivity: () => undefined, onSource: () => undefined },
-    AbortSignal.timeout(30_000),
-    { instructions: TITLE_INSTRUCTIONS, webSearch: false }
+    AbortSignal.timeout(30_000)
   )
   return title
     .split('\n')[0]!

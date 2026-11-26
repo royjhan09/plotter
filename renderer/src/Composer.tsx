@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Attachment, EffortLevel, SpeechStatus } from '../../shared/api'
-import { ACCEPT, sizeLabel, toAttachment } from './attachments'
+import { ACCEPT, badgeFor, sizeLabel, toAttachment } from './attachments'
 import { startRecording, type Recording } from './audio'
 
 const api = window.plotter
@@ -60,6 +60,13 @@ const Clip = (): React.JSX.Element => (
   </svg>
 )
 
+const Telescope = (): React.JSX.Element => (
+  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="11" cy="11" r="6.5" />
+    <path d="m20 20-4.2-4.2M8.5 11h5M11 8.5v5" />
+  </svg>
+)
+
 export function speechStatusText(s: SpeechStatus): string | null {
   if (s.state === 'downloading') return `Downloading speech model (first time only)… ${s.percent}%`
   if (s.state === 'loading') return 'Loading speech model…'
@@ -93,6 +100,9 @@ interface Props {
   onStop: () => void
   onVoice: () => void
   onError: (message: string) => void
+  /** Deep research for the next message (many searches, a long cited report). */
+  research: boolean
+  setResearch: (on: boolean) => void
 }
 
 export function Composer(p: Props): React.JSX.Element {
@@ -170,9 +180,20 @@ export function Composer(p: Props): React.JSX.Element {
       }}
       onDrop={(e) => {
         e.preventDefault()
+        e.stopPropagation() // the chat area behind also accepts drops
         void addFiles(e.dataTransfer.files)
       }}
     >
+      {p.research && (
+        <div className="mode-chips">
+          <span className="mode-chip">
+            <Telescope /> Deep research
+            <button title="Turn off deep research" onClick={() => p.setResearch(false)}>
+              ×
+            </button>
+          </span>
+        </div>
+      )}
       {p.attachments.length > 0 && (
         <div className="attach-row">
           {p.attachments.map((a) => (
@@ -181,7 +202,7 @@ export function Composer(p: Props): React.JSX.Element {
                 <img src={a.data} alt={a.name} />
               ) : (
                 <>
-                  <span className="file-badge">{a.kind === 'pdf' ? 'PDF' : 'TXT'}</span>
+                  <span className="file-badge">{badgeFor(a)}</span>
                   <span className="file-meta">
                     <span className="file-name">{a.name}</span>
                     <span className="file-size">{sizeLabel(a.size)}</span>
@@ -219,6 +240,16 @@ export function Composer(p: Props): React.JSX.Element {
               >
                 <Clip /> Add photos & files
               </button>
+              <button
+                className={`pop-item ${p.research ? 'on' : ''}`}
+                onClick={() => {
+                  setMenu(null)
+                  p.setResearch(!p.research)
+                }}
+              >
+                <Telescope /> Deep research
+                {p.research && <span className="pop-check">✓</span>}
+              </button>
             </div>
           )}
           <input
@@ -243,7 +274,7 @@ export function Composer(p: Props): React.JSX.Element {
             ref={input}
             value={p.draft}
             rows={1}
-            placeholder={p.placeholder}
+            placeholder={p.research ? 'What should Plotter research?' : p.placeholder}
             onChange={(e) => p.setDraft(e.target.value)}
             onPaste={(e) => {
               const files = Array.from(e.clipboardData.files)

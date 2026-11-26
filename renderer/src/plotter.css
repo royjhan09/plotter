@@ -1479,3 +1479,468 @@ body,
   border: 0;
   background: transparent;
 }
+
+/* ---------- canvas: editable document/code beside the chat ---------- */
+.shell.with-canvas {
+  grid-template-columns: 264px minmax(360px, 1fr) minmax(380px, 46%);
+}
+.canvas-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  border-left: 1px solid var(--sand);
+  background: var(--surface);
+}
+.canvas-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px 10px 18px;
+  border-bottom: 1px solid var(--sand);
+}
+.canvas-title {
+  flex: 1;
+  font-weight: 700;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.canvas-btn {
+  border: 1px solid var(--sand);
+  background: none;
+  border-radius: 8px;
+  padding: 3px 10px;
+  font-size: 13px;
+}
+.canvas-btn:hover {
+  background: var(--cream);
+}
+.canvas-btn.close {
+  border: 0;
+  font-size: 20px;
+  line-height: 1;
+  padding: 2px 8px;
+}
+.seg {
+  display: flex;
+  border: 1px solid var(--sand);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.seg button {
+  border: 0;
+  background: none;
+  padding: 3px 10px;
+  font-size: 13px;
+}
+.seg button.on {
+  background: var(--orange-tint);
+  font-weight: 600;
+}
+.canvas-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.canvas-editor {
+  flex: 1;
+  border: 0;
+  outline: 0;
+  resize: none;
+  padding: 22px 26px;
+  font: 15px/1.7 'Segoe UI Variable Text', 'Segoe UI', 'Malgun Gothic', system-ui, sans-serif;
+  color: var(--ink);
+  background: var(--surface);
+}
+.canvas-editor.code {
+  font: 13.5px/1.6 'Cascadia Code', Consolas, monospace;
+  background: var(--code-bg);
+  color: #e6e6e6;
+  white-space: pre;
+}
+.canvas-preview {
+  flex: 1;
+  overflow-y: auto;
+  padding: 22px 28px;
+}
+.canvas-foot {
+  font-size: 12px;
+  color: var(--muted);
+  padding: 8px 18px;
+  border-top: 1px solid var(--sand);
+}
+.canvas-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 6px 0 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--sand);
+  border-radius: 14px;
+  background: var(--surface);
+}
+.canvas-card-icon {
+  font-size: 22px;
+}
+.canvas-card-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.canvas-card-title {
+  font-weight: 650;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.canvas-card-meta {
+  font-size: 12px;
+  color: var(--muted);
+}
+.btn.small {
+  padding: 5px 12px;
+  font-size: 13px;
+}
+.btn.danger {
+  background: var(--bad);
+  color: #fff;
+}
+
+/* ---------- tool runs in a reply (Python, memory, connectors) ---------- */
+.toolrun {
+  margin: 6px 0 14px;
+  border: 1px solid var(--sand);
+  border-radius: 12px;
+  background: var(--surface);
+  overflow: hidden;
+}
+.toolrun.memory {
+  border-style: dashed;
+}
+.toolrun-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  background: none;
+  padding: 8px 12px;
+  text-align: left;
+  font-size: 13.5px;
+}
+.toolrun-head:disabled {
+  opacity: 1;
+  cursor: default;
+}
+.toolrun-title {
+  font-weight: 600;
+}
+.toolrun.failed .toolrun-title {
+  color: var(--bad);
+}
+.toolrun-inline {
+  color: var(--muted);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.toolrun-toggle {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--muted);
+}
+.toolrun-body {
+  border-top: 1px solid var(--sand);
+}
+.toolrun-body pre {
+  margin: 0;
+  padding: 10px 14px;
+  font: 12.5px/1.55 'Cascadia Code', Consolas, monospace;
+  white-space: pre-wrap;
+  overflow-x: auto;
+  max-height: 320px;
+}
+.toolrun-code {
+  background: var(--code-bg);
+  color: #e6e6e6;
+}
+.toolrun-output {
+  background: var(--cream);
+}
+.toolrun-error {
+  background: #fff0f0;
+  color: #c92a2a;
+}
+.toolrun-figures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px 12px 12px;
+  border-top: 1px solid var(--sand);
+  background: #fff;
+}
+.toolrun-figures img {
+  max-width: 100%;
+  border-radius: 8px;
+}
+
+/* ---------- deep research chip ---------- */
+.mode-chips {
+  padding: 2px 6px 6px;
+}
+.mode-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1864ab;
+  background: #e7f1fc;
+  border-radius: 999px;
+  padding: 3px 6px 3px 10px;
+}
+.mode-chip button {
+  border: 0;
+  background: none;
+  color: inherit;
+  font-size: 15px;
+  line-height: 1;
+  padding: 0 4px;
+}
+.pop-item.on {
+  color: #1864ab;
+}
+.pop-check {
+  margin-left: auto;
+}
+
+/* ---------- settings ---------- */
+.settings {
+  width: min(860px, 92vw);
+  height: min(620px, 86vh);
+  display: grid;
+  grid-template-columns: 190px 1fr;
+  background: var(--paper);
+  border-radius: 20px;
+  box-shadow: var(--shadow-pop);
+  overflow: hidden;
+  text-align: left;
+}
+.settings-nav {
+  background: var(--cream);
+  border-right: 1px solid var(--sand);
+  padding: 18px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.settings-heading {
+  font-weight: 700;
+  font-size: 18px;
+  padding: 0 10px 12px;
+}
+.settings-nav button {
+  border: 0;
+  background: none;
+  text-align: left;
+  padding: 8px 12px;
+  border-radius: 10px;
+}
+.settings-nav button.on {
+  background: var(--orange-tint);
+  font-weight: 600;
+}
+.settings-body {
+  position: relative;
+  overflow-y: auto;
+  padding: 22px 28px 28px;
+}
+.settings-body h3 {
+  margin: 0 0 6px;
+  font-size: 19px;
+}
+.settings-close {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  border: 0;
+  background: none;
+  font-size: 24px;
+  line-height: 1;
+  color: var(--muted);
+}
+.settings-lead {
+  color: var(--muted);
+  font-size: 13.5px;
+  margin: 0 0 16px;
+}
+.setting-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 0;
+  border-top: 1px solid var(--sand);
+}
+.setting-text {
+  flex: 1;
+}
+.setting-name {
+  font-weight: 650;
+}
+.setting-desc {
+  font-size: 13px;
+  color: var(--muted);
+}
+.setting-status {
+  font-size: 12.5px;
+  color: var(--leaf-text);
+  margin-top: 3px;
+}
+.settings-error {
+  background: #fff0f0;
+  color: #c92a2a;
+  border-radius: 10px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  font-size: 13.5px;
+}
+.switch {
+  flex: none;
+  width: 42px;
+  height: 24px;
+  border-radius: 999px;
+  border: 0;
+  padding: 2px;
+  background: var(--sand-strong);
+  transition: background 0.15s;
+}
+.switch span {
+  display: block;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  transition: transform 0.15s;
+}
+.switch.on {
+  background: var(--leaf);
+}
+.switch.on span {
+  transform: translateX(18px);
+}
+.memory-list {
+  list-style: none;
+  margin: 0 0 14px;
+  padding: 0;
+}
+.memory-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 4px;
+  border-top: 1px solid var(--sand);
+}
+.memory-list li span:first-child {
+  flex: 1;
+}
+.memory-date {
+  font-size: 12px;
+  color: var(--muted);
+}
+.memory-del {
+  border: 0;
+  background: none;
+  font-size: 18px;
+  color: var(--muted);
+}
+.memory-del:hover {
+  color: var(--bad);
+}
+.empty-box {
+  border: 1px dashed var(--sand-strong);
+  border-radius: 12px;
+  padding: 18px;
+  color: var(--muted);
+  text-align: center;
+}
+.row-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.connector {
+  border: 1px solid var(--sand);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+}
+.connector-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+.connector-setup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.connector-setup input {
+  border: 1px solid var(--sand-strong);
+  border-radius: 10px;
+  padding: 8px 12px;
+  font: inherit;
+  background: var(--surface);
+  color: var(--ink);
+}
+.connector-setup .btn {
+  align-self: flex-start;
+}
+.steps {
+  margin: 0 0 4px;
+  padding-left: 20px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.steps li {
+  margin-bottom: 3px;
+}
+.md .toolrun-output {
+  background: var(--cream);
+  color: var(--ink);
+}
+.md .toolrun-error {
+  background: #fff0f0;
+  color: #c92a2a;
+}
+.attach.sheet,
+.attach.doc {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px 8px 8px;
+  max-width: 240px;
+}
+.attach.sheet .file-badge {
+  background: #2b8a3e;
+  font-size: 10px;
+}
+.attach.doc .file-badge {
+  background: #1c7ed6;
+  font-size: 10px;
+}
+
+/* narrow windows: while the canvas is open, the chat list steps aside so chat and canvas share the width */
+@media (max-width: 1150px) {
+  .shell.with-canvas {
+    grid-template-columns: minmax(300px, 1fr) minmax(320px, 1fr);
+  }
+  .shell.with-canvas > .sidebar {
+    display: none;
+  }
+}
