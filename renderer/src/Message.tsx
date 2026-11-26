@@ -3,7 +3,7 @@ import type { ChatMessage, HandOff } from '../../shared/api'
 import { Markdown } from './Markdown'
 import { badgeFor, sizeLabel } from './attachments'
 import { PictureViewer } from '@private/renderer/ImageViewer'
-import { ClaudeBuddy, ClaudeCodeIcon } from './ClaudeBuddy'
+import { ClaudeBuddy } from './ClaudeBuddy'
 import { ClaudeTurn } from '@private/renderer/ClaudeCode'
 import icon from '../../assets/icon.png'
 
@@ -113,7 +113,7 @@ export function Message({
                 disabled={projectBusy}
                 onClick={onProject}
               >
-                {projectBusy ? <span className="mini-spin" /> : <ClaudeCodeIcon size={16} />}
+                <ClaudeBuddy size={20} working={projectBusy} />
                 {projectBusy ? 'Preparing the project…' : 'Create project'}
               </button>
             )}
