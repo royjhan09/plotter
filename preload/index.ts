@@ -37,6 +37,11 @@ const api: PlotterApi = {
       return () => ipcRenderer.removeListener('speech:status', handler)
     }
   },
+  ui: {
+    put: (html, dark) => ipcRenderer.invoke('ui:put', html, dark),
+    frameUrl: (id) => `plotter-ui://frame/${id}`,
+    sandbox: 'allow-scripts'
+  },
   setTheme: (choice) => ipcRenderer.invoke('theme:set', choice),
   openUsage: () => ipcRenderer.invoke('openUsage')
 }

@@ -70,6 +70,13 @@ export function installDevBridge(): void {
         return () => listeners.speech.delete(l)
       }
     },
+    ui: {
+      put: (html, dark) => call('ui:put', html, dark),
+      frameUrl: (id) => `${BRIDGE}/ui/${id}`,
+      // Some browsers (e.g. Claude's browser pane) refuse opaque-origin frames from loopback; there the
+      // preview keeps the bridge's origin (still not Plotter's page, and its CSP allows no network).
+      sandbox: 'allow-scripts allow-same-origin'
+    },
     setTheme: (choice) => call('theme:set', choice),
     openUsage: () => call('openUsage')
   }

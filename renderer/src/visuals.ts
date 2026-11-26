@@ -157,44 +157,39 @@ export async function renderMermaid(el: HTMLElement, src: string): Promise<void>
 }
 
 /**
- * ```ui blocks: model-written HTML + CSS mockups (wireframes, cards, palettes …), drawn in a sandboxed
- * iframe. The sandbox has no allow-scripts, so nothing in it can run; allow-same-origin only lets
- * Plotter measure its height. Remote stylesheets/fonts are blocked by the page's CSP.
+ * ```ui blocks: model-written HTML/CSS/JS mockups (wireframes, cards, palettes, clickable quizzes …).
+ * They run in a sandboxed iframe with scripts but no same-origin, served from Plotter's isolated preview
+ * origin with a no-network policy (main/uiFrames.ts). The page reports its height by postMessage.
  */
 export function renderUi(el: HTMLElement, src: string): () => void {
   const dark = currentTheme() === 'dark'
-  const frame = document.createElement('iframe')
-  frame.className = 'ui-frame'
-  frame.setAttribute('sandbox', 'allow-same-origin')
-  frame.setAttribute('referrerpolicy', 'no-referrer')
-  frame.title = 'Preview'
-  frame.srcdoc = `<!doctype html><html><head><meta charset="utf-8">
-<style>
-  html, body { margin: 0; background: transparent; }
-  body { padding: 2px; font: 14px/1.5 'Segoe UI Variable Text', 'Segoe UI', 'Malgun Gothic', system-ui, sans-serif;
-         color: ${dark ? '#ececec' : '#1f1f1f'}; overflow: hidden; }
-  * { box-sizing: border-box; }
-  img, svg { max-width: 100%; }
-  a { pointer-events: none; }
-</style></head><body>${src}</body></html>`
-  el.innerHTML = ''
+  el.innerHTML = '<div class="viz-wait">Drawing preview…</div>'
   el.classList.remove('diagram')
   el.classList.add('ui')
-  el.appendChild(frame)
-
-  let observer: ResizeObserver | null = null
-  const fit = (): void => {
-    const doc = frame.contentDocument
-    if (!doc?.body) return
-    frame.style.height = `${Math.ceil(doc.documentElement.scrollHeight)}px`
+  let frame: HTMLIFrameElement | null = null
+  let gone = false
+  const onMessage = (e: MessageEvent): void => {
+    if (!frame || e.source !== frame.contentWindow) return
+    const h = (e.data as { plotterUiHeight?: unknown } | null)?.plotterUiHeight
+    if (typeof h === 'number' && h > 0) frame.style.height = `${Math.min(Math.ceil(h), 4000)}px`
   }
-  frame.addEventListener('load', () => {
-    fit()
-    const doc = frame.contentDocument
-    if (doc?.body) {
-      observer = new ResizeObserver(fit)
-      observer.observe(doc.body)
-    }
-  })
-  return () => observer?.disconnect()
+  window.addEventListener('message', onMessage)
+  window.plotter.ui
+    .put(src, dark)
+    .then((id) => {
+      if (gone) return
+      frame = document.createElement('iframe')
+      frame.className = 'ui-frame'
+      frame.setAttribute('sandbox', window.plotter.ui.sandbox)
+      frame.setAttribute('referrerpolicy', 'no-referrer')
+      frame.title = 'Interactive preview'
+      frame.src = window.plotter.ui.frameUrl(id)
+      el.innerHTML = ''
+      el.appendChild(frame)
+    })
+    .catch((e: unknown) => showError(el, 'preview', src, e))
+  return () => {
+    gone = true
+    window.removeEventListener('message', onMessage)
+  }
 }

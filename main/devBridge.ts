@@ -1,4 +1,5 @@
 import { createServer, type ServerResponse } from 'node:http'
+import { getUiFrame, UI_FRAME_CSP } from './uiFrames'
 
 /**
  * Development only (started when ELECTRON_RENDERER_URL is set, i.e. `npm run dev` / `dev:browser`):
@@ -26,6 +27,17 @@ export function startDevBridge(handlers: Handlers, subscribe: (emit: Emit) => vo
   })
 
   const server = createServer((req, res) => {
+    // Interactive previews are loaded by an iframe (no Origin header); ids are random and the page is sandboxed.
+    const ui = req.method === 'GET' ? /^\/ui\/([0-9a-f-]{36})$/.exec(req.url ?? '') : null
+    if (ui) {
+      const html = getUiFrame(ui[1]!)
+      if (!html) {
+        res.writeHead(404).end()
+        return
+      }
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Content-Security-Policy': UI_FRAME_CSP, 'Cache-Control': 'no-store' }).end(html)
+      return
+    }
     const origin = req.headers.origin ?? ''
     if (!allowed.has(origin)) {
       res.writeHead(403).end()

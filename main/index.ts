@@ -1,13 +1,16 @@
-import { app, BrowserWindow, ipcMain, shell, nativeImage, nativeTheme, session } from 'electron'
+import { app, BrowserWindow, ipcMain, shell, nativeImage, nativeTheme, protocol, session } from 'electron'
 import { join } from 'node:path'
 import { authState, cancelSignIn, loadSession, signIn, signOut } from './auth'
 import { forgetModel, generateTitle, primaryModel, ReplyError, streamReply } from './openai'
 import { onSpeechStatus, speechStatus, transcribe, warmSpeech } from './speech'
 import { getChat, listChats, readSettings, removeChat, saveChat, updateSettings } from './store'
 import { startDevBridge } from './devBridge'
+import { getUiFrame, putUiFrame, UI_FRAME_CSP } from './uiFrames'
 import { USAGE_URL, type Chat, type ReplyEvent, type SendRequest } from '../shared/api'
 
 app.setName('Plotter')
+// Interactive previews live on their own scheme/origin (see uiFrames.ts). Must be registered before ready.
+protocol.registerSchemesAsPrivileged([{ scheme: 'plotter-ui', privileges: { standard: true, secure: true } }])
 if (process.platform === 'win32') app.setAppUserModelId('com.plotter.app')
 
 /** `npm run dev:browser`: no Electron window; the UI runs in a browser and talks to this process over the dev bridge. */
@@ -103,6 +106,7 @@ export const handlers: Record<string, (...args: never[]) => unknown> = {
   },
   'chats:remove': (id: string) => removeChat(id),
   'chats:title': (userText: string, replyText: string) => generateTitle(userText, replyText),
+  'ui:put': (html: string, dark: boolean) => putUiFrame(String(html), !!dark),
 
   'reply:send': (req: SendRequest) => {
     const ctrl = new AbortController()
@@ -170,6 +174,12 @@ if (!single) {
   void app.whenReady().then(() => {
     loadSession()
     allowMicrophone()
+    protocol.handle('plotter-ui', (req) => {
+      const id = new URL(req.url).pathname.replace(/^\//, '')
+      const html = getUiFrame(id)
+      if (!html) return new Response('Not found', { status: 404 })
+      return new Response(html, { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Content-Security-Policy': UI_FRAME_CSP } })
+    })
     registerIpc()
     if (process.env['ELECTRON_RENDERER_URL']) startDevBridge(handlers, (e) => emitters.add(e))
     if (!BROWSER_ONLY) createWindow()

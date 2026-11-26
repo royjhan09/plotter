@@ -129,6 +129,13 @@ export interface PlotterApi {
     warm: () => Promise<void>
     onStatus: (listener: (status: SpeechStatus) => void) => () => void
   }
+  /** Interactive previews: store the HTML in the main process, then load it from frameUrl(id). */
+  ui: {
+    put: (html: string, dark: boolean) => Promise<string>
+    frameUrl: (id: string) => string
+    /** The iframe sandbox for previews (the dev browser mode needs allow-same-origin; see devBridgeClient). */
+    sandbox: string
+  }
   /** Window frame and Windows title bar follow the chosen theme. */
   setTheme: (theme: "light" | "dark") => Promise<void>
   openUsage: () => Promise<void>
