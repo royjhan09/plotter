@@ -105,7 +105,8 @@ export function saveChat(chat: Chat): void {
   if (before) {
     chat = { ...chat, pinned: before.pinned, archived: before.archived }
     // A Claude Code chat's session id is written by the main process; keep it.
-    if (before.cc?.sessionId && chat.cc && !chat.cc.sessionId) chat = { ...chat, cc: { ...chat.cc, sessionId: before.cc.sessionId } }
+    // (A new folder starts a new session, so then it is not carried over.)
+    if (before.cc?.sessionId && chat.cc && !chat.cc.sessionId && chat.cc.folder === before.cc.folder) chat = { ...chat, cc: { ...chat.cc, sessionId: before.cc.sessionId } }
   }
   writeAtomic(join(chatsDir(), `${safeId(chat.id)}.json`), JSON.stringify(chat, null, 2))
 }

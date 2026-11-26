@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { AuthState, CanvasDoc, ChatMetaPatch, ChatSummary, ClaudeCodeMode, Model } from '../../shared/api'
+import type { AuthState, CanvasDoc, ChatKind, ChatMetaPatch, ChatSummary, Model } from '../../shared/api'
 import { useThemeSetting, type Theme } from './theme'
 import { CanvasContext, CanvasPanel } from './Canvas'
 import { CustomizePanel, Settings, type Tab as SettingsTab } from './Settings'
 import { PdfPreview } from './PdfPreview'
 import { ChatList } from './ChatList'
-import { ClaudeBuddy, NewClaudeChat, startClaudeChat } from './ClaudeCode'
+import { ClaudeBuddy } from './ClaudeCode'
 import { ChatPane, announceRename, cleanError } from './ChatPane'
 import { RailIcon } from './RailIcon'
 import icon from '../../assets/icon.png'
@@ -74,8 +74,6 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
   const [pdf, setPdf] = useState<{ bytes: Uint8Array | null; name: string; error?: string } | null>(null)
   const pdfJob = useRef(0)
   const [deleting, setDeleting] = useState<{ id: string; title: string } | null>(null)
-  /** The "New Claude Code chat" dialog; `beside` opens the new chat on the other side. */
-  const [ccDialog, setCcDialog] = useState<{ task: string; beside: boolean } | null>(null)
   const [showWelcome, setShowWelcome] = useState(auth.planUsage && !auth.welcomeSeen)
   const [theme, setTheme] = useThemeSetting()
   const [accountMenu, setAccountMenu] = useState(false)
@@ -88,6 +86,11 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
   const [dropSide, setDropSide] = useState<'left' | 'right' | null>(null)
   const side = split ? focus : 'left'
   const setSideId = (s: 'left' | 'right', id: string | null): void => (s === 'left' ? setLeftId(id) : setRightId(id))
+  // What a side's *new* chat is (a ChatGPT chat, or a Claude Code chat), and text to start its message box with.
+  const [leftNew, setLeftNew] = useState<{ kind: ChatKind; seed?: string; n: number }>({ kind: 'chatgpt', n: 0 })
+  const [rightNew, setRightNew] = useState<{ kind: ChatKind; seed?: string; n: number }>({ kind: 'chatgpt', n: 0 })
+  const setSideNew = (s: 'left' | 'right', kind: ChatKind, seed?: string): void =>
+    (s === 'left' ? setLeftNew : setRightNew)((prev) => ({ kind, seed, n: prev.n + 1 }))
   const onLeftId = useCallback((id: string | null) => setLeftId(id), [])
   const onRightId = useCallback((id: string | null) => setRightId(id), [])
 
@@ -186,7 +189,18 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
 
   const newChat = (): void => {
     setSettingsOpen(false)
+    setSideNew(side, 'chatgpt')
     setSideId(side, null)
+  }
+
+  /** Opens a new Claude Code chat right away (on this side, or beside it), optionally with its first message typed in. */
+  const newClaudeChat = (beside: boolean, seed?: string): void => {
+    setSettingsOpen(false)
+    const where: 'left' | 'right' = beside ? (side === 'left' ? 'right' : 'left') : side
+    if (where === 'right') setSplit(true)
+    setSideNew(where, 'claude', seed)
+    setSideId(where, null)
+    setFocus(where)
   }
 
   const closeRight = (): void => {
@@ -226,14 +240,6 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
     if (leftId === id) setLeftId(null)
     if (rightId === id) setRightId(null)
     refreshList()
-  }
-
-  /** Starts a Claude Code chat from the dialog; from a ChatGPT reply it opens beside that chat. */
-  const startClaude = async (task: string, folder: string, mode: ClaudeCodeMode, beside: boolean): Promise<void> => {
-    const chat = await startClaudeChat(task, folder, mode)
-    refreshList()
-    setCcDialog(null)
-    openChat(chat.id, beside ? (side === 'left' ? 'right' : 'left') : side)
   }
 
   const signOut = async (): Promise<void> => {
@@ -298,7 +304,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
           >
             <RailIcon name="customize" />
           </button>
-          <button className="rail-btn rail-claude" title="New Claude Code chat" onClick={() => setCcDialog({ task: '', beside: false })}>
+          <button className="rail-btn rail-claude" title="New Claude Code chat" onClick={() => newClaudeChat(false)}>
             <ClaudeBuddy size={24} />
           </button>
         </div>
@@ -367,7 +373,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
             <button className="side-item" onClick={newChat}>
               <RailIcon name="new" /> New chat
             </button>
-            <button className="side-item claude-new" onClick={() => setCcDialog({ task: '', beside: false })}>
+            <button className="side-item claude-new" onClick={() => newClaudeChat(false)}>
               <ClaudeBuddy size={20} /> New Claude Code chat
             </button>
             <ChatList
@@ -420,7 +426,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
         }}
         onDrop={onPanesDrop}
       >
-        <ChatPane {...paneProps} chatId={leftId} onChatId={onLeftId} side="left" split={split} focused={!split || focus === 'left'} onFocus={() => setFocus('left')} onSendToClaude={(task) => setCcDialog({ task, beside: true })} />
+        <ChatPane {...paneProps} chatId={leftId} onChatId={onLeftId} side="left" split={split} focused={!split || focus === 'left'} onFocus={() => setFocus('left')} newChat={leftNew} onSendToClaude={(task) => newClaudeChat(true, task)} />
         {split && (
           <ChatPane
             {...paneProps}
@@ -431,7 +437,8 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
             focused={focus === 'right'}
             onFocus={() => setFocus('right')}
             onClose={closeRight}
-            onSendToClaude={(task) => setCcDialog({ task, beside: true })}
+            newChat={rightNew}
+            onSendToClaude={(task) => newClaudeChat(true, task)}
           />
         )}
         {dropSide && (
@@ -451,10 +458,6 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
       )}
 
       {pdf && <PdfPreview bytes={pdf.bytes} name={pdf.name} error={pdf.error} onClose={closePdf} />}
-
-      {ccDialog && (
-        <NewClaudeChat initialTask={ccDialog.task} onClose={() => setCcDialog(null)} onStart={(task, folder, mode) => startClaude(task, folder, mode, ccDialog.beside)} />
-      )}
 
       {deleting && (
         <ConfirmDelete

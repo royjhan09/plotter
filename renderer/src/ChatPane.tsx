@@ -1,5 +1,5 @@
 import { useCallback, useContext, useEffect, useRef, useState } from 'react'
-import type { Attachment, Chat, ChatMessage, Model, ReplyEvent } from '../../shared/api'
+import type { Attachment, Chat, ChatKind, ChatMessage, ClaudeChatConfig, Model, ReplyEvent } from '../../shared/api'
 import { Composer } from './Composer'
 import { VoiceMode } from './VoiceMode'
 import { toAttachment } from './attachments'
@@ -7,7 +7,7 @@ import { CanvasContext } from './Canvas'
 import { PdfBadge } from './PdfPreview'
 import { Message } from './Message'
 import { RailIcon } from './RailIcon'
-import { ClaudeBuddy, folderName, sendClaudeTurn } from './ClaudeCode'
+import { ClaudeBuddy, FolderPicker, folderName, sendClaudeTurn, startClaudeChat } from './ClaudeCode'
 import icon from '../../assets/icon.png'
 
 const api = window.plotter
@@ -23,6 +23,16 @@ export function cleanError(e: unknown): string {
   const m = e instanceof Error ? e.message : String(e)
   return m.replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
 }
+
+/** Claude Code's own effort levels (claude --effort), shown in the same menu as ChatGPT's reasoning levels. */
+const CLAUDE_EFFORTS = [
+  { effort: 'low', description: 'Quick, light changes' },
+  { effort: 'medium', description: 'Everyday tasks' },
+  { effort: 'high', description: 'Harder problems' },
+  { effort: 'xhigh', description: 'Claude Code’s default for coding' },
+  { effort: 'max', description: 'The deepest work; slowest' }
+]
+const CC_EFFORT_KEY = 'plotter.ccEffort'
 
 type Waiter = { resolve: (text: string) => void; reject: (e: Error) => void }
 
@@ -52,6 +62,8 @@ export interface ChatPaneProps {
   pdfBusy: boolean
   /** "Send to Claude Code" from a reply or the + menu: starts a Claude Code chat (opened beside this one). */
   onSendToClaude: (task: string) => void
+  /** What this side's new chat is, and text to start it with; a new n means "start a new chat now". */
+  newChat: { kind: ChatKind; seed?: string; n: number }
 }
 
 /**
@@ -76,8 +88,13 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
   const scroller = useRef<HTMLDivElement>(null)
   const { refreshList, onChatId, toast } = p
 
-  const isClaude = chat?.kind === 'claude'
-  const ccBusy = isClaude && chat.messages.some((m) => m.cc?.state === 'running')
+  // A new chat (nothing sent yet) is a ChatGPT chat or a Claude Code chat; a Claude one already has its folder and mode.
+  const [newKind, setNewKind] = useState<ChatKind>(p.newChat.kind)
+  const [ccNew, setCcNew] = useState<ClaudeChatConfig | null>(null)
+  const [ccMissing, setCcMissing] = useState<string | null>(null)
+  const isClaude = chat ? chat.kind === 'claude' : newKind === 'claude'
+  const cc = chat ? chat.cc : ccNew
+  const ccBusy = !!chat && chat.kind === 'claude' && chat.messages.some((m) => m.cc?.state === 'running')
 
   // Show the chat the app asks for (a click in the list, a drop, a new chat).
   useEffect(() => {
@@ -106,6 +123,22 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
       live = false
     }
   }, [p.chatId, onChatId, toast])
+
+  // "New chat" / "New Claude Code chat" from the app: this side starts a new chat of that kind.
+  useEffect(() => {
+    if (p.newChat.n === 0) return
+    setNewKind(p.newChat.kind)
+    if (p.newChat.kind === 'claude') setCcNew(null)
+    if (p.newChat.seed !== undefined) setDraft(p.newChat.seed)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [p.newChat.n])
+
+  // A new Claude Code chat starts in the folder used last (and checks Claude Code is installed).
+  useEffect(() => {
+    if (chat || newKind !== 'claude' || ccNew) return
+    void api.claudeCode.folders().then((list) => setCcNew((c) => c ?? { folder: list[0] ?? '', mode: 'edit', effort: localStorage.getItem(CC_EFFORT_KEY) ?? 'xhigh' }))
+    void api.claudeCode.available().then((a) => setCcMissing(a.ok ? null : (a.error ?? 'Claude Code is not available.')))
+  }, [chat, newKind, ccNew])
 
   // A rename from the chat list.
   useEffect(() => {
@@ -228,8 +261,14 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
     if (el) el.scrollTop = el.scrollHeight
   }, [chat?.messages])
 
+  /** The pencil: a new chat of the same kind (a new Claude Code chat keeps this one's folder and mode). */
   const newChat = (): void => {
     if (pendingRef.current) return
+    const current = chatRef.current
+    if (current?.kind === 'claude' && current.cc) {
+      setNewKind('claude')
+      setCcNew({ folder: current.cc.folder, mode: current.cc.mode })
+    } else if (current) setNewKind('chatgpt')
     onChatId(null)
   }
 
@@ -237,7 +276,18 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
   const sendClaude = async (): Promise<void> => {
     const current = chatRef.current
     const text = draft.trim()
-    if (!current || !text || ccBusy) return
+    if (!text || ccBusy) return
+    if (!current) {
+      // the first message creates the chat, in the folder chosen in the top bar
+      if (!ccNew?.folder) return toast('Select the folder Claude Code should work in (below the message box).')
+      setDraft('')
+      const created = await startClaudeChat(text, ccNew.folder, 'edit', ccNew.effort)
+      chatRef.current = created
+      setChat(created)
+      onChatId(created.id)
+      refreshList()
+      return
+    }
     setDraft('')
     const next = await sendClaudeTurn(current, text)
     if (chatRef.current?.id === next.id) {
@@ -321,12 +371,18 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
     }
   }
 
-  const setMode = (mode: 'edit' | 'plan'): void => {
+  /** Changes a Claude Code chat's folder or effort (a new folder starts a new Claude Code session there). */
+  const setCc = (patch: Partial<ClaudeChatConfig>): void => {
+    if (patch.effort) localStorage.setItem(CC_EFFORT_KEY, patch.effort)
     const current = chatRef.current
-    if (!current?.cc || ccBusy) return
-    chatRef.current = { ...current, cc: { ...current.cc, mode } }
+    if (!current) return setCcNew((c) => ({ folder: c?.folder ?? '', mode: 'edit', effort: c?.effort, ...patch }))
+    if (!current.cc || ccBusy) return
+    if (patch.folder === '') return toast('A Claude Code chat that has started keeps a folder. Choose another folder, or start a new chat.')
+    const moved = patch.folder !== undefined && patch.folder !== current.cc.folder
+    chatRef.current = { ...current, cc: { ...current.cc, ...patch, ...(moved ? { sessionId: undefined } : {}) } }
     setChat(chatRef.current)
     void api.chats.save(chatRef.current)
+    if (moved) toast(`Claude Code will work in ${folderName(patch.folder!)} from the next message (a fresh session there).`)
   }
 
   const messages = chat?.messages ?? []
@@ -347,27 +403,7 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
         <button className="topbar-new" title="New chat" onClick={newChat} disabled={!!pending}>
           <RailIcon name="new" />
         </button>
-        {isClaude && (
-          <span className="pane-badge">
-            <ClaudeBuddy size={22} working={ccBusy} />
-          </span>
-        )}
         <span className="chat-heading">{chat?.title ?? ''}</span>
-        {isClaude && chat.cc && (
-          <span className="cc-where">
-            <button className="cc-folder-chip" title={`${chat.cc.folder} (open in File Explorer)`} onClick={() => void api.claudeCode.openFolder(chat.cc!.folder)}>
-              {folderName(chat.cc.folder)}
-            </button>
-            <span className="cc-mode-switch" title={ccBusy ? 'Changes after Claude Code finishes' : 'May Claude Code change files?'}>
-              <button className={chat.cc.mode === 'edit' ? 'on' : ''} disabled={ccBusy} onClick={() => setMode('edit')} title="May change files in this folder">
-                {p.split ? 'Edit' : 'Make changes'}
-              </button>
-              <button className={chat.cc.mode === 'plan' ? 'on' : ''} disabled={ccBusy} onClick={() => setMode('plan')} title="Reads and answers; changes nothing">
-                {p.split ? 'Look' : 'Look only'}
-              </button>
-            </span>
-          </span>
-        )}
         {messages.length > 0 && (
           <button className="topbar-pdf" title="Convert this chat to a PDF" onClick={() => chat && p.savePdf(undefined, chat)} disabled={!!pending || ccBusy || p.pdfBusy}>
             <PdfBadge />
@@ -386,6 +422,19 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
           <div className="hello">
             {isClaude ? <ClaudeBuddy size={84} /> : <img src={icon} alt="" />}
             <h2>{isClaude ? 'What shall we build?' : 'What shall we grow today?'}</h2>
+            {isClaude && !chat && (
+              <p className="cc-hello-note">
+                {ccMissing ? (
+                  <span className="cc-bad">{ccMissing}</span>
+                ) : cc?.folder ? (
+                  <>
+                    Claude Code works in <b title={cc.folder}>{folderName(cc.folder)}</b>. Change it with the folder button below the message box.
+                  </>
+                ) : (
+                  'Select a folder below the message box, then tell Claude Code what to do.'
+                )}
+              </p>
+            )}
             {p.modelError && !isClaude && (
               <p className="error">
                 {p.modelError}{' '}
@@ -432,16 +481,19 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
           setDraft={setDraft}
           attachments={attachments}
           setAttachments={setAttachments}
-          efforts={isClaude ? [] : (p.model?.efforts ?? [])}
-          effort={p.effort}
-          setEffort={p.setEffort}
+          efforts={isClaude ? CLAUDE_EFFORTS : (p.model?.efforts ?? [])}
+          effort={isClaude ? (cc?.effort ?? 'xhigh') : p.effort}
+          setEffort={isClaude ? (effort) => setCc({ effort }) : p.setEffort}
+          leadSlot={isClaude ? <span className="lead-gap" /> : undefined}
           pending={isClaude ? ccBusy : !!pending}
           ready={isClaude ? true : !!p.model}
           placeholder={
             isClaude
               ? ccBusy
                 ? 'Claude Code is working…'
-                : `Tell Claude Code what to do in ${folderName(chat?.cc?.folder ?? '')}`
+                : cc?.folder
+                  ? `Tell Claude Code what to do in ${folderName(cc.folder)}`
+                  : 'Select a folder below first'
               : p.model
                 ? 'Ask Plotter anything'
                 : p.modelError
@@ -457,6 +509,11 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
           onClaudeCode={isClaude ? undefined : () => p.onSendToClaude(draft)}
           variant={isClaude ? 'claude' : 'chatgpt'}
         />
+        {isClaude && (
+          <div className="composer-below">
+            <FolderPicker folder={cc?.folder ?? ''} onPick={(folder) => setCc({ folder })} autoOpen={!chat && !!cc && !cc.folder} />
+          </div>
+        )}
         <div className="plan-note">
           {isClaude ? (
             'Claude Code · on your Claude subscription'

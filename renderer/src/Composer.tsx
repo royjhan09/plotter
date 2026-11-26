@@ -107,8 +107,10 @@ interface Props {
   setResearch: (on: boolean) => void
   /** Opens "Send to Claude Code" with the message box's text as the task (absent when there is no chat yet). */
   onClaudeCode?: () => void
-  /** claude: a Claude Code chat's box (no files, effort, deep research or voice mode). */
+  /** claude: a Claude Code chat's box (no files, deep research or voice mode). */
   variant?: 'chatgpt' | 'claude'
+  /** Shown where the + button is (a Claude Code chat's folder button). */
+  leadSlot?: React.ReactNode
 }
 
 export function Composer(p: Props): React.JSX.Element {
@@ -260,6 +262,7 @@ export function Composer(p: Props): React.JSX.Element {
       )}
 
       <div className="composer-row">
+        {p.leadSlot ?? (
         <div className="pop-anchor">
           <button
             className="icon-btn"
@@ -317,6 +320,7 @@ export function Composer(p: Props): React.JSX.Element {
             }}
           />
         </div>
+        )}
 
         {dictation === 'recording' ? (
           <LiveWave level={() => rec.current?.level() ?? 0} />

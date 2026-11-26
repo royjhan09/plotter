@@ -3467,10 +3467,7 @@ body,
   background: var(--orange);
   z-index: 2;
 }
-.panes.split .pane.claude.focused::before {
-  background: #3ee08f;
-  box-shadow: 0 0 10px #3ee08f;
-}
+
 .panes.split .composer-wrap {
   padding-left: 14px;
   padding-right: 14px;
@@ -3548,14 +3545,7 @@ body,
   height: 18px;
 }
 
-.chat-item.claude.active {
-  background: #2b211a;
-  color: #f4ebe0;
-  box-shadow: inset 3px 0 0 #3ee08f;
-}
-.chat-item.claude.active .row-btn {
-  color: #c2c9ad;
-}
+
 .chat-item[draggable='true'] {
   cursor: pointer;
 }
@@ -3618,145 +3608,6 @@ body,
   filter: drop-shadow(0 0 5px rgba(62, 224, 143, 0.45));
 }
 
-/* ---------- a Claude Code chat: the night-shift look ---------- */
-.pane.claude,
-.pane.claude .scroller,
-.pane.claude .composer-wrap {
-  --cream: #251e18;
-  --paper: #1c1612;
-  --sand: #352b22;
-  --sand-strong: #45392d;
-  --ink: #f4ebe0;
-  --muted: #ab9c8c;
-  --surface: #251e18;
-  --bubble: #2c231b;
-  --focus: #3ee08f;
-  --placeholder: #7f7064;
-  --orange: #3ee08f;
-  --orange-tint: rgba(62, 224, 143, 0.12);
-  --leaf-text: #3ee08f;
-  --stripe: rgba(255, 255, 255, 0.03);
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 6px 20px rgba(0, 0, 0, 0.35);
-  --shadow-pop: 0 12px 34px rgba(0, 0, 0, 0.55);
-  color-scheme: dark;
-}
-.pane.claude {
-  background: #1c1612;
-  color: var(--ink);
-}
-.pane.claude .topbar {
-  background: #18130f;
-  border-bottom-color: #2e251d;
-}
-.pane.claude .chat-heading {
-  color: #f4ebe0;
-}
-.pane.claude .scroller {
-  background:
-    radial-gradient(circle at 20% 0%, rgba(62, 224, 143, 0.05), transparent 45%),
-    radial-gradient(circle at 100% 100%, rgba(232, 89, 12, 0.08), transparent 40%),
-    #1c1612;
-}
-.pane.claude .msg.user .bubble {
-  border: 1px solid rgba(62, 224, 143, 0.25);
-  box-shadow: 0 0 18px rgba(62, 224, 143, 0.06);
-}
-.pane.claude .round-btn {
-  background: #3ee08f;
-  color: #13281c;
-  box-shadow: 0 0 14px rgba(62, 224, 143, 0.45);
-}
-.pane.claude .round-btn:hover:not(:disabled) {
-  background: #66f0a8;
-}
-.pane.claude .round-btn:disabled {
-  box-shadow: none;
-  opacity: 0.45;
-}
-.pane.claude .round-btn.dark {
-  background: #f4ebe0;
-  color: #1c1612;
-}
-.pane.claude .composer {
-  border-color: #3b3026;
-  box-shadow: 0 0 0 1px rgba(62, 224, 143, 0.06), 0 8px 30px rgba(0, 0, 0, 0.4);
-}
-.pane.claude .composer:focus-within {
-  border-color: rgba(62, 224, 143, 0.55);
-}
-.composer.claude .composer-row > .pop-anchor:first-child {
-  visibility: hidden;
-  width: 4px;
-}
-.pane.claude pre,
-.pane.claude code {
-  background: #15100c !important;
-}
-.pane.claude .hello h2 {
-  color: #f4ebe0;
-  text-shadow: 0 0 18px rgba(62, 224, 143, 0.25);
-}
-.pane.claude .hello .buddy {
-  margin: 0 auto;
-  filter: drop-shadow(0 0 16px rgba(62, 224, 143, 0.35));
-}
-.pane.claude .plan-note {
-  color: #7f7064;
-}
-.pane-badge {
-  display: grid;
-  place-items: center;
-  filter: drop-shadow(0 0 4px rgba(62, 224, 143, 0.5));
-}
-.cc-where {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  flex: none;
-}
-.cc-folder-chip {
-  border: 1px solid #3b3026;
-  background: #241d17;
-  color: #a6f2c8;
-  font-family: 'Cascadia Code', Consolas, monospace;
-  font-size: 12px;
-  border-radius: 8px;
-  padding: 4px 9px;
-}
-.cc-folder-chip:hover {
-  border-color: #3ee08f;
-}
-.cc-mode-switch {
-  display: inline-flex;
-  padding: 2px;
-  border-radius: 999px;
-  background: #241d17;
-  border: 1px solid #372c23;
-}
-.cc-mode-switch button {
-  border: 0;
-  background: none;
-  color: #ab9c8c;
-  font: inherit;
-  font-size: 12px;
-  padding: 3px 10px;
-  border-radius: 999px;
-}
-.cc-mode-switch button.on {
-  background: rgba(62, 224, 143, 0.16);
-  color: #3ee08f;
-  font-weight: 600;
-}
-.pane.claude .topbar-pdf {
-  border-color: #3b3026;
-}
-.panes.split .chat-heading {
-  min-width: 0;
-}
-.panes.split .cc-mode-switch button {
-  padding: 3px 7px;
-}
-
 /* a Claude Code reply */
 .cc-turn {
   display: flex;
@@ -3768,42 +3619,41 @@ body,
   font-size: 12px;
 }
 .cc-turn .cc-state.done {
-  color: #3ee08f;
+  color: var(--leaf-text, #2b8a3e);
 }
 .cc-turn .cc-state.failed {
-  color: #ff6b8b;
+  color: var(--bad);
 }
 .cc-turn .cc-spin {
-  border-color: rgba(62, 224, 143, 0.25);
-  border-top-color: #3ee08f;
+  border-color: var(--sand);
+  border-top-color: var(--orange);
 }
 .cc-stop {
   margin-left: 10px;
-  border: 1px solid #4a2d2a;
-  background: #2a1a17;
-  color: #ff8fa6;
+  border: 1px solid var(--sand);
+  background: none;
+  color: var(--bad);
   border-radius: 7px;
   padding: 2px 10px;
   font: inherit;
   font-size: 12px;
 }
 .cc-stop:hover {
-  border-color: #ff6b8b;
+  border-color: var(--bad);
 }
 .cc-turn .cc-steps {
-  border-left: 2px solid #3a4a35;
+  border-left: 2px solid var(--sand);
   padding: 4px 0 4px 12px;
   max-height: 260px;
 }
 .cc-turn .cc-step.tool {
-  color: #c2c9ad;
+  color: var(--muted);
 }
 .cc-turn .cc-dot {
-  background: #3ee08f;
-  box-shadow: 0 0 6px #3ee08f;
+  background: var(--orange);
 }
 .cc-turn .cc-step.text {
-  color: #e4d9cc;
+  color: var(--ink);
 }
 .cc-waiting {
   color: var(--muted);
@@ -3883,4 +3733,200 @@ body,
 }
 .pane.claude .hello .buddy {
   border-radius: 20px;
+}
+
+/* a Claude Code chat's folder button (where the + is in a ChatGPT chat) */
+.folder-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 170px;
+  height: 36px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13.5px;
+}
+.folder-btn span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.folder-btn:hover {
+  background: var(--sand);
+}
+.folder-btn.empty {
+  color: var(--orange);
+}
+.folder-pop {
+  width: 360px;
+}
+.folder-pop-item {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+}
+.folder-pop-item span {
+  font-size: 12px;
+  color: var(--muted);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.folder-pop-item.on {
+  background: var(--orange-tint);
+}
+.folder-pop-row {
+  display: flex;
+  gap: 6px;
+  padding: 6px 4px 2px;
+}
+.folder-pop-row input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--sand);
+  border-radius: 8px;
+  padding: 6px 8px;
+  outline: none;
+}
+.folder-pop-row input:focus {
+  border-color: var(--orange);
+}
+.folder-pop-row .btn {
+  padding: 5px 10px;
+  font-size: 12.5px;
+}
+.cc-hello-note {
+  color: var(--muted);
+  font-size: 14px;
+  margin-top: 8px;
+}
+.hello .buddy {
+  display: block;
+  margin: 0 auto;
+}
+
+/* Claude Code chat: the folder menu right below the message box (as in Claude's app) */
+.lead-gap {
+  width: 6px;
+  flex: none;
+}
+.composer-below {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0 -2px 4px;
+}
+.composer-below .folder-btn {
+  height: 28px;
+  padding: 0 8px;
+  gap: 5px;
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.composer-below .folder-btn:hover,
+.composer-below .folder-btn.open {
+  background: var(--sand);
+  color: var(--ink);
+}
+.composer-below .folder-btn.empty {
+  color: var(--orange);
+}
+.folder-picker {
+  position: relative;
+}
+.folder-menu {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 8px);
+  z-index: 30;
+  width: 280px;
+  max-height: min(420px, 60vh);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--sand);
+  border-radius: 14px;
+  box-shadow: var(--shadow-pop);
+  padding: 4px 6px 6px;
+}
+.folder-search {
+  border: 0;
+  border-bottom: 1px solid var(--sand);
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13.5px;
+  padding: 10px 8px 9px;
+  margin: 0 -6px 4px;
+  padding-left: 14px;
+  outline: none;
+}
+.folder-search::placeholder {
+  color: var(--placeholder, #9b9b9b);
+}
+.folder-menu-list {
+  overflow-y: auto;
+  min-height: 0;
+}
+.folder-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13.5px;
+  text-align: left;
+  padding: 7px 8px;
+  border-radius: 8px;
+}
+.folder-item:hover {
+  background: var(--sand);
+}
+.folder-item svg {
+  color: var(--orange);
+  flex: none;
+}
+.folder-item-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.folder-item-path {
+  font-size: 11.5px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 50%;
+}
+.folder-label {
+  font-size: 12px;
+  color: var(--muted);
+  padding: 6px 8px 2px;
+}
+.folder-sep {
+  height: 1px;
+  background: var(--sand);
+  margin: 4px 2px;
+}
+.folder-empty,
+.folder-note {
+  font-size: 12.5px;
+  color: var(--muted);
+  padding: 6px 8px;
 }

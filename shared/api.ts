@@ -77,6 +77,8 @@ export type ChatKind = 'chatgpt' | 'claude'
 export interface ClaudeChatConfig {
   folder: string
   mode: ClaudeCodeMode
+  /** Claude Code's effort level (--effort): low, medium, high, xhigh or max. */
+  effort?: string
   /** Claude Code's session id, so each new message continues the same session (--resume). */
   sessionId?: string
 }
