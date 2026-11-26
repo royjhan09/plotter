@@ -8,6 +8,7 @@ import { useThemeSetting, type Theme } from './theme'
 import { CanvasContext, CanvasPanel } from './Canvas'
 import { CustomizePanel, Settings } from './Settings'
 import { PictureViewer } from './ImageViewer'
+import { exportPdf } from './pdf'
 import icon from '../../assets/icon.png'
 
 const api = window.plotter
@@ -90,6 +91,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
   const [pending, setPending] = useState<{ requestId: string; chatId: string } | null>(null)
   const [limitHit, setLimitHit] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
+  const [exporting, setExporting] = useState(false)
   const [activity, setActivity] = useState<string | null>(null)
   const [voice, setVoice] = useState(false)
   const [showWelcome, setShowWelcome] = useState(auth.planUsage && !auth.welcomeSeen)
@@ -282,6 +284,20 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
     if (pending) return
     const c = await api.chats.get(id)
     if (c) setChat(c)
+  }
+
+  /** Saves the whole chat, or one reply with its question, as a PDF (then opens it). */
+  const savePdf = async (messageId?: string): Promise<void> => {
+    if (!chat || exporting) return
+    setExporting(true)
+    try {
+      const path = await exportPdf(chat.title || 'Plotter chat', messageId)
+      if (path) setToast(`Saved ${path.split(/[\\/]/).pop()}`)
+    } catch (e) {
+      setToast(`Could not make the PDF: ${e instanceof Error ? e.message : String(e)}`)
+    } finally {
+      setExporting(false)
+    }
   }
 
   const newChat = (): void => {
@@ -513,6 +529,12 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
             <RailIcon name="new" />
           </button>
           <span className="chat-heading">{chat?.title ?? ''}</span>
+          {messages.length > 0 && (
+            <button className="topbar-pdf" title="Save this chat as a PDF" onClick={() => void savePdf()} disabled={!!pending || exporting}>
+              <PdfIcon />
+              {exporting ? 'Making PDF…' : 'Save as PDF'}
+            </button>
+          )}
         </header>
 
         <div className="scroller" ref={scroller}>
@@ -531,8 +553,12 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
             </div>
           ) : (
             <div className="thread">
+              <div className="print-head">
+                <div className="print-title">{chat?.title || 'Plotter chat'}</div>
+                <div className="print-meta">Plotter · {new Date().toLocaleDateString()}</div>
+              </div>
               {messages.map((m, i) => (
-                <Message key={m.id} m={m} typing={!!pending && i === messages.length - 1 && m.role === 'assistant'} activity={activity} />
+                <Message key={m.id} m={m} typing={!!pending && i === messages.length - 1 && m.role === 'assistant'} activity={activity} onPdf={exporting ? undefined : (id) => void savePdf(id)} />
               ))}
             </div>
           )}
@@ -624,10 +650,10 @@ function siteName(url: string): string {
   }
 }
 
-function Message({ m, typing, activity }: { m: ChatMessage; typing: boolean; activity?: string | null }): React.JSX.Element {
+function Message({ m, typing, activity, onPdf }: { m: ChatMessage; typing: boolean; activity?: string | null; onPdf?: (id: string) => void }): React.JSX.Element {
   if (m.role === 'user')
     return (
-      <div className="msg user">
+      <div className="msg user" data-msg-id={m.id}>
         {m.attachments && m.attachments.length > 0 && (
           <div className="msg-attachments">
             {m.attachments.map((a) =>
@@ -649,7 +675,7 @@ function Message({ m, typing, activity }: { m: ChatMessage; typing: boolean; act
       </div>
     )
   return (
-    <div className="msg assistant">
+    <div className="msg assistant" data-msg-id={m.id}>
       <img src={icon} alt="" className="sprout" />
       <div className="body">
         {m.thoughtMs !== undefined && m.thoughtMs >= 2000 && m.text && (
@@ -695,6 +721,14 @@ function Message({ m, typing, activity }: { m: ChatMessage; typing: boolean; act
         )}
         {m.error && m.error !== 'Stopped.' && <div className="error">{m.error}</div>}
         {m.error === 'Stopped.' && <div className="stopped">Stopped</div>}
+        {!typing && m.text && (
+          <div className="msg-actions">
+            <button title="Save this reply as a PDF" disabled={!onPdf} onClick={() => onPdf?.(m.id)}>
+              <PdfIcon />
+              Save as PDF
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -784,6 +818,16 @@ function AccountMenu(p: { name?: string; email?: string; onClose: () => void; on
 }
 
 /** Line icons for the rail. */
+function PdfIcon(): React.JSX.Element {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z" />
+      <path d="M14 3v5h5" />
+      <path d="M12 11v6M9.5 14.5 12 17l2.5-2.5" />
+    </svg>
+  )
+}
+
 function RailIcon({ name }: { name: 'new' | 'chats' | 'home' | 'customize' | 'search' | 'settings' | 'pin' | 'unpin' }): React.JSX.Element {
   const common = { viewBox: '0 0 24 24', width: 20, height: 20, fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const }
   if (name === 'new')

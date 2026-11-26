@@ -68,7 +68,11 @@ const api: PlotterApi = {
     sandbox: 'allow-scripts'
   },
   setTheme: (choice) => ipcRenderer.invoke('theme:set', choice),
-  openUsage: () => ipcRenderer.invoke('openUsage')
+  openUsage: () => ipcRenderer.invoke('openUsage'),
+  pdf: {
+    print: () => ipcRenderer.invoke('pdf:print'),
+    save: (name) => ipcRenderer.invoke('pdf:save', name)
+  }
 }
 
 contextBridge.exposeInMainWorld('plotter', api)

@@ -233,6 +233,12 @@ export interface PlotterApi {
   /** Window frame and Windows title bar follow the chosen theme. */
   setTheme: (theme: 'light' | 'dark') => Promise<void>
   openUsage: () => Promise<void>
+  /** PDF export: print() renders the page as printed (only the chat shows), save() asks where to put it and opens it. */
+  pdf: {
+    print: () => Promise<void>
+    /** The saved file's path, or null if cancelled (or in the dev browser, where the browser's own print dialog is used). */
+    save: (name: string) => Promise<string | null>
+  }
 }
 
 export const USAGE_URL = 'https://chatgpt.com/settings/usage'

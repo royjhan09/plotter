@@ -103,7 +103,12 @@ export function installDevBridge(): void {
       sandbox: 'allow-scripts allow-same-origin'
     },
     setTheme: (choice) => call('theme:set', choice),
-    openUsage: () => call('openUsage')
+    openUsage: () => call('openUsage'),
+    // No Electron window here: use the browser's own print dialog (Save as PDF).
+    pdf: {
+      print: async () => window.print(),
+      save: async () => null
+    }
   }
   window.plotter = api
 }

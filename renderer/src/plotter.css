@@ -2586,3 +2586,128 @@ body,
   max-width: calc(100vw - 48px);
   max-height: calc(100vh - 110px);
 }
+
+/* ---------- PDF export ---------- */
+.topbar .chat-heading {
+  margin-right: auto;
+}
+.topbar-pdf {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--sand);
+  border-radius: 10px;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  padding: 6px 11px;
+}
+.topbar-pdf:hover:not(:disabled) {
+  background: var(--sand);
+}
+.msg-actions {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+}
+.msg-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12.5px;
+  padding: 4px 8px;
+}
+.msg-actions button:hover:not(:disabled) {
+  background: var(--sand);
+  color: var(--ink);
+}
+.print-head {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 16mm 14mm;
+  }
+  html,
+  body,
+  #root {
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+  .shell,
+  .main,
+  .scroller {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+  .rail,
+  .sidebar,
+  .topbar,
+  .composer-wrap,
+  .canvas-panel,
+  .modal-back,
+  .msg-actions,
+  .picture-view,
+  .sketch,
+  .dots,
+  .activity {
+    display: none !important;
+  }
+  .thread {
+    max-width: none;
+    padding: 0;
+    gap: 18px;
+  }
+  .print-head {
+    display: block;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #ddd;
+  }
+  .print-title {
+    font-size: 20px;
+    font-weight: 700;
+  }
+  .print-meta {
+    font-size: 12px;
+    color: #777;
+  }
+  :root[data-printing='one'] .msg:not(.print-target) {
+    display: none !important;
+  }
+  .msg.user .bubble {
+    break-inside: avoid;
+  }
+  .msg.assistant .sprout {
+    display: none;
+  }
+  .msg.assistant .body {
+    margin-left: 0;
+    width: 100%;
+  }
+  pre,
+  table,
+  img,
+  canvas,
+  svg,
+  iframe,
+  .visual,
+  .callout,
+  .canvas-card,
+  .tool-run {
+    break-inside: avoid;
+  }
+  a {
+    color: inherit;
+  }
+}
