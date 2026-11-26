@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { AuthState, CanvasDoc, ChatKind, ChatMetaPatch, ChatSummary, HandOff, Model } from '../../shared/api'
+import type { AuthState, CanvasDoc, ChatKind, ChatMetaPatch, ChatSummary, HandOff, Model, Project, BesideChat } from '../../shared/api'
 import { useThemeSetting } from './theme'
 import { CanvasContext, CanvasPanel } from './Canvas'
 import { CustomizePanel, Settings, type Tab as SettingsTab } from './Settings'
 import { PDF_EXPORT, PdfPreview } from '@private/renderer/PdfPreview'
 import { ChatList } from './ChatList'
+import { ProjectPage } from './Projects'
 import { ClaudeBuddy } from './ClaudeBuddy'
 import { CLAUDE_CODE } from '@private/renderer/ClaudeCode'
 import { ChatPane, announceRename, cleanError } from './ChatPane'
@@ -89,10 +90,26 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
   const side = split ? focus : 'left'
   const setSideId = (s: 'left' | 'right', id: string | null): void => (s === 'left' ? setLeftId(id) : setRightId(id))
   // What a side's *new* chat is (a ChatGPT chat, or a Claude Code chat), and text to start its message box with.
-  const [leftNew, setLeftNew] = useState<{ kind: ChatKind; seed?: string; from?: HandOff; n: number }>({ kind: 'chatgpt', n: 0 })
-  const [rightNew, setRightNew] = useState<{ kind: ChatKind; seed?: string; from?: HandOff; n: number }>({ kind: 'chatgpt', n: 0 })
-  const setSideNew = (s: 'left' | 'right', kind: ChatKind, seed?: string, from?: HandOff): void =>
-    (s === 'left' ? setLeftNew : setRightNew)((prev) => ({ kind, seed, from, n: prev.n + 1 }))
+  type NewChat = { kind: ChatKind; seed?: string; from?: HandOff; projectId?: string; n: number }
+  const [leftNew, setLeftNew] = useState<NewChat>({ kind: 'chatgpt', n: 0 })
+  const [rightNew, setRightNew] = useState<NewChat>({ kind: 'chatgpt', n: 0 })
+  const setSideNew = (s: 'left' | 'right', kind: ChatKind, seed?: string, from?: HandOff, projectId?: string): void =>
+    (s === 'left' ? setLeftNew : setRightNew)((prev) => ({ kind, seed, from, projectId, n: prev.n + 1 }))
+  // Which kind of chat each side shows (a side's new chat may have been switched from its own menu).
+  const [paneKind, setPaneKind] = useState<Record<'left' | 'right', ChatKind>>({ left: 'chatgpt', right: 'chatgpt' })
+  const onLeftKind = useCallback((k: ChatKind) => setPaneKind((p) => (p.left === k ? p : { ...p, left: k })), [])
+  const onRightKind = useCallback((k: ChatKind) => setPaneKind((p) => (p.right === k ? p : { ...p, right: k })), [])
+  // What one side's chat sent to the other (that side answers it right away).
+  const [leftIn, setLeftIn] = useState<{ from: HandOff; n: number } | undefined>(undefined)
+  const [rightIn, setRightIn] = useState<{ from: HandOff; n: number } | undefined>(undefined)
+  useEffect(
+    () =>
+      api.onSideDelivery((d) => {
+        const set = d.pane === 'left' ? setLeftIn : setRightIn
+        set((prev) => ({ from: d.from, n: (prev?.n ?? 0) + 1 }))
+      }),
+    []
+  )
   const onLeftId = useCallback((id: string | null) => setLeftId(id), [])
   const onRightId = useCallback((id: string | null) => setRightId(id), [])
 
@@ -142,8 +159,17 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
   const [settingsTab, setSettingsTab] = useState<SettingsTab>('account')
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [marketOpen, setMarketOpen] = useState(false)
+  // Projects: groups of chats with a shared memory; one project's page can be open instead of the chats.
+  const [projects, setProjects] = useState<Project[]>([])
+  const [projectOpen, setProjectOpen] = useState<string | null>(null)
+  const refreshProjects = useCallback(() => void api.projects.list().then(setProjects), [])
+  useEffect(() => {
+    refreshProjects()
+    return api.projects.onChanged(refreshProjects)
+  }, [refreshProjects])
   const openSettings = (tab: SettingsTab): void => {
     setMarketOpen(false)
+    setProjectOpen(null)
     setSettingsTab(tab)
     setSettingsOpen(true)
     setPanel(null)
@@ -152,6 +178,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
   const canvasApi = useMemo(() => ({ open: (doc: CanvasDoc) => setCanvas(doc), current: canvas }), [canvas])
 
   const refreshList = useCallback(() => void api.chats.list().then(setChats), [])
+  const openProject = projectOpen ? projects.find((p) => p.id === projectOpen) : undefined
   const showToast = useCallback((m: string) => setToast(m), [])
 
   const loadModel = useCallback(() => {
@@ -187,6 +214,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
   const openChat = (id: string, where: 'left' | 'right' = side): void => {
     setSettingsOpen(false)
     setMarketOpen(false)
+    setProjectOpen(null)
     if (where === 'right') setSplit(true)
     const other = where === 'left' ? rightId : leftId
     if (split && other === id && where !== side) return setFocus(where === 'left' ? 'right' : 'left')
@@ -201,17 +229,19 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
   const newChat = (): void => {
     setSettingsOpen(false)
     setMarketOpen(false)
+    setProjectOpen(null)
     setSideNew(side, 'chatgpt')
     setSideId(side, null)
   }
 
   /** Opens a new Claude Code chat right away (on this side, or beside it), optionally with its first message typed in. */
-  const newClaudeChat = (beside: boolean, seed?: string, from?: HandOff): void => {
+  const newClaudeChat = (beside: boolean, seed?: string, from?: HandOff, projectId?: string): void => {
     setSettingsOpen(false)
     setMarketOpen(false)
+    setProjectOpen(null)
     const where: 'left' | 'right' = beside ? (side === 'left' ? 'right' : 'left') : side
     if (where === 'right') setSplit(true)
-    setSideNew(where, 'claude', seed, from)
+    setSideNew(where, 'claude', seed, from, projectId)
     setSideId(where, null)
     setFocus(where)
   }
@@ -244,9 +274,37 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
 
   /** Rename, pin or archive from the chat list's ⋯ menu; a renamed open chat shows its new name at once. */
   const updateChat = useCallback((id: string, patch: ChatMetaPatch): void => {
-    void api.chats.update(id, patch).then(setChats)
+    void api.chats.update(id, patch).then((list) => {
+      setChats(list)
+      if (patch.projectId !== undefined) refreshProjects()
+    })
     if (patch.title) announceRename(id, patch.title)
-  }, [])
+    if (patch.projectId !== undefined) window.dispatchEvent(new CustomEvent('plotter-chat-project', { detail: { id, projectId: patch.projectId } }))
+  }, [refreshProjects])
+
+  /** A new project (with a chat moved into it, when given); its page opens. */
+  const newProject = async (chatId?: string): Promise<void> => {
+    const from = chatId ? chats.find((c) => c.id === chatId) : undefined
+    const p = await api.projects.create(from ? from.title : 'New project')
+    if (chatId) updateChat(chatId, { projectId: p.id })
+    refreshProjects()
+    setSettingsOpen(false)
+    setMarketOpen(false)
+    setProjectOpen(p.id)
+  }
+  /** A new chat of a kind inside a project, on the focused side. */
+  const newChatInProject = (kind: ChatKind, projectId: string): void => {
+    setProjectOpen(null)
+    setSettingsOpen(false)
+    setMarketOpen(false)
+    setSideNew(side, kind, undefined, undefined, projectId)
+    setSideId(side, null)
+  }
+  const sideInfo = (s: 'left' | 'right'): BesideChat => {
+    const id = s === 'left' ? leftId : rightId
+    const c = id ? chats.find((x) => x.id === id) : undefined
+    return { pane: s, chatId: id, kind: c?.kind ?? paneKind[s], title: c?.title ?? '' }
+  }
 
   const removeChat = async (id: string): Promise<void> => {
     await api.chats.remove(id)
@@ -288,6 +346,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
     setSettingsOpen(false)
     setMarketOpen(false)
     if (where === 'right') setSplit(true)
+    setProjectOpen(null)
     setSideNew(where, kind)
     setSideId(where, null)
     setFocus(where)
@@ -472,12 +531,39 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
               }}
               onDragStart={beginDrag}
               onDragEnd={endDrag}
+              projects={projects}
+              openProjectId={projectOpen}
+              onOpenProject={(id) => {
+                setSettingsOpen(false)
+                setMarketOpen(false)
+                setProjectOpen(id)
+                if (!pinned) setPanel(null)
+              }}
+              onNewProject={(id) => void newProject(id)}
+              dragged={() => (dragChat.current && !dragChat.current.startsWith('new:') ? dragChat.current : null)}
             />
           </>
         )}
       </aside>
 
       {marketOpen && !settingsOpen && <Market onClose={() => setMarketOpen(false)} />}
+
+      {openProject && !settingsOpen && !marketOpen && (
+        <ProjectPage
+          project={openProject}
+          chats={chats}
+          onClose={() => setProjectOpen(null)}
+          onOpenChat={(id) => openChat(id)}
+          onNewChat={(kind) => newChatInProject(kind, openProject.id)}
+          onRemoveChat={(id) => updateChat(id, { projectId: null })}
+          onDeleted={() => {
+            setProjectOpen(null)
+            refreshProjects()
+            refreshList()
+          }}
+          toast={showToast}
+        />
+      )}
 
       {settingsOpen && (
         <Settings
@@ -498,14 +584,14 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
 
       <div
         className={`panes ${split ? 'split' : ''}`}
-        hidden={settingsOpen || marketOpen}
+        hidden={settingsOpen || marketOpen || !!openProject}
         onDragOver={onPanesDragOver}
         onDragLeave={(e) => {
           if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDropSide(null)
         }}
         onDrop={onPanesDrop}
       >
-        <ChatPane {...paneProps} chatId={leftId} onChatId={onLeftId} side="left" split={split} focused={!split || focus === 'left'} onFocus={() => setFocus('left')} newChat={leftNew} onSendToClaude={(task, from) => newClaudeChat(true, task, from)} />
+        <ChatPane {...paneProps} chatId={leftId} onChatId={onLeftId} side="left" split={split} focused={!split || focus === 'left'} onFocus={() => setFocus('left')} newChat={leftNew} onSendToClaude={(task, from, projectId) => newClaudeChat(true, task, from, projectId)} beside={split ? sideInfo('right') : undefined} incoming={leftIn} projects={projects} onOpenProject={setProjectOpen} onKind={onLeftKind} />
         {split && (
           <ChatPane
             {...paneProps}
@@ -517,7 +603,12 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
             onFocus={() => setFocus('right')}
             onClose={closeRight}
             newChat={rightNew}
-            onSendToClaude={(task, from) => newClaudeChat(true, task, from)}
+            onSendToClaude={(task, from, projectId) => newClaudeChat(true, task, from, projectId)}
+            beside={sideInfo('left')}
+            incoming={rightIn}
+            projects={projects}
+            onOpenProject={setProjectOpen}
+            onKind={onRightKind}
           />
         )}
         {dropSide && (

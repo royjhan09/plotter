@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import type { ChatMetaPatch, ChatSummary } from '../../shared/api'
+import type { ChatMetaPatch, ChatSummary, Project } from '../../shared/api'
+import { ProjectIcon } from './Projects'
 import { ClaudeBuddy } from './ClaudeBuddy'
 import icon from '../../assets/icon.png'
 
@@ -93,13 +94,33 @@ interface Props {
   onDragStart: (id: string) => void
   /** The drag ended (dropped somewhere, or cancelled). */
   onDragEnd: () => void
+  projects: Project[]
+  /** The project page that is open, if any. */
+  openProjectId: string | null
+  onOpenProject: (id: string) => void
+  /** Makes a new project (with this chat in it, when given) and opens it. */
+  onNewProject: (chatId?: string) => void
+  /** The chat being dragged from this list (so a drop on a project knows which). */
+  dragged: () => string | null
 }
 
 /**
  * The chat list, as in ChatGPT: rows show only the title until hovered; then a pin button and a ⋯ menu
  * (Pin, Rename, Convert to PDF, Archive, Delete) appear. Pinned chats sit on top; archived ones fold away at the bottom.
  */
-export function ChatList({ chats, activeIds, query, visible, onOpen, onUpdate, onDelete, onPdf, onOpenBeside, onDragStart, onDragEnd }: Props): React.JSX.Element {
+export function ChatList({ chats, activeIds, query, visible, onOpen, onUpdate, onDelete, onPdf, onOpenBeside, onDragStart, onDragEnd, projects, openProjectId, onOpenProject, onNewProject, dragged }: Props): React.JSX.Element {
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set(JSON.parse(localStorage.getItem('plotter.openProjects') ?? '[]') as string[]))
+  const [dropOn, setDropOn] = useState<string | null>(null)
+  const toggleProject = (id: string): void =>
+    setExpanded((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      localStorage.setItem('plotter.openProjects', JSON.stringify([...next]))
+      return next
+    })
+  const known = new Set(projects.map((p) => p.id))
+  const inAProject = (c: ChatSummary): boolean => !!c.projectId && known.has(c.projectId)
   const [menu, setMenu] = useState<{ id: string; left: number; top: number } | null>(null)
   const [renaming, setRenaming] = useState<string | null>(null)
   const [showArchived, setShowArchived] = useState(false)
@@ -108,8 +129,9 @@ export function ChatList({ chats, activeIds, query, visible, onOpen, onUpdate, o
 
   const q = query.trim().toLowerCase()
   const match = (c: ChatSummary): boolean => !q || c.title.toLowerCase().includes(q)
-  const pinned = chats.filter((c) => c.pinned && !c.archived && match(c))
-  const recent = chats.filter((c) => !c.pinned && !c.archived && match(c))
+  // a chat in a project is listed under its project (while searching, everywhere it matches)
+  const pinned = chats.filter((c) => c.pinned && !c.archived && match(c) && (q || !inAProject(c)))
+  const recent = chats.filter((c) => !c.pinned && !c.archived && match(c) && (q || !inAProject(c)))
   const archived = chats.filter((c) => c.archived && match(c))
   const menuChat = menu ? chats.find((c) => c.id === menu.id) : undefined
 
@@ -153,7 +175,7 @@ export function ChatList({ chats, activeIds, query, visible, onOpen, onUpdate, o
     e.stopPropagation()
     if (menu?.id === id) return setMenu(null)
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
-    const height = 270
+    const height = 300 + projects.length * 34
     const top = r.bottom + 4 + height > window.innerHeight ? Math.max(8, r.top - height - 4) : r.bottom + 4
     setMenu({ id, left: Math.min(r.left - 8, window.innerWidth - 220), top })
   }
@@ -228,6 +250,58 @@ export function ChatList({ chats, activeIds, query, visible, onOpen, onUpdate, o
 
   return (
     <div className="chat-scroll" onScroll={() => setMenu(null)}>
+      <div className="chat-list-label project-label">
+        Projects
+        <button className="row-btn" title="New project" onClick={() => onNewProject()}>
+          +
+        </button>
+      </div>
+      <nav className="chat-list projects">
+        {projects.length === 0 && <p className="empty-list">Group chats into a project so they share what matters.</p>}
+        {projects.map((p) => {
+          const own = chats.filter((c) => c.projectId === p.id && !c.archived)
+          const open = expanded.has(p.id)
+          return (
+            <div key={p.id}>
+              <div
+                className={`chat-item project-row ${openProjectId === p.id ? 'active' : ''} ${dropOn === p.id ? 'drop-on' : ''}`}
+                onClick={() => onOpenProject(p.id)}
+                onDragOver={(e) => {
+                  if (!dragged()) return
+                  e.preventDefault()
+                  e.dataTransfer.dropEffect = 'move'
+                  setDropOn(p.id)
+                }}
+                onDragLeave={() => setDropOn((d) => (d === p.id ? null : d))}
+                onDrop={(e) => {
+                  e.preventDefault()
+                  setDropOn(null)
+                  const id = dragged()
+                  if (id) onUpdate(id, { projectId: p.id })
+                }}
+                title={`${p.name}: ${own.length} chat${own.length === 1 ? '' : 's'}, ${p.notes.length} shared note${p.notes.length === 1 ? '' : 's'}. Drop a chat here to move it in.`}
+              >
+                <button
+                  className={`project-caret ${open ? 'open' : ''}`}
+                  title={open ? 'Hide its chats' : 'Show its chats'}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    toggleProject(p.id)
+                  }}
+                >
+                  <Icon name="chevron" />
+                </button>
+                <span className="chat-kind">
+                  <ProjectIcon />
+                </span>
+                <span className="chat-title">{p.name}</span>
+                <span className="project-count">{own.length}</span>
+              </div>
+              {open && <div className="project-chats-list">{own.length ? own.map(row) : <p className="empty-list">No chats yet.</p>}</div>}
+            </div>
+          )
+        })}
+      </nav>
       {pinned.length > 0 && (
         <>
           <div className="chat-list-label">Pinned</div>
@@ -255,6 +329,22 @@ export function ChatList({ chats, activeIds, query, visible, onOpen, onUpdate, o
           {item('rename', 'Rename', 'R', () => setRenaming(menuChat.id))}
           {item('split', 'Open side by side', '', () => onOpenBeside(menuChat.id))}
           {onPdf && item('pdf', 'Convert to PDF', '', () => onPdf(menuChat))}
+          <div className="row-menu-sep" />
+          <div className="row-menu-label">Project</div>
+          {projects
+            .filter((p) => p.id !== menuChat.projectId)
+            .map((p) => (
+              <button key={p.id} role="menuitem" className="row-menu-item" onClick={(e) => (e.stopPropagation(), setMenu(null), onUpdate(menuChat.id, { projectId: p.id }))}>
+                <ProjectIcon />
+                <span>Move to {p.name}</span>
+              </button>
+            ))}
+          {menuChat.projectId && known.has(menuChat.projectId) && item('unarchive', 'Take out of the project', '', () => onUpdate(menuChat.id, { projectId: null }))}
+          <button role="menuitem" className="row-menu-item" onClick={(e) => (e.stopPropagation(), setMenu(null), onNewProject(menuChat.id))}>
+            <ProjectIcon />
+            <span>New project with this chat</span>
+          </button>
+          <div className="row-menu-sep" />
           {item(menuChat.archived ? 'unarchive' : 'archive', menuChat.archived ? 'Unarchive' : 'Archive', 'A', () => onUpdate(menuChat.id, { archived: !menuChat.archived }))}
           <div className="row-menu-sep" />
           {item('trash', 'Delete', '', () => onDelete(menuChat), true)}

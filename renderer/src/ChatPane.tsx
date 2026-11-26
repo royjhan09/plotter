@@ -1,11 +1,12 @@
 import { useCallback, useContext, useEffect, useRef, useState } from 'react'
-import type { Attachment, Chat, ChatKind, ChatMessage, ClaudeChatConfig, HandOff, Model, ReplyEvent } from '../../shared/api'
+import type { Attachment, Chat, ChatKind, ChatMessage, BesideChat, ClaudeChatConfig, HandOff, Model, Project, ReplyEvent } from '../../shared/api'
 import { Composer, EffortMenu } from './Composer'
 import { VoiceMode } from './VoiceMode'
 import { toAttachment } from './attachments'
 import { CanvasContext } from './Canvas'
 import { PDF_EXPORT, PdfBadge } from '@private/renderer/PdfPreview'
 import { HandOffCard, Message } from './Message'
+import { ProjectIcon } from './Projects'
 import { RailIcon, ThemeButton } from './RailIcon'
 import { useClaudeTheme, type Theme } from './theme'
 import { ClaudeBuddy, folderName } from './ClaudeBuddy'
@@ -14,6 +15,14 @@ import icon from '../../assets/icon.png'
 
 const api = window.plotter
 const newId = (): string => crypto.randomUUID().replace(/-/g, '')
+
+/** A message as ChatGPT reads it: what the user wrote, then anything another chat handed over with it. */
+function withHandOff(m: ChatMessage): string {
+  if (!m.from) return m.text
+  const who = m.from.kind === 'side' ? `the ${m.from.sender === 'claude' ? 'Claude Code' : 'ChatGPT'} chat open beside this one (sent at the user's request)` : `the chat "${m.from.chat}"`
+  const ask = m.text.trim() || (m.from.kind === 'side' ? 'Answer this message from the chat beside, for the user.' : 'Look at this.')
+  return `${ask}\n\n<handed_over from="${who.replace(/"/g, "'")}">\n${m.from.text.trim()}\n</handed_over>`
+}
 
 function titleFrom(text: string, attachments: Attachment[]): string {
   const line = text.trim().split('\n')[0] ?? ''
@@ -63,9 +72,18 @@ export interface ChatPaneProps {
   savePdf: (messageId: string | undefined, target: { id: string; title: string }) => void
   pdfBusy: boolean
   /** "Send to Claude Code" from a reply or the + menu: starts a Claude Code chat (opened beside this one). */
-  onSendToClaude: (task: string, from?: HandOff) => void
+  onSendToClaude: (task: string, from?: HandOff, projectId?: string) => void
   /** What this side's new chat is, text to start it with and a reply handed to it; a new n means "start a new chat now". */
-  newChat: { kind: ChatKind; seed?: string; from?: HandOff; n: number }
+  newChat: { kind: ChatKind; seed?: string; from?: HandOff; projectId?: string; n: number }
+  /** The chat open on the other side (side by side), so this chat can send something to it. */
+  beside?: BesideChat
+  /** Something the chat beside sent here; a new n means "it just arrived": this chat answers it right away. */
+  incoming?: { from: HandOff; n: number }
+  /** All projects (for the project name in the top bar). */
+  projects: Project[]
+  onOpenProject: (id: string) => void
+  /** Which kind of chat this side shows now (so the other side knows what is beside it). */
+  onKind: (kind: ChatKind) => void
   /** The app's light/dark (a ChatGPT chat follows and switches it; a Claude Code chat has its own, dark by default). */
   theme: Theme
   setTheme: (t: Theme) => void
@@ -100,6 +118,8 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
   // a ChatGPT reply handed to this (new) Claude Code chat, shown as a card in the message box
   const [handOff, setHandOff] = useState<HandOff | null>(null)
   const handOffRef = useRef<HandOff | null>(null)
+  // the project a new chat starts in (its first message saves it there)
+  const [newProject, setNewProject] = useState<string | undefined>(p.newChat.projectId)
   handOffRef.current = handOff
   // a project brief's suggested new folder (Create project), and whether it was made
   const [suggested, setSuggested] = useState<{ path: string; made: boolean } | null>(null)
@@ -122,6 +142,8 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
   // "Create project": ChatGPT sums up this chat into a brief, then a Claude Code chat opens beside it with the brief attached
   const [briefBusy, setBriefBusy] = useState(false)
   const isClaude = chat ? chat.kind === 'claude' : newKind === 'claude'
+  const { onKind } = p
+  useEffect(() => onKind(isClaude ? 'claude' : 'chatgpt'), [isClaude, onKind])
   const cc = chat ? chat.cc : ccNew
   const ccBusy = !!chat && chat.kind === 'claude' && chat.messages.some((m) => m.cc?.state === 'running')
   const [ccTheme, setCcTheme] = useClaudeTheme()
@@ -198,6 +220,7 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
     if (p.newChat.kind === 'claude') setCcNew(null)
     setDraft(p.newChat.seed ?? '')
     setHandOff(p.newChat.from ?? null)
+    setNewProject(p.newChat.projectId)
     if (p.newChat.from) setAttachments([])
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [p.newChat.n])
@@ -208,6 +231,19 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
     void api.claudeCode.folders().then((list) => setCcNew((c) => c ?? { folder: handOffRef.current?.folder ? '' : (list[0] ?? ''), mode: 'edit', effort: localStorage.getItem(CC_EFFORT_KEY) ?? 'xhigh' }))
     void api.claudeCode.available().then((a) => setCcMissing(a.ok ? null : (a.error ?? 'Claude Code is not available.')))
   }, [chat, newKind, ccNew])
+
+  // A move into or out of a project, from the chat list.
+  useEffect(() => {
+    const on = (e: Event): void => {
+      const { id, projectId } = (e as CustomEvent<{ id: string; projectId: string | null }>).detail
+      if (chatRef.current?.id !== id) return
+      const { projectId: _old, ...rest } = chatRef.current
+      chatRef.current = projectId ? { ...rest, projectId } : rest
+      setChat(chatRef.current)
+    }
+    window.addEventListener('plotter-chat-project', on)
+    return () => window.removeEventListener('plotter-chat-project', on)
+  }, [])
 
   // A rename from the chat list.
   useEffect(() => {
@@ -337,6 +373,7 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
     const current = chatRef.current
     setNewKind(kind)
     if (kind === 'claude') setCcNew(current?.cc ? { folder: current.cc.folder, mode: 'edit', effort: current.cc.effort } : null)
+    setNewProject(current?.projectId) // a new chat from a project chat stays in the project
     setDraft('')
     onChatId(null)
   }
@@ -348,7 +385,19 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
     setBriefBusy(true)
     try {
       const b = await api.chats.brief(current.id)
-      p.onSendToClaude('', { chat: b.title || current.title, text: b.brief, kind: 'brief', folder: b.folder })
+      // the ChatGPT chat and the new Claude Code chat share a Plotter project (this chat's, or a new one)
+      let projectId = current.projectId
+      if (!projectId) {
+        const project = await api.projects.create(b.title || current.title)
+        projectId = project.id
+        await api.chats.update(current.id, { projectId })
+        chatRef.current = { ...current, projectId }
+        setChat(chatRef.current)
+        const goal = /##\s*Goal\s*\n+([^\n]+)/i.exec(b.brief)?.[1]?.trim()
+        if (goal) await api.projects.addNote(projectId, goal.length > 380 ? `${goal.slice(0, 379)}…` : goal).catch(() => undefined)
+        refreshList()
+      }
+      p.onSendToClaude('', { chat: b.title || current.title, text: b.brief, kind: 'brief', folder: b.folder }, projectId)
     } catch (e) {
       toast(`Could not make the project brief: ${cleanError(e)}`)
     } finally {
@@ -356,30 +405,38 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
     }
   }
 
-  const sendClaude = async (): Promise<void> => {
+  /** Sends the message box (or, with incoming, what the chat beside just sent) to Claude Code. */
+  const sendClaude = async (incoming?: HandOff): Promise<void> => {
     const current = chatRef.current
-    const text = draft.trim()
-    const files = attachments.filter((a) => a.kind === 'text' || a.kind === 'sheet' || a.kind === 'doc')
-    if ((!text && !handOff && !files.length) || ccBusy) return
-    if (attachments.length > files.length) toast('Claude Code chats take text files only; pictures and PDFs were left out.')
-    const from = handOff ?? undefined
-    if (!current) {
-      // the first message creates the chat, in the folder chosen in the top bar
-      if (!ccNew?.folder) return toast('Select the folder Claude Code should work in (below the message box).')
+    const text = incoming ? '' : draft.trim()
+    const files = incoming ? [] : attachments.filter((a) => a.kind === 'text' || a.kind === 'sheet' || a.kind === 'doc')
+    if ((!text && !handOff && !files.length && !incoming) || ccBusy) return
+    if (attachments.length > files.length && !incoming) toast('Claude Code chats take text files only; pictures and PDFs were left out.')
+    const from = incoming ?? handOff ?? undefined
+    // the user's own message may ask Claude Code to send something to the chat beside; a delivered one may not (no ping-pong)
+    const beside = incoming ? undefined : p.beside
+    const clearBox = (): void => {
+      if (incoming) return
       setDraft('')
       setAttachments([])
       setHandOff(null)
-      const created = await startClaudeChat(text, ccNew.folder, 'edit', ccNew.effort, from, files)
+    }
+    if (!current) {
+      // the first message creates the chat, in the folder chosen in the top bar
+      if (!ccNew?.folder) {
+        if (incoming) setHandOff(incoming) // keep it in the box until a folder is chosen
+        return toast(incoming ? 'The other chat sent a message here. Select a folder below, then press send.' : 'Select the folder Claude Code should work in (below the message box).')
+      }
+      clearBox()
+      const created = await startClaudeChat(text, ccNew.folder, 'edit', ccNew.effort, { from, files, beside, projectId: newProject })
       chatRef.current = created
       setChat(created)
       onChatId(created.id)
       refreshList()
       return
     }
-    setDraft('')
-    setAttachments([])
-    setHandOff(null)
-    const next = await sendClaudeTurn(current, text, from, files)
+    clearBox()
+    const next = await sendClaudeTurn(current, text, { from, files, beside })
     if (chatRef.current?.id === next.id) {
       // keep any update that arrived while sending
       const seen = new Map(chatRef.current.messages.map((m) => [m.id, m]))
@@ -390,21 +447,25 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
   }
 
   /** Sends a message (the composer's, or voice mode's text) and resolves with the full reply. */
-  const sendMessage = async (spoken?: string): Promise<string> => {
-    const text = (spoken ?? draft).trim()
-    const files = spoken === undefined ? attachments : []
-    if ((!text && files.length === 0) || pendingRef.current || !p.model) return ''
+  const sendMessage = async (spoken?: string, incoming?: HandOff): Promise<string> => {
+    const typed = spoken === undefined && !incoming
+    const text = incoming ? '' : (spoken ?? draft).trim()
+    const files = typed ? attachments : []
+    // a hand-off left in the message box (it arrived while this chat was busy) goes with the next message
+    if (typed && handOff && !incoming) incoming = handOff
+    if ((!text && files.length === 0 && !incoming) || pendingRef.current || !p.model) return ''
+    if (typed) setHandOff(null)
     const now = Date.now()
-    const asResearch = research && spoken === undefined
-    const user: ChatMessage = { id: newId(), role: 'user', text, at: now, ...(files.length ? { attachments: files } : {}), ...(asResearch ? { research: true } : {}) }
+    const asResearch = research && typed
+    const user: ChatMessage = { id: newId(), role: 'user', text, at: now, ...(files.length ? { attachments: files } : {}), ...(asResearch ? { research: true } : {}), ...(incoming ? { from: incoming } : {}) }
     const reply: ChatMessage = { id: newId(), role: 'assistant', text: '', at: now }
     const current = chatRef.current
-    const base: Chat = current ?? { id: newId(), title: titleFrom(text, files), model: p.model.slug, messages: [], createdAt: now, updatedAt: now }
+    const base: Chat = current ?? { id: newId(), title: incoming ? `From ${incoming.chat}`.slice(0, 60) : titleFrom(text, files), model: p.model.slug, messages: [], createdAt: now, updatedAt: now, ...(newProject ? { projectId: newProject } : {}) }
     const history = [...base.messages.filter((m) => !(m.role === 'assistant' && !m.text)), user]
     const next: Chat = { ...base, model: p.model.slug, messages: [...history, reply], updatedAt: now }
     chatRef.current = next
     setChat(next)
-    if (spoken === undefined) {
+    if (typed) {
       setDraft('')
       setAttachments([])
       setResearch(false)
@@ -423,9 +484,11 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
         chatId: next.id,
         model: p.model.slug,
         effort: p.effort,
-        history: history.map((m) => ({ role: m.role, text: m.text, ...(m.attachments ? { attachments: m.attachments } : {}) })),
+        history: history.map((m) => ({ role: m.role, text: withHandOff(m), ...(m.attachments ? { attachments: m.attachments } : {}) })),
         research: asResearch,
-        canvas: canvas.current
+        canvas: canvas.current,
+        // only a message the user typed or spoke may send something to the chat beside (no ping-pong)
+        ...(p.beside && typed ? { beside: p.beside } : {})
       })
     } catch (e) {
       const failed = { ...next, messages: [...history, { ...reply, error: cleanError(e) }] }
@@ -439,6 +502,21 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
     }
     return finished
   }
+
+  // Something the chat beside sent here: answer it right away (or keep it in the box if this chat is busy).
+  const deliverRef = useRef<(from: HandOff) => void>(() => undefined)
+  deliverRef.current = (from: HandOff): void => {
+    if (pendingRef.current || ccBusy) {
+      setHandOff(from)
+      toast('The chat beside sent a message. It is in the message box; it goes with your next message.')
+      return
+    }
+    if (isClaude) void sendClaude(from)
+    else void sendMessage(undefined, from).catch(() => undefined)
+  }
+  useEffect(() => {
+    if (p.incoming) deliverRef.current(p.incoming.from)
+  }, [p.incoming])
 
   const sendRef = useRef(sendMessage)
   sendRef.current = sendMessage
@@ -476,6 +554,7 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
   }
 
   const messages = chat?.messages ?? []
+  const projectOf = p.projects.find((x) => x.id === (chat ? chat.projectId : newProject))
   const lastReply = messages.reduce((at, m, i) => (m.role === 'assistant' && m.text && !m.cc ? i : at), -1)
   return (
     <main
@@ -524,6 +603,12 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
           )}
         </div>
         <span className="chat-heading">{chat?.title ?? ''}</span>
+        {projectOf && (
+          <button className="project-chip" title={`Open the project “${projectOf.name}”`} onClick={() => p.onOpenProject(projectOf.id)}>
+            <ProjectIcon />
+            <span>{projectOf.name}</span>
+          </button>
+        )}
         {PDF_EXPORT && messages.length > 0 && (
           <button className="topbar-pdf" title="Convert this chat to a PDF" onClick={() => chat && p.savePdf(undefined, chat)} disabled={!!pending || ccBusy || p.pdfBusy}>
             <PdfBadge />
@@ -656,7 +741,7 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
               </>
             ) : undefined
           }
-          canSendEmpty={isClaude && !!handOff}
+          canSendEmpty={!!handOff}
         />
         <div className="composer-below">
           {isClaude ? (

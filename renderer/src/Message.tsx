@@ -168,7 +168,7 @@ export function HandOffCard({ from, onRemove }: { from: HandOff; onRemove?: () =
         <img src={icon} alt="" className="handoff-icon" />
         <span className="handoff-meta">
           <span className="handoff-label">
-            <span className="handoff-from">{from.kind === 'brief' ? 'Project brief from' : 'Reply from'}</span>
+            <span className="handoff-from">{from.kind === 'brief' ? 'Project brief from' : from.kind === 'side' ? `Sent by the ${from.sender === 'claude' ? 'Claude Code' : 'ChatGPT'} chat` : 'Reply from'}</span>
             <b>{from.chat}</b>
             {visuals > 0 && <span className="handoff-chip">{visuals === 1 ? '1 visual' : `${visuals} visuals`}</span>}
           </span>

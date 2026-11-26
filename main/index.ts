@@ -2,6 +2,8 @@ import { writeFile } from 'node:fs/promises'
 import { app, BrowserWindow, dialog, ipcMain, shell, nativeImage, nativeTheme, protocol, session } from 'electron'
 import { join } from 'node:path'
 import { authState, cancelSignIn, loadSession, signIn, signOut } from './auth'
+import { projectsChanged, setAppEmitter } from './appEvents'
+import { addNote, createProject, editNote, listProjects, removeNote, removeProject, renameProject } from './projects'
 import { forgetModel, generateProjectBrief, generateSuggestion, generateTitle, primaryModel, ReplyError } from './openai'
 import { reply } from './assistant'
 import { onPythonStatus, pythonStatus, PY_SCHEME } from './python'
@@ -14,7 +16,7 @@ import { showInExplorer } from './frontExplorer'
 import { pdfHandlers } from '@private/main/pdf'
 import { checkMarketTool, closeAllMarket, listMarket, removeMarketTool, saveMarketTool, setMarketConnected } from '@private/main/market'
 import { claudeCodeAvailable, makeProjectFolder, recentFolders, suggestProjectFolder, sendToClaude, settleStale, stopAllClaude, stopClaude } from '@private/main/claudeCode'
-import { USAGE_URL, type Chat, type ChatMetaPatch, type MarketToolInput, type ConnectorId, type Features, type ReplyEvent, type SendRequest } from '../shared/api'
+import { USAGE_URL, type BesideChat, type Chat, type ChatMetaPatch, type MarketToolInput, type ConnectorId, type Features, type ReplyEvent, type SendRequest } from '../shared/api'
 
 app.setName('Plotter')
 // Interactive previews live on their own scheme/origin (see uiFrames.ts). Must be registered before ready.
@@ -85,6 +87,7 @@ function allowMicrophone(): void {
 type Emit = (channel: string, payload: unknown) => void
 const emitters = new Set<Emit>()
 const emit: Emit = (channel, payload) => emitters.forEach((e) => e(channel, payload))
+setAppEmitter(emit)
 
 const running = new Map<string, AbortController>()
 const sendReply = (event: ReplyEvent): void => emit('reply:event', event)
@@ -110,6 +113,40 @@ export const handlers: Record<string, (...args: never[]) => unknown> = {
   'speech:transcribe': (samples: Float32Array) => transcribe(samples),
   'speech:status': () => speechStatus(),
   'speech:warm': () => warmSpeech(),
+
+  'projects:list': () => listProjects(),
+  'projects:create': (name: string) => {
+    const p = createProject(String(name ?? ''))
+    projectsChanged()
+    return p
+  },
+  'projects:rename': (id: string, name: string) => {
+    const list = renameProject(String(id), String(name ?? ''))
+    projectsChanged()
+    return list
+  },
+  'projects:remove': (id: string) => {
+    // its chats stay, outside any project
+    for (const c of listChats()) if (c.projectId === id) updateChatMeta(c.id, { projectId: null })
+    const list = removeProject(String(id))
+    projectsChanged()
+    return list
+  },
+  'projects:addNote': (id: string, text: string) => {
+    const p = addNote(String(id), String(text ?? ''), 'You')
+    projectsChanged()
+    return p
+  },
+  'projects:editNote': (id: string, noteId: string, text: string) => {
+    const p = editNote(String(id), String(noteId), String(text ?? ''))
+    projectsChanged()
+    return p
+  },
+  'projects:removeNote': (id: string, noteId: string) => {
+    const p = removeNote(String(id), String(noteId))
+    projectsChanged()
+    return p
+  },
 
   'chats:list': () => listChats(),
   'chats:get': (id: string) => {
@@ -164,7 +201,7 @@ export const handlers: Record<string, (...args: never[]) => unknown> = {
     const r = await dialog.showOpenDialog(win, { title: 'Choose the project folder for Claude Code', properties: ['openDirectory'] })
     return r.canceled ? null : (r.filePaths[0] ?? null)
   },
-  'claudeCode:send': (chatId: string, messageId: string) => sendToClaude(String(chatId), String(messageId), (u) => emit('claudeCode:update', u)),
+  'claudeCode:send': (chatId: string, messageId: string, beside?: BesideChat) => sendToClaude(String(chatId), String(messageId), (u) => emit('claudeCode:update', u), beside),
   'claudeCode:suggestFolder': (name: string) => suggestProjectFolder(String(name ?? '')),
   'claudeCode:makeFolder': (path: string) => makeProjectFolder(String(path ?? '')),
   'claudeCode:stop': (chatId: string) => stopClaude(String(chatId)),

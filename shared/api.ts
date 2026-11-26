@@ -21,7 +21,7 @@ export interface Attachment {
 /** Something Plotter did with one of its own tools while answering (shown in the reply as a card). */
 export interface ToolRun {
   id: string
-  kind: 'python' | 'memory' | 'connector' | 'market'
+  kind: 'python' | 'memory' | 'connector' | 'market' | 'side'
   /** One line, e.g. "Ran Python", "Saved to memory", "Searched Gmail". */
   title: string
   /** Python: the code; connector: the request. */
@@ -61,8 +61,10 @@ export interface HandOff {
   chat: string
   /** The reply's full text, or the brief (Markdown, visuals included). */
   text: string
-  /** brief: a project brief made from the whole chat ("Create project"). */
-  kind?: 'reply' | 'brief'
+  /** brief: a project brief made from the whole chat ("Create project"). side: sent by the chat beside it. */
+  kind?: 'reply' | 'brief' | 'side'
+  /** For side: which kind of chat sent it. */
+  sender?: ChatKind
   /** A brief's suggested name for the project's new folder (kebab-case). */
   folder?: string
 }
@@ -93,6 +95,43 @@ export interface Chat {
   kind?: ChatKind
   /** For a Claude Code chat: where it works, what it may do, and the session it continues. */
   cc?: ClaudeChatConfig
+  /** The project it belongs to (its chats share the project's memory). */
+  projectId?: string
+}
+
+/** A group of chats (ChatGPT and Claude Code) that share a small memory of what matters in the project. */
+export interface Project {
+  id: string
+  name: string
+  /** Shared memory: short notes every chat in the project sees. Kept small on purpose (see PROJECT_MEMORY_LIMIT). */
+  notes: ProjectNote[]
+  createdAt: number
+  updatedAt: number
+}
+
+export interface ProjectNote {
+  id: string
+  text: string
+  /** Which chat (or "you") added it. */
+  by: string
+  at: number
+}
+
+/** The shared memory's size cap: notes and characters, so it stays cheap to send with every message. */
+export const PROJECT_MEMORY_LIMIT = { notes: 40, chars: 5000, noteChars: 400 }
+
+/** The chat open on the other side, so a chat can send something to it. */
+export interface BesideChat {
+  pane: 'left' | 'right'
+  chatId: string | null
+  kind: ChatKind
+  title: string
+}
+
+/** Something one chat sent to the chat beside it. */
+export interface SideDelivery {
+  pane: 'left' | 'right'
+  from: HandOff
 }
 
 export type ChatKind = 'chatgpt' | 'claude'
@@ -104,6 +143,8 @@ export interface ClaudeChatConfig {
   effort?: string
   /** Claude Code's session id, so each new message continues the same session (--resume). */
   sessionId?: string
+  /** When the shared project memory was last sent to this session (it is sent again only after it changes). */
+  projectSeenAt?: number
 }
 
 /** "Send to Claude Code": edit = may change files; plan = reads and answers only. */
@@ -187,6 +228,8 @@ export interface ChatMetaPatch {
   title?: string
   pinned?: boolean
   archived?: boolean
+  /** Move into a project; null takes it out. */
+  projectId?: string | null
 }
 
 export interface ChatSummary {
@@ -196,6 +239,7 @@ export interface ChatSummary {
   pinned?: boolean
   archived?: boolean
   kind?: ChatKind
+  projectId?: string
 }
 
 export interface Account {
@@ -255,6 +299,8 @@ export interface SendRequest {
   research?: boolean
   /** The canvas as it is now (the user may have edited it), when it is open. */
   canvas?: CanvasDoc | null
+  /** The chat open beside this one, when the user typed this message (so the reply may send something to it). */
+  beside?: BesideChat
 }
 
 /** Settings → Features. */
@@ -308,6 +354,20 @@ export interface PlotterApi {
     markWelcomeSeen: () => Promise<void>
   }
   model: () => Promise<Model>
+  projects: {
+    list: () => Promise<Project[]>
+    create: (name: string) => Promise<Project>
+    rename: (id: string, name: string) => Promise<Project[]>
+    /** Deletes the project; its chats stay, outside any project. */
+    remove: (id: string) => Promise<Project[]>
+    addNote: (id: string, text: string) => Promise<Project>
+    editNote: (id: string, noteId: string, text: string) => Promise<Project>
+    removeNote: (id: string, noteId: string) => Promise<Project>
+    /** A project changed (a chat saved a note, a chat moved in or out). */
+    onChanged: (listener: () => void) => () => void
+  }
+  /** A chat sent something to the chat beside it. */
+  onSideDelivery: (listener: (d: SideDelivery) => void) => () => void
   chats: {
     list: () => Promise<ChatSummary[]>
     get: (id: string) => Promise<Chat | null>
@@ -362,7 +422,8 @@ export interface PlotterApi {
     /** Folder chooser (desktop app only; null if cancelled or unavailable). */
     pickFolder: () => Promise<string | null>
     /** Runs the chat's last user message; the reply is the message with this id (already saved, cc.state running). */
-    send: (chatId: string, messageId: string) => Promise<void>
+    /** beside: the chat open on the other side, when the user typed the message (so Claude Code may send to it). */
+    send: (chatId: string, messageId: string, beside?: BesideChat) => Promise<void>
     stop: (chatId: string) => Promise<void>
     openFolder: (folder: string) => Promise<void>
     /** Where a new project folder with this name would go (next to recent projects; not created yet). */

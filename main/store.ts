@@ -82,7 +82,7 @@ export function listChats(): ChatSummary[] {
     if (!name.endsWith('.json')) continue
     try {
       const chat = JSON.parse(readFileSync(join(chatsDir(), name), 'utf8')) as Chat
-      out.push({ id: chat.id, title: chat.title, updatedAt: chat.updatedAt, pinned: !!chat.pinned, archived: !!chat.archived, kind: chat.kind ?? 'chatgpt' })
+      out.push({ id: chat.id, title: chat.title, updatedAt: chat.updatedAt, pinned: !!chat.pinned, archived: !!chat.archived, kind: chat.kind ?? 'chatgpt', ...(chat.projectId ? { projectId: chat.projectId } : {}) })
     } catch {
       // a broken file is skipped, not fatal
     }
@@ -103,7 +103,8 @@ export function saveChat(chat: Chat): void {
   // Pin and archive are changed only through updateChatMeta; a save from the window keeps them.
   const before = getChat(chat.id)
   if (before) {
-    chat = { ...chat, pinned: before.pinned, archived: before.archived }
+    // the project is changed through updateChatMeta too (a window holding an older copy must not undo a move)
+    chat = { ...chat, pinned: before.pinned, archived: before.archived, projectId: before.projectId }
     // A Claude Code chat's session id is written by the main process; keep it.
     // (A new folder starts a new session, so then it is not carried over.)
     if (before.cc?.sessionId && chat.cc && !chat.cc.sessionId && chat.cc.folder === before.cc.folder) chat = { ...chat, cc: { ...chat.cc, sessionId: before.cc.sessionId } }
@@ -120,6 +121,8 @@ export function updateChatMeta(id: string, patch: ChatMetaPatch): void {
     chat.titled = true
   }
   if (typeof patch.pinned === 'boolean') chat.pinned = patch.pinned
+  if (patch.projectId === null) delete chat.projectId
+  else if (typeof patch.projectId === 'string' && patch.projectId) chat.projectId = patch.projectId
   if (typeof patch.archived === 'boolean') {
     chat.archived = patch.archived
     if (patch.archived) chat.pinned = false

@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
-import type { ClaudeCodeUpdate, PlotterApi, PythonStatus, ReplyEvent, SpeechStatus } from '../shared/api'
+import type { ClaudeCodeUpdate, PlotterApi, PythonStatus, ReplyEvent, SideDelivery, SpeechStatus } from '../shared/api'
 
 const fromBase64 = (b64: string): Uint8Array => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))
 
@@ -13,6 +13,25 @@ const api: PlotterApi = {
     markWelcomeSeen: () => ipcRenderer.invoke('auth:welcomeSeen')
   },
   model: () => ipcRenderer.invoke('model'),
+  projects: {
+    list: () => ipcRenderer.invoke('projects:list'),
+    create: (name) => ipcRenderer.invoke('projects:create', name),
+    rename: (id, name) => ipcRenderer.invoke('projects:rename', id, name),
+    remove: (id) => ipcRenderer.invoke('projects:remove', id),
+    addNote: (id, text) => ipcRenderer.invoke('projects:addNote', id, text),
+    editNote: (id, noteId, text) => ipcRenderer.invoke('projects:editNote', id, noteId, text),
+    removeNote: (id, noteId) => ipcRenderer.invoke('projects:removeNote', id, noteId),
+    onChanged: (listener) => {
+      const handler = (): void => listener()
+      ipcRenderer.on('projects:changed', handler)
+      return () => ipcRenderer.removeListener('projects:changed', handler)
+    }
+  },
+  onSideDelivery: (listener) => {
+    const handler = (_e: IpcRendererEvent, d: SideDelivery): void => listener(d)
+    ipcRenderer.on('side:deliver', handler)
+    return () => ipcRenderer.removeListener('side:deliver', handler)
+  },
   chats: {
     list: () => ipcRenderer.invoke('chats:list'),
     get: (id) => ipcRenderer.invoke('chats:get', id),
@@ -60,7 +79,7 @@ const api: PlotterApi = {
     available: () => ipcRenderer.invoke('claudeCode:available'),
     folders: () => ipcRenderer.invoke('claudeCode:folders'),
     pickFolder: () => ipcRenderer.invoke('claudeCode:pickFolder'),
-    send: (chatId, messageId) => ipcRenderer.invoke('claudeCode:send', chatId, messageId),
+    send: (chatId, messageId, beside) => ipcRenderer.invoke('claudeCode:send', chatId, messageId, beside),
     stop: (chatId) => ipcRenderer.invoke('claudeCode:stop', chatId),
     openFolder: (folder) => ipcRenderer.invoke('claudeCode:openFolder', folder),
     suggestFolder: (name) => ipcRenderer.invoke('claudeCode:suggestFolder', name),

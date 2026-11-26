@@ -1,4 +1,4 @@
-import type { ClaudeCodeUpdate, PlotterApi, PythonStatus, ReplyEvent, SpeechStatus } from '../../shared/api'
+import type { ClaudeCodeUpdate, PlotterApi, PythonStatus, ReplyEvent, SideDelivery, SpeechStatus } from '../../shared/api'
 
 /**
  * Development only: when the UI is opened in an ordinary browser (no Electron preload), stand in for
@@ -33,7 +33,9 @@ const listeners = {
   reply: new Set<(e: ReplyEvent) => void>(),
   speech: new Set<(s: SpeechStatus) => void>(),
   python: new Set<(s: PythonStatus) => void>(),
-  claudeCode: new Set<(u: ClaudeCodeUpdate) => void>()
+  claudeCode: new Set<(u: ClaudeCodeUpdate) => void>(),
+  side: new Set<(d: SideDelivery) => void>(),
+  projects: new Set<() => void>()
 }
 
 export function installDevBridge(): void {
@@ -42,6 +44,8 @@ export function installDevBridge(): void {
   events.addEventListener('reply:event', (e) => listeners.reply.forEach((l) => l(JSON.parse((e as MessageEvent).data))))
   events.addEventListener('python:status', (e) => listeners.python.forEach((l) => l(JSON.parse((e as MessageEvent).data))))
   events.addEventListener('claudeCode:update', (e) => listeners.claudeCode.forEach((l) => l(JSON.parse((e as MessageEvent).data))))
+  events.addEventListener('side:deliver', (e) => listeners.side.forEach((l) => l(JSON.parse((e as MessageEvent).data))))
+  events.addEventListener('projects:changed', () => listeners.projects.forEach((l) => l()))
   events.addEventListener('speech:status', (e) => listeners.speech.forEach((l) => l(JSON.parse((e as MessageEvent).data))))
 
   const api: PlotterApi = {
@@ -53,6 +57,23 @@ export function installDevBridge(): void {
       markWelcomeSeen: () => call('auth:welcomeSeen')
     },
     model: () => call('model'),
+    projects: {
+      list: () => call('projects:list'),
+      create: (name) => call('projects:create', name),
+      rename: (id, name) => call('projects:rename', id, name),
+      remove: (id) => call('projects:remove', id),
+      addNote: (id, text) => call('projects:addNote', id, text),
+      editNote: (id, noteId, text) => call('projects:editNote', id, noteId, text),
+      removeNote: (id, noteId) => call('projects:removeNote', id, noteId),
+      onChanged: (l) => {
+        listeners.projects.add(l)
+        return () => listeners.projects.delete(l)
+      }
+    },
+    onSideDelivery: (l) => {
+      listeners.side.add(l)
+      return () => listeners.side.delete(l)
+    },
     chats: {
       list: () => call('chats:list'),
       get: (id) => call('chats:get', id),
@@ -106,7 +127,7 @@ export function installDevBridge(): void {
       available: () => call('claudeCode:available'),
       folders: () => call('claudeCode:folders'),
       pickFolder: () => call('claudeCode:pickFolder'),
-      send: (chatId, messageId) => call('claudeCode:send', chatId, messageId),
+      send: (chatId, messageId, beside) => call('claudeCode:send', chatId, messageId, beside),
       stop: (chatId) => call('claudeCode:stop', chatId),
       openFolder: (folder) => call('claudeCode:openFolder', folder),
       suggestFolder: (name) => call('claudeCode:suggestFolder', name),

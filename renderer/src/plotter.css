@@ -4932,3 +4932,304 @@ body,
   background: var(--cc-accent);
   color: #fff;
 }
+
+/* ======================================================================
+   Projects: chats grouped with a shared memory
+   ====================================================================== */
+.project-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-right: 6px;
+}
+.project-label .row-btn {
+  width: 24px;
+  height: 24px;
+  font-size: 17px;
+  line-height: 1;
+  opacity: 1;
+}
+.chat-list.projects {
+  margin-bottom: 8px;
+}
+.project-row .chat-kind {
+  color: var(--leaf-dark, var(--leaf));
+}
+.project-caret {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-left: -4px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  border-radius: 5px;
+  padding: 0;
+}
+.project-caret svg {
+  width: 13px;
+  height: 13px;
+  transition: transform 0.15s;
+}
+.project-caret.open svg {
+  transform: rotate(90deg);
+}
+.project-caret:hover {
+  background: var(--sand);
+  color: var(--ink);
+}
+.project-count {
+  flex: none;
+  font-size: 11.5px;
+  color: var(--muted);
+  min-width: 18px;
+  text-align: right;
+}
+.project-chats-list {
+  margin-left: 16px;
+  padding-left: 6px;
+  border-left: 1px solid var(--sand);
+}
+.project-chats-list .empty-list {
+  margin: 2px 0 6px;
+}
+/* a chat dragged onto a project moves into it: the projects stay droppable while the rest of the panel lets the drag through */
+.sidebar.dragging .project-row {
+  pointer-events: auto;
+}
+.project-row.drop-on {
+  background: var(--orange-soft, var(--sand));
+  outline: 2px dashed var(--orange);
+  outline-offset: -2px;
+}
+.row-menu-label {
+  font-size: 11.5px;
+  color: var(--muted);
+  padding: 4px 10px 2px;
+}
+
+/* the project's name in a chat's top bar */
+.project-chip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 180px;
+  height: 26px;
+  padding: 0 9px 0 7px;
+  margin-right: 6px;
+  border-radius: 999px;
+  border: 1px solid var(--sand);
+  background: var(--surface);
+  color: var(--muted);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.project-chip span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.project-chip:hover {
+  color: var(--ink);
+  border-color: var(--orange-soft);
+}
+.pane.claude .project-chip:hover {
+  border-color: var(--cc-accent);
+}
+
+/* the project page */
+.project-inner {
+  max-width: 820px;
+}
+.project-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0 18px;
+}
+.project-page-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: var(--cream);
+  border: 1px solid var(--sand);
+  color: var(--leaf-dark, var(--leaf));
+}
+.project-name {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--ink);
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: none;
+  padding: 2px 8px;
+}
+.project-name:hover {
+  border-color: var(--sand);
+}
+.project-name:focus {
+  outline: 0;
+  border-color: var(--focus);
+  background: var(--surface);
+}
+.project-section {
+  background: var(--surface);
+  border: 1px solid var(--sand);
+  border-radius: 16px;
+  padding: 16px 18px;
+  margin-bottom: 16px;
+}
+.project-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.project-section h3 {
+  margin: 0;
+  font-size: 16px;
+}
+.project-new {
+  display: flex;
+  gap: 8px;
+}
+.project-new .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.project-empty,
+.project-lead {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 4px 0 10px;
+}
+.project-chats {
+  display: flex;
+  flex-direction: column;
+}
+.project-chat {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 8px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.project-chat:hover {
+  background: var(--cream);
+}
+.project-chat .chat-kind img {
+  width: 18px;
+  height: 18px;
+}
+.project-chat-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 14px;
+}
+.project-chat-when,
+.project-note-by {
+  flex: none;
+  font-size: 12px;
+  color: var(--muted);
+}
+.project-chat .row-btn,
+.project-note .row-btn {
+  opacity: 0;
+}
+.project-chat:hover .row-btn,
+.project-note:hover .row-btn {
+  opacity: 1;
+}
+.project-meter {
+  font-size: 12px;
+  color: var(--muted);
+}
+.project-meter.full {
+  color: var(--bad);
+}
+.project-notes {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.project-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 7px 8px;
+  border-radius: 10px;
+}
+.project-note:hover {
+  background: var(--cream);
+}
+.project-note-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  line-height: 1.45;
+  cursor: text;
+}
+.project-note textarea {
+  flex: 1;
+  font: inherit;
+  font-size: 14px;
+  border: 1px solid var(--focus);
+  border-radius: 8px;
+  padding: 4px 8px;
+  resize: vertical;
+  min-height: 54px;
+  background: var(--paper);
+  color: var(--ink);
+}
+.project-add {
+  display: flex;
+  gap: 8px;
+}
+.project-add input {
+  flex: 1;
+  font: inherit;
+  font-size: 14px;
+  border: 1px solid var(--sand);
+  border-radius: 10px;
+  padding: 7px 10px;
+  background: var(--paper);
+  color: var(--ink);
+}
+.project-add input:focus {
+  outline: 0;
+  border-color: var(--focus);
+}
+.danger-zone {
+  background: none;
+  border-style: dashed;
+}
+.link.danger {
+  color: var(--bad);
+}
+.project-delete-confirm {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13.5px;
+}
+.project-delete-confirm span {
+  flex: 1;
+}

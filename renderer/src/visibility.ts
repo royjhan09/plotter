@@ -45,7 +45,8 @@ export const VISIBILITY: VisibilityGroup[] = [
         tradeoff: 'Nothing to change. A tool you might sell keeps its code in its own private repo.'
       },
       { name: 'Connector sign-ins (Google, Notion)', now: 'private', advice: 'keep-private', why: 'Encrypted on this PC.', tradeoff: 'Nothing to change.' },
-      { name: 'Claude Code sessions', now: 'private', advice: 'keep-private', why: 'Kept by Claude Code in your user folder.', tradeoff: 'Nothing to change.' }
+      { name: 'Claude Code sessions', now: 'private', advice: 'keep-private', why: 'Kept by Claude Code in your user folder.', tradeoff: 'Nothing to change.' },
+      { name: 'Projects and their shared memory', now: 'private', advice: 'keep-private', why: 'Stored on this PC (projects.json).', tradeoff: 'Nothing to change.' }
     ]
   },
   {
@@ -54,6 +55,13 @@ export const VISIBILITY: VisibilityGroup[] = [
     items: [
       { name: 'Claude Code chats', now: 'private', advice: 'keep-private', why: 'Runs your own Claude Code, not ChatGPT: the runner, the folder menu and the reply view.', tradeoff: MOVED },
       { name: 'The Market', now: 'private', advice: 'keep-private', why: 'Registering tools, the page, the MCP connections and the bridge for Claude Code.', tradeoff: MOVED },
+      {
+        name: 'Claude Code’s side of projects and side-by-side sending',
+        now: 'private',
+        advice: 'keep-private',
+        why: 'How Claude Code gets the shared memory and the chat beside it, and how its notes and messages are picked out of its answers.',
+        tradeoff: MOVED
+      },
       { name: 'PDF export and preview', now: 'private', advice: 'keep-private', why: 'Prints a chat on this PC.', tradeoff: MOVED },
       { name: 'Picture viewer and drawing on pictures', now: 'private', advice: 'keep-private', why: 'Runs on this PC.', tradeoff: `${MOVED} The public stand-in still shows a picture full size, without the zoom or drawing.` }
     ]
@@ -83,6 +91,13 @@ export const VISIBILITY: VisibilityGroup[] = [
       },
       { name: 'Voice mode and dictation', now: 'public', advice: 'must-public', why: 'Voice mode sends your speech to ChatGPT, and needs dictation (speech to text) to do it.', tradeoff: 'Dictation stays with voice mode so the public app is complete.' },
       {
+        name: 'Sending to the chat beside, and project memory, in ChatGPT replies',
+        now: 'public',
+        advice: 'must-public',
+        why: 'Tools ChatGPT uses during replies: look at and send to the chat beside, save and forget project notes (main/assistant.ts).',
+        tradeoff: 'Same as above.'
+      },
+      {
         name: 'Handing Market tools to a ChatGPT reply',
         now: 'public',
         advice: 'must-public',
@@ -103,6 +118,13 @@ export const VISIBILITY: VisibilityGroup[] = [
         tradeoff: 'Moving it would mean restructuring the app for little benefit; no effect on speed either way.'
       },
       { name: 'Chat list: pin, rename, archive, search', now: 'public', advice: 'stay-public', why: 'Ordinary app plumbing.', tradeoff: 'Low value to hide.' },
+      {
+        name: 'Projects: the list, the project page and where notes are kept',
+        now: 'public',
+        advice: 'stay-public',
+        why: 'Part of the chat list, and the ChatGPT side reads the notes from it.',
+        tradeoff: 'The page could move to the private folder, but the store must stay where ChatGPT’s code can reach it. Little to gain.'
+      },
       { name: 'Settings, themes, characters and look', now: 'public', advice: 'stay-public', why: 'Appearance and preferences.', tradeoff: 'Low value to hide.' },
       {
         name: 'The hooks for the private parts',

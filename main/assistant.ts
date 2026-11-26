@@ -1,9 +1,11 @@
 import { INSTRUCTIONS, WEB_INSTRUCTIONS, runConversation, type ConversationHandlers, type LocalTool } from './openai'
-import { addMemory, listMemories, readFeatures, removeMemory } from './store'
+import { addMemory, getChat, listMemories, readFeatures, removeMemory } from './store'
+import { addNote, chatDigest, projectContext, removeNote } from './projects'
+import { deliverToSide, projectsChanged } from './appEvents'
 import { pythonTool } from './python'
 import { connectorTools } from './connectors'
 import { marketTools } from './marketChat'
-import type { Attachment, SendRequest } from '../shared/api'
+import type { Attachment, BesideChat, SendRequest } from '../shared/api'
 
 /**
  * Builds one reply from the user's settings: which tools the model may use (web search, memory, Python,
@@ -58,6 +60,79 @@ function memoryTools(): LocalTool[] {
   ]
 }
 
+const PROJECT_INSTRUCTIONS = (context: string): string => `${context}
+Use the shared memory as background, quietly. Save a note with save_project_note only for something the other chats in the project will need: a decision, a requirement, an agreed name or number, where the work stands, a problem found. One short sentence each, in the user's language. Do not save chit-chat, things already in the memory, or details only this chat needs. When a note is outdated, replace it (forget_project_note, then save the new one). The memory is small on purpose.`
+
+function projectTools(projectId: string, chatTitle: string): LocalTool[] {
+  return [
+    {
+      name: 'save_project_note',
+      description: "Add a short note to the project's shared memory, which every chat in the project sees.",
+      parameters: { type: 'object', properties: { note: { type: 'string', description: 'One short sentence.' } }, required: ['note'] },
+      label: () => 'Saving to the project memory…',
+      run: async (args) => {
+        const note = String(args['note'] ?? '').trim()
+        try {
+          addNote(projectId, note, chatTitle)
+          projectsChanged()
+          return { output: JSON.stringify({ saved: true }), run: { kind: 'memory', title: 'Saved to the project memory', output: note } }
+        } catch (e) {
+          return { output: JSON.stringify({ error: e instanceof Error ? e.message : String(e) }) }
+        }
+      }
+    },
+    {
+      name: 'forget_project_note',
+      description: "Remove an outdated note from the project's shared memory by its id.",
+      parameters: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] },
+      label: () => 'Updating the project memory…',
+      run: async (args) => {
+        const id = String(args['id'] ?? '')
+        try {
+          removeNote(projectId, id)
+          projectsChanged()
+          return { output: JSON.stringify({ forgotten: true }) }
+        } catch (e) {
+          return { output: JSON.stringify({ error: e instanceof Error ? e.message : String(e) }) }
+        }
+      }
+    }
+  ]
+}
+
+const sideName = (b: BesideChat): string => (b.kind === 'claude' ? 'Claude Code chat' : 'ChatGPT chat')
+
+const SIDE_INSTRUCTIONS = (b: BesideChat): string =>
+  `Beside this chat, the user has a ${sideName(b)} open${b.title ? ` ("${b.title}")` : ''}.${b.kind === 'claude' ? ' Claude Code is a coding agent working in a project folder on the user’s PC: it can read and change files and run commands.' : ''} Only when the user asks you to send, hand over, pass on or ask something of that chat: first call side_chat_context to see what it already knows, then call send_to_side_chat once with a message written for it. Send only what it needs and does not have yet (no recap of what it already knows), but make the message complete on its own: the goal, the decisions and details it must follow, and what you want it to do or answer. Afterwards tell the user briefly what you sent. Never send anything the user did not ask for.`
+
+function sideTools(b: BesideChat, chatTitle: string): LocalTool[] {
+  return [
+    {
+      name: 'side_chat_context',
+      description: `See what the ${sideName(b)} beside this one already knows: its title and its last turns.`,
+      parameters: { type: 'object', properties: {} },
+      label: () => `Looking at the ${sideName(b)}…`,
+      run: async () => ({ output: chatDigest(b.chatId) })
+    },
+    {
+      name: 'send_to_side_chat',
+      description: `Send a message to the ${sideName(b)} beside this one. It arrives there as a message and that chat answers it right away.`,
+      parameters: {
+        type: 'object',
+        properties: { message: { type: 'string', description: 'The message, written for that chat: only what it needs, complete on its own.' } },
+        required: ['message']
+      },
+      label: () => `Sending to the ${sideName(b)}…`,
+      run: async (args) => {
+        const message = String(args['message'] ?? '').trim()
+        if (!message) return { output: JSON.stringify({ error: 'message is empty' }) }
+        deliverToSide({ pane: b.pane, from: { chat: chatTitle, text: message, kind: 'side', sender: 'chatgpt' } })
+        return { output: JSON.stringify({ sent: true }), run: { kind: 'side', title: `Sent to the ${sideName(b)}`, output: message } }
+      }
+    }
+  ]
+}
+
 /** All files attached anywhere in the chat that Python can open. */
 function chatFiles(req: SendRequest): Attachment[] {
   const seen = new Map<string, Attachment>()
@@ -88,6 +163,17 @@ export async function reply(req: SendRequest, handlers: ConversationHandlers, si
   if (market.tools.length || market.instructions) {
     if (market.instructions) parts.push(market.instructions)
     tools.push(...market.tools)
+  }
+  const chat = getChat(req.chatId)
+  const title = chat?.title || 'ChatGPT chat'
+  const project = chat ? projectContext(chat) : null
+  if (project) {
+    parts.push(PROJECT_INSTRUCTIONS(project.text))
+    tools.push(...projectTools(project.project.id, title))
+  }
+  if (req.beside) {
+    parts.push(SIDE_INSTRUCTIONS(req.beside))
+    tools.push(...sideTools(req.beside, title))
   }
   if (f.canvas || req.canvas) parts.push(CANVAS_INSTRUCTIONS)
   if (req.canvas) parts.push(canvasContext(req))
