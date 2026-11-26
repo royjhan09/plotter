@@ -4,7 +4,7 @@ import { Markdown } from './Markdown'
 import { Composer } from './Composer'
 import { VoiceMode } from './VoiceMode'
 import { sizeLabel, toAttachment } from './attachments'
-import { useThemeChoice, type ThemeChoice } from './theme'
+import { useThemeSetting, type Theme } from './theme'
 import icon from '../../assets/icon.png'
 
 const api = window.plotter
@@ -89,7 +89,8 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
   const [toast, setToast] = useState<string | null>(null)
   const [voice, setVoice] = useState(false)
   const [showWelcome, setShowWelcome] = useState(auth.planUsage && !auth.welcomeSeen)
-  const [themeChoice, setThemeChoice] = useThemeChoice()
+  const [theme, setTheme] = useThemeSetting()
+  const [accountMenu, setAccountMenu] = useState(false)
   const chatRef = useRef<Chat | null>(null)
   chatRef.current = chat
   const pendingRef = useRef(pending)
@@ -291,19 +292,33 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
           ))}
         </nav>
         <div className="account">
-          {auth.account.picture ? (
-            <img src={auth.account.picture} alt="" className="avatar" />
-          ) : (
-            <div className="avatar letter">{(auth.account.name ?? auth.account.email ?? '?')[0]?.toUpperCase()}</div>
-          )}
-          <div className="who">
-            <div className="name">{auth.account.name ?? 'Signed in'}</div>
-            <div className="email">{auth.account.email}</div>
-          </div>
-          <ThemeButton choice={themeChoice} onChange={setThemeChoice} />
-          <button className="link" onClick={() => void signOut()}>
-            Sign out
+          <button
+            className={`account-btn ${accountMenu ? 'open' : ''}`}
+            title="Account"
+            onClick={(e) => {
+              e.stopPropagation()
+              setAccountMenu((o) => !o)
+            }}
+          >
+            {auth.account.picture ? (
+              <img src={auth.account.picture} alt="" className="avatar" />
+            ) : (
+              <div className="avatar letter">{(auth.account.name ?? auth.account.email ?? '?')[0]?.toUpperCase()}</div>
+            )}
+            <div className="who">
+              <div className="name">{auth.account.name ?? 'Signed in'}</div>
+              <div className="email">{auth.account.email}</div>
+            </div>
           </button>
+          <ThemeButton theme={theme} onChange={setTheme} />
+          {accountMenu && (
+            <AccountMenu
+              email={auth.account.email}
+              onClose={() => setAccountMenu(false)}
+              onUsage={() => void api.openUsage()}
+              onSignOut={() => void signOut()}
+            />
+          )}
         </div>
       </aside>
 
@@ -461,31 +476,69 @@ function Message({ m, typing }: { m: ChatMessage; typing: boolean }): React.JSX.
   )
 }
 
-// ---------------------------------------------------------------- theme switch
+// ---------------------------------------------------------------- theme switch and account menu
 
-const NEXT_THEME: Record<ThemeChoice, ThemeChoice> = { system: 'light', light: 'dark', dark: 'system' }
-const THEME_NAME: Record<ThemeChoice, string> = { system: 'Match Windows', light: 'Light', dark: 'Dark' }
-
-function ThemeButton({ choice, onChange }: { choice: ThemeChoice; onChange: (c: ThemeChoice) => void }): React.JSX.Element {
-  const icon =
-    choice === 'light' ? (
-      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round">
-        <circle cx="12" cy="12" r="4.2" />
-        <path d="M12 2.5v2.2M12 19.3v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6" />
-      </svg>
-    ) : choice === 'dark' ? (
-      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinejoin="round">
-        <path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5Z" />
-      </svg>
-    ) : (
-      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="4" width="18" height="12.5" rx="2" />
-        <path d="M8.5 20.5h7M12 16.5v4" />
-      </svg>
-    )
+/** One click switches light ↔ dark. The icon shows where the click takes you. */
+function ThemeButton({ theme, onChange }: { theme: Theme; onChange: (t: Theme) => void }): React.JSX.Element {
+  const toDark = theme === 'light'
   return (
-    <button className="theme-btn" title={`Theme: ${THEME_NAME[choice]} (click for ${THEME_NAME[NEXT_THEME[choice]]})`} onClick={() => onChange(NEXT_THEME[choice])}>
-      {icon}
+    <button className="theme-btn" title={toDark ? 'Switch to dark mode' : 'Switch to light mode'} onClick={() => onChange(toDark ? 'dark' : 'light')}>
+      {toDark ? (
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinejoin="round">
+          <path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5Z" />
+        </svg>
+      ) : (
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round">
+          <circle cx="12" cy="12" r="4.2" />
+          <path d="M12 2.5v2.2M12 19.3v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6" />
+        </svg>
+      )}
     </button>
+  )
+}
+
+/** Opens from the account button; Sign out lives here so it can't be clicked by accident. */
+function AccountMenu(p: { email?: string; onClose: () => void; onUsage: () => void; onSignOut: () => void }): React.JSX.Element {
+  useEffect(() => {
+    const close = (): void => p.onClose()
+    const esc = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') p.onClose()
+    }
+    window.addEventListener('click', close)
+    window.addEventListener('keydown', esc)
+    return () => {
+      window.removeEventListener('click', close)
+      window.removeEventListener('keydown', esc)
+    }
+  }, [p])
+  return (
+    <div className="account-menu" onClick={(e) => e.stopPropagation()}>
+      {p.email && <div className="account-menu-email">{p.email}</div>}
+      <button
+        className="pop-item"
+        onClick={() => {
+          p.onClose()
+          p.onUsage()
+        }}
+      >
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round">
+          <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
+        </svg>
+        Manage ChatGPT usage
+      </button>
+      <div className="account-menu-sep" />
+      <button
+        className="pop-item danger"
+        onClick={() => {
+          p.onClose()
+          p.onSignOut()
+        }}
+      >
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l-5-5 5-5M5 12h11" />
+        </svg>
+        Sign out
+      </button>
+    </div>
   )
 }

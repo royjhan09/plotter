@@ -1270,3 +1270,53 @@ body,
     border-color 0.2s,
     color 0.2s;
 }
+
+/* account button + menu (Sign out lives in the menu) */
+.account {
+  position: relative;
+}
+.account-btn {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  background: none;
+  text-align: left;
+  padding: 6px;
+  margin: -6px 0 -6px -6px;
+  border-radius: 12px;
+}
+.account-btn:hover,
+.account-btn.open {
+  background: var(--sand);
+}
+.account-menu {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 6px);
+  z-index: 15;
+  background: var(--surface);
+  border: 1px solid var(--sand);
+  border-radius: 16px;
+  box-shadow: var(--shadow-pop);
+  padding: 6px;
+}
+.account-menu-email {
+  font-size: 12px;
+  color: var(--muted);
+  padding: 6px 10px 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.account-menu-sep {
+  height: 1px;
+  background: var(--sand);
+  margin: 4px 6px;
+}
+.pop-item.danger {
+  color: var(--bad);
+}

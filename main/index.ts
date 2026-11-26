@@ -19,7 +19,7 @@ let win: BrowserWindow | null = null
 const windowBackground = (): string => (nativeTheme.shouldUseDarkColors ? '#1a1511' : '#fffaf3')
 
 function createWindow(): void {
-  nativeTheme.themeSource = readSettings().theme ?? 'system'
+  nativeTheme.themeSource = readSettings().theme ?? 'system' // before the first choice: Windows decides
   win = new BrowserWindow({
     width: 1100,
     height: 760,
@@ -126,10 +126,10 @@ export const handlers: Record<string, (...args: never[]) => unknown> = {
   },
   'reply:stop': (requestId: string) => running.get(requestId)?.abort(),
 
-  'theme:set': (choice: 'system' | 'light' | 'dark') => {
-    if (!['system', 'light', 'dark'].includes(choice)) return
-    nativeTheme.themeSource = choice
-    updateSettings({ theme: choice })
+  'theme:set': (theme: 'light' | 'dark') => {
+    if (theme !== 'light' && theme !== 'dark') return
+    nativeTheme.themeSource = theme
+    updateSettings({ theme })
     win?.setBackgroundColor(windowBackground())
   },
 

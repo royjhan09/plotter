@@ -120,7 +120,7 @@ export interface PlotterApi {
     onStatus: (listener: (status: SpeechStatus) => void) => () => void
   }
   /** Window frame and Windows title bar follow the chosen theme. */
-  setTheme: (choice: "system" | "light" | "dark") => Promise<void>
+  setTheme: (theme: "light" | "dark") => Promise<void>
   openUsage: () => Promise<void>
 }
 

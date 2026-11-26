@@ -1,35 +1,29 @@
 import { useEffect, useState } from 'react'
 
-/** Light / dark: follow Windows ("system") or a fixed choice, remembered on this computer. */
+/** Light or dark, remembered on this computer. Before the first choice, start from Windows' setting. */
 
-export type ThemeChoice = 'system' | 'light' | 'dark'
 export type Theme = 'light' | 'dark'
 
 const KEY = 'plotter.theme'
 const EVENT = 'plotter-theme'
-const media = (): MediaQueryList => window.matchMedia('(prefers-color-scheme: dark)')
 
-export function savedChoice(): ThemeChoice {
+export function savedTheme(): Theme {
   const v = localStorage.getItem(KEY)
-  return v === 'light' || v === 'dark' ? v : 'system'
-}
-
-function resolve(choice: ThemeChoice): Theme {
-  return choice === 'system' ? (media().matches ? 'dark' : 'light') : choice
+  if (v === 'light' || v === 'dark') return v
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 }
 
 export const currentTheme = (): Theme => (document.documentElement.dataset['theme'] === 'dark' ? 'dark' : 'light')
 
 /** Sets the page's theme now (call before the first render to avoid a flash). */
-export function applyTheme(choice: ThemeChoice = savedChoice()): void {
-  const theme = resolve(choice)
+export function applyTheme(theme: Theme = savedTheme()): void {
   if (document.documentElement.dataset['theme'] !== theme) {
     document.documentElement.dataset['theme'] = theme
     window.dispatchEvent(new CustomEvent(EVENT, { detail: theme }))
   }
 }
 
-/** The resolved theme, re-rendering when it changes (for charts and diagrams). */
+/** The current theme, re-rendering when it changes (for charts and diagrams). */
 export function useTheme(): Theme {
   const [theme, setTheme] = useState<Theme>(currentTheme)
   useEffect(() => {
@@ -40,18 +34,13 @@ export function useTheme(): Theme {
   return theme
 }
 
-/** The user's choice plus a setter; also follows Windows while the choice is "system". */
-export function useThemeChoice(): [ThemeChoice, (c: ThemeChoice) => void] {
-  const [choice, setChoice] = useState<ThemeChoice>(savedChoice)
+/** The theme plus a setter that applies, remembers, and tells the window frame. */
+export function useThemeSetting(): [Theme, (t: Theme) => void] {
+  const [theme, setTheme] = useState<Theme>(savedTheme)
   useEffect(() => {
-    applyTheme(choice)
-    localStorage.setItem(KEY, choice)
-    void window.plotter.setTheme(choice)
-    if (choice !== 'system') return
-    const m = media()
-    const on = (): void => applyTheme('system')
-    m.addEventListener('change', on)
-    return () => m.removeEventListener('change', on)
-  }, [choice])
-  return [choice, setChoice]
+    applyTheme(theme)
+    localStorage.setItem(KEY, theme)
+    void window.plotter.setTheme(theme)
+  }, [theme])
+  return [theme, setTheme]
 }
