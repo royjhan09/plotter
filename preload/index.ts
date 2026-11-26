@@ -75,7 +75,8 @@ const api: PlotterApi = {
     make: async (chatId, messageId) => fromBase64(await ipcRenderer.invoke('pdf:make', chatId, messageId)),
     ready: () => ipcRenderer.send('pdf:ready'),
     save: (name) => ipcRenderer.invoke('pdf:save', name),
-    discard: () => ipcRenderer.invoke('pdf:discard')
+    discard: () => ipcRenderer.invoke('pdf:discard'),
+    show: (path) => ipcRenderer.invoke('pdf:show', path)
   }
 }
 

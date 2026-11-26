@@ -621,10 +621,6 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
           name={pdf.name}
           error={pdf.error}
           onClose={closePdf}
-          onSaved={(path) => {
-            setPdf(null)
-            setToast(`Saved to ${path}`)
-          }}
         />
       )}
 

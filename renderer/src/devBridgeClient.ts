@@ -108,7 +108,8 @@ export function installDevBridge(): void {
       make: async (chatId, messageId) => Uint8Array.from(atob(await call<string>('pdf:make', chatId, messageId)), (c) => c.charCodeAt(0)),
       ready: () => undefined,
       save: (name) => call('pdf:save', name),
-      discard: () => call('pdf:discard')
+      discard: () => call('pdf:discard'),
+      show: (path) => call('pdf:show', path)
     }
   }
   window.plotter = api

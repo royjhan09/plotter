@@ -1,5 +1,5 @@
 import { writeFile } from 'node:fs/promises'
-import { app, BrowserWindow, dialog, ipcMain, shell, nativeImage, nativeTheme, protocol, session } from 'electron'
+import { app, BrowserWindow, ipcMain, shell, nativeImage, nativeTheme, protocol, session } from 'electron'
 import { join } from 'node:path'
 import { authState, cancelSignIn, loadSession, signIn, signOut } from './auth'
 import { forgetModel, generateTitle, primaryModel, ReplyError } from './openai'

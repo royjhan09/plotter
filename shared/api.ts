@@ -239,8 +239,10 @@ export interface PlotterApi {
     make: (chatId: string, messageId?: string) => Promise<Uint8Array>
     /** Called by the hidden print page once everything is drawn. */
     ready: () => void
-    /** The saved file's path, or null if cancelled. */
+    /** Saves into Downloads (like a browser download) and returns the file's path. */
     save: (name: string) => Promise<string | null>
+    /** Opens File Explorer with the saved PDF selected. */
+    show: (path: string) => Promise<void>
     discard: () => Promise<void>
   }
 }
