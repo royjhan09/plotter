@@ -2,7 +2,7 @@ import { writeFile } from 'node:fs/promises'
 import { app, BrowserWindow, dialog, ipcMain, shell, nativeImage, nativeTheme, protocol, session } from 'electron'
 import { join } from 'node:path'
 import { authState, cancelSignIn, loadSession, signIn, signOut } from './auth'
-import { forgetModel, generateTitle, primaryModel, ReplyError } from './openai'
+import { forgetModel, generateSuggestion, generateTitle, primaryModel, ReplyError } from './openai'
 import { reply } from './assistant'
 import { onPythonStatus, pythonStatus, PY_SCHEME } from './python'
 import { connect as connectService, disconnect as disconnectService, listConnectors, setEnabled as setConnectorEnabled, setGoogleClient, setNotionToken } from './connectors'
@@ -127,6 +127,7 @@ export const handlers: Record<string, (...args: never[]) => unknown> = {
     return listChats()
   },
   'chats:title': (userText: string, replyText: string) => generateTitle(userText, replyText),
+  'chats:suggest': (kind: string, userText: string, replyText: string) => generateSuggestion(kind === 'claude' ? 'claude' : 'chatgpt', String(userText ?? ''), String(replyText ?? '')),
   'ui:put': (html: string, dark: boolean) => putUiFrame(String(html), !!dark),
 
   'features:get': () => readFeatures(),

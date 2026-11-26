@@ -40,6 +40,12 @@ export const WEB_INSTRUCTIONS = `You can search the web and open web pages. Use 
 const TITLE_INSTRUCTIONS =
   "Write a short title for this conversation in the user's language: at most 20 characters for Korean/Japanese/Chinese, or at most 6 words otherwise. Name the topic, like a chat list title (e.g. 사이트 디자인 분석, Tomato watering plan). Reply with the title only: no quotes, no trailing period, no emoji."
 
+const SUGGEST_INSTRUCTIONS =
+  "Guess the user's most likely next message in this conversation, written as the user would type it, in the user's language. One short line (at most 12 words; at most 30 characters for Korean/Japanese/Chinese). Make it a natural next step: a follow-up question, a request to go further, or a concrete next task. Reply with that message only: no quotes, no preamble."
+
+const SUGGEST_FOR_CODE =
+  ' The assistant is Claude Code working in a software project; suggest a concrete next instruction for it (e.g. run the tests, fix what failed, explain a file, commit).'
+
 async function authedFetch(path: string, init: RequestInit = {}): Promise<Response> {
   const go = async (force: boolean): Promise<Response> =>
     fetch(`${API}${path}`, {
@@ -350,4 +356,30 @@ export async function generateTitle(userText: string, replyText: string): Promis
     .replace(/^#+\s*/, '')
     .trim()
     .slice(0, 60)
+}
+
+/** A greyed-out suggestion for the user's next message (Tab fills it in): one short line from a quick, low-effort request. */
+export async function generateSuggestion(kind: 'chatgpt' | 'claude', userText: string, replyText: string): Promise<string> {
+  const model = await primaryModel()
+  const effort = model.efforts.find((e) => e.effort === 'minimal' || e.effort === 'low')?.effort ?? model.defaultEffort
+  const clip = (s: string, n: number): string => (s.length > n ? `${s.slice(0, n)}…` : s)
+  const prompt = `The user's last message:\n${clip(userText, 1200)}\n\nThe reply (the end of it):\n${clip(replyText.slice(-1500), 1500)}`
+  let out = ''
+  await streamRound(
+    {
+      model: model.slug,
+      effort,
+      instructions: SUGGEST_INSTRUCTIONS + (kind === 'claude' ? SUGGEST_FOR_CODE : ''),
+      input: [toInput({ role: 'user', text: prompt })],
+      tools: [],
+      verbosity: 'low'
+    },
+    { onDelta: (t) => (out += t), onActivity: () => undefined, onSource: () => undefined },
+    AbortSignal.timeout(20_000)
+  )
+  return out
+    .split('\n')[0]!
+    .replace(/^["'“”‘’「『]+|["'“”‘’」』]+$/g, '')
+    .trim()
+    .slice(0, 120)
 }

@@ -3930,3 +3930,177 @@ body,
   color: var(--muted);
   padding: 6px 8px;
 }
+
+/* ---------- a side's own light/dark (Claude Code chats: dark unless switched) ----------
+   The same palettes as the app's (:root and dark), scoped to one side. */
+.pane.theme-dark {
+  --cream: #221b15;
+  --paper: #1a1511;
+  --sand: #31281f;
+  --sand-strong: #45382c;
+  --ink: #f2e6d8;
+  --muted: #a8927c;
+  --orange: #f06a1d;
+  --orange-soft: #f4975f;
+  --orange-tint: #3d2718;
+  --leaf: #51cf66;
+  --leaf-light: #8ce99a;
+  --leaf-tint: #1d3122;
+  --bad: #ff8787;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 6px 20px rgba(0, 0, 0, 0.3);
+  --shadow-pop: 0 12px 34px rgba(0, 0, 0, 0.5);
+  --surface: #262019;
+  --bubble: #3d2718;
+  --focus: #f4975f;
+  --placeholder: #7d6a58;
+  --leaf-text: #8ce99a;
+  --code-bg: #141414;
+  --stripe: rgba(255, 255, 255, 0.03);
+  --overlay: rgba(0, 0, 0, 0.55);
+  color-scheme: dark;
+  background: var(--paper);
+  color: var(--ink);
+}
+.pane.theme-dark .scroller,
+.pane.theme-dark .composer-wrap {
+  --cream: #2a2a2a;
+  --paper: #212121;
+  --sand: #2f2f2f;
+  --sand-strong: #424242;
+  --ink: #ececec;
+  --muted: #a3a3a3;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 6px 20px rgba(0, 0, 0, 0.3);
+  --shadow-pop: 0 12px 34px rgba(0, 0, 0, 0.5);
+  --surface: #2a2a2a;
+  --bubble: #303030;
+  --focus: #5a5a5a;
+  --placeholder: #7a7a7a;
+  --stripe: rgba(255, 255, 255, 0.03);
+}
+.pane.theme-light {
+  --cream: #fff4e6;
+  --paper: #ffffff;
+  --sand: #f6e6d2;
+  --sand-strong: #ecd3b6;
+  --ink: #3b2a1a;
+  --muted: #8a7460;
+  --orange: #e8590c;
+  --orange-soft: #ee8144;
+  --orange-tint: #fde3cf;
+  --leaf: #40c057;
+  --leaf-light: #69db7c;
+  --leaf-tint: #e3f7e6;
+  --bad: #c92a2a;
+  --shadow: 0 1px 2px rgba(59, 42, 26, 0.06), 0 6px 20px rgba(59, 42, 26, 0.07);
+  --shadow-pop: 0 10px 30px rgba(59, 42, 26, 0.16);
+  --surface: #ffffff;
+  --bubble: #fde3cf;
+  --focus: #ee8144;
+  --placeholder: #b39d88;
+  --leaf-text: #2f7d3a;
+  --code-bg: #1e1e1e;
+  --stripe: rgba(246, 230, 210, 0.35);
+  --overlay: rgba(59, 42, 26, 0.3);
+  color-scheme: light;
+  background: var(--paper);
+  color: var(--ink);
+}
+.pane.theme-light .scroller,
+.pane.theme-light .composer-wrap {
+  --cream: #f9f9f9;
+  --paper: #ffffff;
+  --sand: #ececec;
+  --sand-strong: #d6d6d6;
+  --ink: #1f1f1f;
+  --muted: #6b6b6b;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.05), 0 6px 20px rgba(0, 0, 0, 0.06);
+  --shadow-pop: 0 10px 30px rgba(0, 0, 0, 0.14);
+  --surface: #ffffff;
+  --bubble: #f4f4f4;
+  --focus: #b5b5b5;
+  --placeholder: #9b9b9b;
+  --stripe: rgba(0, 0, 0, 0.025);
+}
+.pane .topbar .theme-btn {
+  flex: none;
+}
+.pane.theme-dark .topbar {
+  border-bottom-color: #31281f;
+}
+
+/* the pencil's "which chat?" menu */
+.new-menu {
+  top: calc(100% + 6px);
+  bottom: auto;
+  left: 0;
+  width: 270px;
+}
+.new-menu .pop-item {
+  gap: 12px;
+}
+.new-menu-icon {
+  width: 26px;
+  height: 26px;
+  flex: none;
+}
+.new-menu-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.3;
+}
+.new-menu-text b {
+  font-weight: 600;
+  font-size: 14px;
+}
+.new-menu-text span {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* Claude Code: the note sits on the folder button's row */
+.composer-below {
+  justify-content: space-between;
+}
+.plan-note.inline {
+  margin: 0;
+  padding: 0 6px 0 0;
+}
+
+/* the buddy blinks now and then while it works */
+.buddy.working .buddy-eye {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: buddy-blink 3s infinite;
+}
+@keyframes buddy-blink {
+  0%,
+  90%,
+  100% {
+    transform: scaleY(1);
+  }
+  94% {
+    transform: scaleY(0.15);
+  }
+}
+.tab-hint {
+  flex: none;
+  align-self: center;
+  font: inherit;
+  font-size: 11px;
+  color: var(--muted);
+  border: 1px solid var(--sand-strong);
+  border-radius: 5px;
+  padding: 0 5px;
+  margin-right: 4px;
+  opacity: 0.8;
+}
+/* the whole side is the chat area's colour, so no band shows beside the message box */
+.pane.theme-dark {
+  background: #212121;
+}
+.pane.theme-dark .topbar {
+  background: #212121;
+}
+.pane.theme-light {
+  background: #fff;
+}

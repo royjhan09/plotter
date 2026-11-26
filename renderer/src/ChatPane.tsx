@@ -6,7 +6,8 @@ import { toAttachment } from './attachments'
 import { CanvasContext } from './Canvas'
 import { PdfBadge } from './PdfPreview'
 import { Message } from './Message'
-import { RailIcon } from './RailIcon'
+import { RailIcon, ThemeButton } from './RailIcon'
+import { useClaudeTheme, type Theme } from './theme'
 import { ClaudeBuddy, FolderPicker, folderName, sendClaudeTurn, startClaudeChat } from './ClaudeCode'
 import icon from '../../assets/icon.png'
 
@@ -64,6 +65,9 @@ export interface ChatPaneProps {
   onSendToClaude: (task: string) => void
   /** What this side's new chat is, and text to start it with; a new n means "start a new chat now". */
   newChat: { kind: ChatKind; seed?: string; n: number }
+  /** The app's light/dark (a ChatGPT chat follows and switches it; a Claude Code chat has its own, dark by default). */
+  theme: Theme
+  setTheme: (t: Theme) => void
 }
 
 /**
@@ -95,6 +99,44 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
   const isClaude = chat ? chat.kind === 'claude' : newKind === 'claude'
   const cc = chat ? chat.cc : ccNew
   const ccBusy = !!chat && chat.kind === 'claude' && chat.messages.some((m) => m.cc?.state === 'running')
+  const [ccTheme, setCcTheme] = useClaudeTheme()
+
+  // A greyed-out guess at the next message (Tab fills it in), asked for when a reply finishes here.
+  const [suggestion, setSuggestion] = useState('')
+  const wasBusy = useRef(false)
+  const busyNow = !!pending || ccBusy
+  useEffect(() => {
+    const msgs = chat?.messages ?? []
+    const last = msgs[msgs.length - 1]
+    if (busyNow) {
+      wasBusy.current = true
+      setSuggestion('')
+      return
+    }
+    if (!chat || !last) {
+      wasBusy.current = false
+      setSuggestion(isClaude ? 'Explain how this project is organized' : '')
+      return
+    }
+    if (!wasBusy.current) return
+    wasBusy.current = false
+    if (last.role !== 'assistant' || !last.text || last.error) return
+    const user = [...msgs].reverse().find((m) => m.role === 'user')
+    void api.chats
+      .suggest(isClaude ? 'claude' : 'chatgpt', user?.text ?? '', last.text)
+      .then((t) => {
+        const now = chatRef.current?.messages
+        if (t && now?.[now.length - 1]?.id === last.id) setSuggestion(t)
+      })
+      .catch(() => undefined)
+  }, [chat, busyNow, isClaude])
+  const [newMenu, setNewMenu] = useState(false)
+  useEffect(() => {
+    if (!newMenu) return
+    const close = (): void => setNewMenu(false)
+    window.addEventListener('click', close)
+    return () => window.removeEventListener('click', close)
+  }, [newMenu])
 
   // Show the chat the app asks for (a click in the list, a drop, a new chat).
   useEffect(() => {
@@ -261,14 +303,14 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
     if (el) el.scrollTop = el.scrollHeight
   }, [chat?.messages])
 
-  /** The pencil: a new chat of the same kind (a new Claude Code chat keeps this one's folder and mode). */
-  const newChat = (): void => {
+  /** The pencil's menu: a new ChatGPT chat, or a new Claude Code chat (in this chat's folder if it has one). */
+  const newChat = (kind: ChatKind): void => {
+    setNewMenu(false)
     if (pendingRef.current) return
     const current = chatRef.current
-    if (current?.kind === 'claude' && current.cc) {
-      setNewKind('claude')
-      setCcNew({ folder: current.cc.folder, mode: current.cc.mode })
-    } else if (current) setNewKind('chatgpt')
+    setNewKind(kind)
+    if (kind === 'claude') setCcNew(current?.cc ? { folder: current.cc.folder, mode: 'edit', effort: current.cc.effort } : null)
+    setDraft('')
     onChatId(null)
   }
 
@@ -388,7 +430,7 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
   const messages = chat?.messages ?? []
   return (
     <main
-      className={`main pane ${isClaude ? 'claude' : ''} ${p.split ? 'split' : ''} ${p.focused ? 'focused' : ''}`}
+      className={`main pane ${isClaude ? `claude theme-${ccTheme}` : ''} ${p.split ? 'split' : ''} ${p.focused ? 'focused' : ''}`}
       onMouseDown={p.onFocus}
       onDragOver={(e) => {
         if (e.dataTransfer.types.includes('Files')) e.preventDefault()
@@ -400,9 +442,37 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
       }}
     >
       <header className="topbar">
-        <button className="topbar-new" title="New chat" onClick={newChat} disabled={!!pending}>
-          <RailIcon name="new" />
-        </button>
+        <div className="pop-anchor">
+          <button
+            className="topbar-new"
+            title="New chat"
+            disabled={!!pending}
+            onClick={(e) => {
+              e.stopPropagation()
+              setNewMenu(!newMenu)
+            }}
+          >
+            <RailIcon name="new" />
+          </button>
+          {newMenu && (
+            <div className="pop new-menu" onClick={(e) => e.stopPropagation()}>
+              <button className="pop-item" onClick={() => newChat('chatgpt')}>
+                <img src={icon} alt="" className="new-menu-icon" />
+                <span className="new-menu-text">
+                  <b>New chat</b>
+                  <span>ChatGPT, on your ChatGPT plan</span>
+                </span>
+              </button>
+              <button className="pop-item" onClick={() => newChat('claude')}>
+                <ClaudeBuddy size={26} />
+                <span className="new-menu-text">
+                  <b>New Claude Code chat</b>
+                  <span>Works in a project folder</span>
+                </span>
+              </button>
+            </div>
+          )}
+        </div>
         <span className="chat-heading">{chat?.title ?? ''}</span>
         {messages.length > 0 && (
           <button className="topbar-pdf" title="Convert this chat to a PDF" onClick={() => chat && p.savePdf(undefined, chat)} disabled={!!pending || ccBusy || p.pdfBusy}>
@@ -410,6 +480,7 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
             {!p.split && 'Convert chat to PDF'}
           </button>
         )}
+        <ThemeButton theme={isClaude ? ccTheme : p.theme} onChange={isClaude ? setCcTheme : p.setTheme} />
         {p.onClose && (
           <button className="pane-close" title="Close this side" onClick={p.onClose}>
             ×
@@ -508,24 +579,22 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
           setResearch={setResearch}
           onClaudeCode={isClaude ? undefined : () => p.onSendToClaude(draft)}
           variant={isClaude ? 'claude' : 'chatgpt'}
+          suggestion={suggestion}
         />
         {isClaude && (
           <div className="composer-below">
             <FolderPicker folder={cc?.folder ?? ''} onPick={(folder) => setCc({ folder })} autoOpen={!chat && !!cc && !cc.folder} />
+            <span className="plan-note inline">Claude Code · on your Claude subscription</span>
           </div>
         )}
-        <div className="plan-note">
-          {isClaude ? (
-            'Claude Code · on your Claude subscription'
-          ) : (
-            <>
-              {p.planUsage ? 'Using ChatGPT plan' : 'Plan usage not granted at sign-in'} ·{' '}
-              <button className="link" onClick={() => void api.openUsage()}>
-                Manage usage
-              </button>
-            </>
-          )}
-        </div>
+        {!isClaude && (
+          <div className="plan-note">
+            {p.planUsage ? 'Using ChatGPT plan' : 'Plan usage not granted at sign-in'} ·{' '}
+            <button className="link" onClick={() => void api.openUsage()}>
+              Manage usage
+            </button>
+          </div>
+        )}
       </div>
 
       {voice && (

@@ -44,3 +44,20 @@ export function useThemeSetting(): [Theme, (t: Theme) => void] {
   }, [theme])
   return [theme, setTheme]
 }
+
+/** Claude Code chats have their own light/dark choice, dark unless changed (shared by every Claude Code side). */
+const CC_KEY = 'plotter.ccTheme'
+const CC_EVENT = 'plotter-cc-theme'
+export function useClaudeTheme(): [Theme, (t: Theme) => void] {
+  const [theme, setThemeState] = useState<Theme>(() => (localStorage.getItem(CC_KEY) === 'light' ? 'light' : 'dark'))
+  useEffect(() => {
+    const on = (e: Event): void => setThemeState((e as CustomEvent<Theme>).detail)
+    window.addEventListener(CC_EVENT, on)
+    return () => window.removeEventListener(CC_EVENT, on)
+  }, [])
+  const set = (t: Theme): void => {
+    localStorage.setItem(CC_KEY, t)
+    window.dispatchEvent(new CustomEvent(CC_EVENT, { detail: t }))
+  }
+  return [theme, set]
+}

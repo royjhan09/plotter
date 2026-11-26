@@ -244,6 +244,8 @@ export interface PlotterApi {
     update: (id: string, patch: ChatMetaPatch) => Promise<ChatSummary[]>
     /** A short title for a new chat, written by the model from the first exchange. */
     title: (userText: string, replyText: string) => Promise<string>
+    /** A one-line guess at the user's next message, shown greyed out in an empty message box (Tab fills it in). */
+    suggest: (kind: ChatKind, userText: string, replyText: string) => Promise<string>
   }
   reply: {
     send: (request: SendRequest) => Promise<void>

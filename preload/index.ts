@@ -19,7 +19,8 @@ const api: PlotterApi = {
     save: (chat) => ipcRenderer.invoke('chats:save', chat),
     remove: (id) => ipcRenderer.invoke('chats:remove', id),
     update: (id, patch) => ipcRenderer.invoke('chats:update', id, patch),
-    title: (userText, replyText) => ipcRenderer.invoke('chats:title', userText, replyText)
+    title: (userText, replyText) => ipcRenderer.invoke('chats:title', userText, replyText),
+    suggest: (kind, userText, replyText) => ipcRenderer.invoke('chats:suggest', kind, userText, replyText)
   },
   reply: {
     send: (request) => ipcRenderer.invoke('reply:send', request),

@@ -111,9 +111,12 @@ interface Props {
   variant?: 'chatgpt' | 'claude'
   /** Shown where the + button is (a Claude Code chat's folder button). */
   leadSlot?: React.ReactNode
+  /** A guess at the next message, shown greyed out in the empty box; Tab fills it in. */
+  suggestion?: string
 }
 
 export function Composer(p: Props): React.JSX.Element {
+  const suggesting = !!p.suggestion && !p.draft && !p.research && !p.pending
   const input = useRef<HTMLTextAreaElement>(null)
   const filePicker = useRef<HTMLInputElement>(null)
   const [menu, setMenu] = useState<'plus' | 'effort' | null>(null)
@@ -331,7 +334,7 @@ export function Composer(p: Props): React.JSX.Element {
             ref={input}
             value={p.draft}
             rows={1}
-            placeholder={p.research ? 'What should Plotter research?' : p.placeholder}
+            placeholder={p.research ? 'What should Plotter research?' : suggesting ? p.suggestion : p.placeholder}
             onChange={(e) => p.setDraft(e.target.value)}
             onPaste={(e) => {
               const files = Array.from(e.clipboardData.files)
@@ -341,6 +344,12 @@ export function Composer(p: Props): React.JSX.Element {
               }
             }}
             onKeyDown={(e) => {
+              // Tab takes the greyed-out suggestion (as in Claude Code's prompt)
+              if (e.key === 'Tab' && !e.shiftKey && suggesting) {
+                e.preventDefault()
+                p.setDraft(p.suggestion!)
+                return
+              }
               if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
                 e.preventDefault()
                 if (canSend && !p.pending) p.onSend()
@@ -348,6 +357,11 @@ export function Composer(p: Props): React.JSX.Element {
             }}
             autoFocus
           />
+        )}
+        {suggesting && dictation === 'off' && !status && (
+          <kbd className="tab-hint" title="Press Tab to use this suggestion">
+            Tab
+          </kbd>
         )}
 
         {dictation === 'recording' ? (
