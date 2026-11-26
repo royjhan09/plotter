@@ -12,7 +12,8 @@ const alpha = (hex: string, a: number): string => {
   const n = parseInt(hex.slice(1), 16)
   return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`
 }
-const cssVar = (name: string): string => getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+/** A theme colour as seen where the visual is drawn (the chat area has its own neutral colours). */
+const cssVar = (name: string, at: Element = document.documentElement): string => getComputedStyle(at).getPropertyValue(name).trim()
 
 Chart.defaults.font.family = "'Segoe UI Variable Text', 'Segoe UI', 'Malgun Gothic', system-ui, sans-serif"
 
@@ -31,7 +32,7 @@ export function renderChart(el: HTMLElement, src: string): () => void {
   let chart: Chart | null = null
   try {
     const dark = currentTheme() === 'dark'
-    Chart.defaults.color = cssVar('--muted') || '#6b6b6b'
+    Chart.defaults.color = cssVar('--muted', el) || '#6b6b6b'
     Chart.defaults.borderColor = dark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)'
     const colors = palette()
     const cfg = JSON.parse(src) as ChartConfiguration & { title?: string }
@@ -43,7 +44,7 @@ export function renderChart(el: HTMLElement, src: string): () => void {
       const n = (ds.data as unknown[])?.length ?? 0
       if (perPoint) {
         d['backgroundColor'] ??= Array.from({ length: n }, (_, j) => colors[j % colors.length])
-        d['borderColor'] ??= cssVar('--surface') || '#ffffff'
+        d['borderColor'] ??= cssVar('--surface', el) || '#ffffff'
         d['borderWidth'] ??= 2
       } else {
         const line = cfg.type === 'line' || cfg.type === 'radar' || d['type'] === 'line'
@@ -62,7 +63,7 @@ export function renderChart(el: HTMLElement, src: string): () => void {
     options['responsive'] = true
     options['maintainAspectRatio'] = false
     const plugins = (options['plugins'] ??= {}) as Record<string, unknown>
-    if (cfg.title && !plugins['title']) plugins['title'] = { display: true, text: cfg.title, color: cssVar('--ink'), font: { size: 15, weight: '600' } }
+    if (cfg.title && !plugins['title']) plugins['title'] = { display: true, text: cfg.title, color: cssVar('--ink', el), font: { size: 15, weight: '600' } }
     el.innerHTML = ''
     el.classList.remove('diagram')
     const box = document.createElement('div')

@@ -1,12 +1,13 @@
-/* Plotter's look: neutral, white and grey like a reading surface; the icon's orange and sprout greens are kept
-   for accents only (send/voice and New chat buttons, links, the logo). */
+/* Plotter's look, taken from its icon: cream, the orange seed-bot, two sprout greens.
+   The conversation and the message box are the exception: plain white and neutral greys,
+   because long reading on a tinted page is tiring (see "chat area" below). */
 :root {
-  --cream: #f9f9f9; /* sidebar */
-  --paper: #ffffff; /* chat */
-  --sand: #ececec; /* borders, hovers */
-  --sand-strong: #d6d6d6;
-  --ink: #1f1f1f;
-  --muted: #6b6b6b;
+  --cream: #fff4e6;
+  --paper: #ffffff;
+  --sand: #f6e6d2;
+  --sand-strong: #ecd3b6;
+  --ink: #3b2a1a;
+  --muted: #8a7460;
   --orange: #e8590c;
   --orange-soft: #ee8144;
   --orange-tint: #fde3cf;
@@ -15,45 +16,82 @@
   --leaf-tint: #e3f7e6;
   --bad: #c92a2a;
   --radius: 16px;
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.05), 0 6px 20px rgba(0, 0, 0, 0.06);
-  --shadow-pop: 0 10px 30px rgba(0, 0, 0, 0.14);
+  --shadow: 0 1px 2px rgba(59, 42, 26, 0.06), 0 6px 20px rgba(59, 42, 26, 0.07);
+  --shadow-pop: 0 10px 30px rgba(59, 42, 26, 0.16);
   --surface: #ffffff;
-  --bubble: #f4f4f4; /* your messages, selected chat */
-  --focus: #b5b5b5; /* message box border while typing */
-  --placeholder: #9b9b9b;
+  --bubble: #fde3cf;
+  --focus: #ee8144;
+  --placeholder: #b39d88;
   --leaf-text: #2f7d3a;
   --code-bg: #1e1e1e;
-  --stripe: rgba(0, 0, 0, 0.025);
-  --overlay: rgba(0, 0, 0, 0.35);
+  --stripe: rgba(246, 230, 210, 0.35);
+  --overlay: rgba(59, 42, 26, 0.3);
   color-scheme: light;
 }
 
-/* Dark: neutral dark greys, same accents. */
+/* Dark: the same seed-bot colours on warm soil. */
 :root[data-theme='dark'] {
-  --cream: #171717;
-  --paper: #212121;
-  --sand: #2f2f2f;
-  --sand-strong: #424242;
-  --ink: #ececec;
-  --muted: #a3a3a3;
+  --cream: #221b15;
+  --paper: #1a1511;
+  --sand: #31281f;
+  --sand-strong: #45382c;
+  --ink: #f2e6d8;
+  --muted: #a8927c;
   --orange: #f06a1d;
   --orange-soft: #f4975f;
-  --orange-tint: #3a2a20;
+  --orange-tint: #3d2718;
   --leaf: #51cf66;
   --leaf-light: #8ce99a;
   --leaf-tint: #1d3122;
   --bad: #ff8787;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 6px 20px rgba(0, 0, 0, 0.3);
   --shadow-pop: 0 12px 34px rgba(0, 0, 0, 0.5);
-  --surface: #2a2a2a;
-  --bubble: #303030;
-  --focus: #5a5a5a;
-  --placeholder: #7a7a7a;
+  --surface: #262019;
+  --bubble: #3d2718;
+  --focus: #f4975f;
+  --placeholder: #7d6a58;
   --leaf-text: #8ce99a;
   --code-bg: #141414;
   --stripe: rgba(255, 255, 255, 0.03);
   --overlay: rgba(0, 0, 0, 0.55);
   color-scheme: dark;
+}
+
+/* The chat area (conversation + message box): neutral, like a reading surface. */
+.scroller,
+.composer-wrap {
+  --cream: #f9f9f9;
+  --paper: #ffffff;
+  --sand: #ececec;
+  --sand-strong: #d6d6d6;
+  --ink: #1f1f1f;
+  --muted: #6b6b6b;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.05), 0 6px 20px rgba(0, 0, 0, 0.06);
+  --shadow-pop: 0 10px 30px rgba(0, 0, 0, 0.14);
+  --surface: #ffffff;
+  --bubble: #f4f4f4;
+  --focus: #b5b5b5;
+  --placeholder: #9b9b9b;
+  --stripe: rgba(0, 0, 0, 0.025);
+  background: var(--paper);
+  color: var(--ink);
+}
+
+:root[data-theme='dark'] .scroller,
+:root[data-theme='dark'] .composer-wrap {
+  --cream: #2a2a2a;
+  --paper: #212121;
+  --sand: #2f2f2f;
+  --sand-strong: #424242;
+  --ink: #ececec;
+  --muted: #a3a3a3;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 6px 20px rgba(0, 0, 0, 0.3);
+  --shadow-pop: 0 12px 34px rgba(0, 0, 0, 0.5);
+  --surface: #2a2a2a;
+  --bubble: #303030;
+  --focus: #5a5a5a;
+  --placeholder: #7a7a7a;
+  --stripe: rgba(255, 255, 255, 0.03);
 }
 
 * {
@@ -257,8 +295,8 @@ button:disabled {
 }
 
 .chat-item.active {
-  background: var(--bubble);
-  font-weight: 600;
+  background: var(--orange-tint);
+  box-shadow: inset 3px 0 0 var(--orange);
 }
 
 .chat-title {
