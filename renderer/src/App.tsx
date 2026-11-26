@@ -379,7 +379,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
             </div>
             {searching && <input className="chat-search" autoFocus placeholder="Search chats" value={query} onChange={(e) => setQuery(e.target.value)} />}
             <button className="side-item" onClick={newChat}>
-              <RailIcon name="new" /> New chat
+              <img src={icon} alt="" className="side-item-icon" /> New chat
             </button>
             <button className="side-item claude-new" onClick={() => newClaudeChat(false)}>
               <ClaudeBuddy size={20} /> New Claude Code chat
