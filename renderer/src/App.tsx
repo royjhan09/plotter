@@ -107,7 +107,13 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
     hoverTimer.current = setTimeout(() => setPanel(kind), panel ? 0 : 120)
   }
   const hoverKeep = (): void => clearTimeout(hoverTimer.current)
+  // While a chat is dragged out of the panel, the panel must stay (hiding the dragged row cancels the drag).
+  const [dragging, setDragging] = useState(false)
+  const draggingRef = useRef(false)
+  /** The chat being dragged from the list (kept here, so the drop never depends on what the browser passes along). */
+  const dragChat = useRef<string | null>(null)
   const hoverOut = (): void => {
+    if (draggingRef.current) return
     clearTimeout(hoverTimer.current)
     hoverTimer.current = setTimeout(() => setPanel(null), 300)
   }
@@ -247,21 +253,25 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
   }
 
   // Dragging a chat from the list: drop it on the right half to open it beside, or the left half to open it there.
-  const chatDrag = (e: React.DragEvent): boolean => e.dataTransfer.types.includes('application/x-plotter-chat')
+  const chatDrag = (e: React.DragEvent): boolean => !!dragChat.current || e.dataTransfer.types.includes('application/x-plotter-chat')
+  const sideAt = (e: React.DragEvent<HTMLDivElement>): 'left' | 'right' => {
+    const r = e.currentTarget.getBoundingClientRect()
+    return e.clientX - r.left > r.width / 2 ? 'right' : 'left'
+  }
   const onPanesDragOver = (e: React.DragEvent<HTMLDivElement>): void => {
     if (!chatDrag(e)) return
     e.preventDefault()
     e.dataTransfer.dropEffect = 'move'
-    const r = e.currentTarget.getBoundingClientRect()
-    setDropSide(e.clientX - r.left > r.width / 2 ? 'right' : 'left')
+    setDropSide(sideAt(e))
   }
   const onPanesDrop = (e: React.DragEvent<HTMLDivElement>): void => {
     if (!chatDrag(e)) return
     e.preventDefault()
-    const id = e.dataTransfer.getData('application/x-plotter-chat')
-    const where = dropSide ?? 'right'
+    e.stopPropagation()
+    const id = dragChat.current ?? (e.dataTransfer.getData('application/x-plotter-chat') || null)
+    dragChat.current = null
     setDropSide(null)
-    if (id) openChat(id, where)
+    if (id) openChat(id, sideAt(e))
   }
 
   const paneProps = {
@@ -340,7 +350,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
       </nav>
 
       {/* The panel: a card that slides over the chat on hover, or sits beside it when docked. */}
-      <aside className={`sidebar ${panel ? 'open' : ''}`} onMouseEnter={hoverKeep} onMouseLeave={hoverOut}>
+      <aside className={`sidebar ${panel ? 'open' : ''} ${dragging ? 'dragging' : ''}`} onMouseEnter={hoverKeep} onMouseLeave={hoverOut}>
         {shownPanel === 'customize' ? (
           <>
             <div className="sidebar-head">
@@ -390,8 +400,19 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
                 openChat(id, side === 'left' || !split ? 'right' : 'left')
                 if (!pinned) setPanel(null)
               }}
-              onDragStart={() => {
-                if (!pinned) setTimeout(() => setPanel(null), 0)
+              onDragStart={(id) => {
+                dragChat.current = id
+                draggingRef.current = true
+                clearTimeout(hoverTimer.current)
+                // after the drag has begun: let it pass through the panel to the chat area beneath
+                setTimeout(() => setDragging(true), 0)
+              }}
+              onDragEnd={() => {
+                setTimeout(() => (dragChat.current = null), 0)
+                draggingRef.current = false
+                setDragging(false)
+                setDropSide(null)
+                if (!pinned) setPanel(null)
               }}
             />
           </>

@@ -90,18 +90,21 @@ interface Props {
   /** Open this chat on the other side (side by side). */
   onOpenBeside: (id: string) => void
   /** A row started being dragged (towards the chat area). */
-  onDragStart: () => void
+  onDragStart: (id: string) => void
+  /** The drag ended (dropped somewhere, or cancelled). */
+  onDragEnd: () => void
 }
 
 /**
  * The chat list, as in ChatGPT: rows show only the title until hovered; then a pin button and a ⋯ menu
  * (Pin, Rename, Convert to PDF, Archive, Delete) appear. Pinned chats sit on top; archived ones fold away at the bottom.
  */
-export function ChatList({ chats, activeIds, query, visible, onOpen, onUpdate, onDelete, onPdf, onOpenBeside, onDragStart }: Props): React.JSX.Element {
+export function ChatList({ chats, activeIds, query, visible, onOpen, onUpdate, onDelete, onPdf, onOpenBeside, onDragStart, onDragEnd }: Props): React.JSX.Element {
   const [menu, setMenu] = useState<{ id: string; left: number; top: number } | null>(null)
   const [renaming, setRenaming] = useState<string | null>(null)
   const [showArchived, setShowArchived] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+  const lastDrag = useRef(0)
 
   const q = query.trim().toLowerCase()
   const match = (c: ChatSummary): boolean => !q || c.title.toLowerCase().includes(q)
@@ -159,13 +162,18 @@ export function ChatList({ chats, activeIds, query, visible, onOpen, onUpdate, o
     <div
       key={c.id}
       className={`chat-item ${c.kind === 'claude' ? 'claude' : 'chatgpt'} ${activeIds.includes(c.id) ? 'active' : ''} ${menu?.id === c.id ? 'menu-open' : ''} ${renaming === c.id ? 'renaming' : ''}`}
-      onClick={() => renaming !== c.id && onOpen(c.id)}
+      onClick={() => renaming !== c.id && Date.now() - lastDrag.current > 400 && onOpen(c.id)}
       draggable={renaming !== c.id}
       onDragStart={(e) => {
         e.dataTransfer.setData('application/x-plotter-chat', c.id)
+        e.dataTransfer.setData('text/plain', c.title) // some browsers pass only plain text along
         e.dataTransfer.effectAllowed = 'move'
         setMenu(null)
-        onDragStart()
+        onDragStart(c.id)
+      }}
+      onDragEnd={() => {
+        lastDrag.current = Date.now() // a drag must never also count as a click on the row
+        onDragEnd()
       }}
       title={c.kind === 'claude' ? 'Claude Code chat. Drag to the right side to open it beside another chat' : 'Drag to the right side to open it beside another chat'}
     >

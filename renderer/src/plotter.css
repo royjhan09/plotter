@@ -4104,3 +4104,9 @@ body,
 .pane.theme-light {
   background: #fff;
 }
+/* dragging a chat out of the panel: the panel stays (so the drag isn't cancelled) but lets it through */
+.sidebar.dragging {
+  pointer-events: none;
+  opacity: 0.35;
+  transition: opacity 0.15s;
+}

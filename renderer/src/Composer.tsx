@@ -195,6 +195,7 @@ export function Composer(p: Props): React.JSX.Element {
         if (e.dataTransfer.types.includes('Files')) e.preventDefault()
       }}
       onDrop={(e) => {
+        if (!e.dataTransfer.types.includes('Files')) return // a chat dragged from the list: the chat area takes it
         e.preventDefault()
         e.stopPropagation() // the chat area behind also accepts drops
         if (p.variant !== 'claude') void addFiles(e.dataTransfer.files)
