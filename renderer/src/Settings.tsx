@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import type { ChatMetaPatch, ChatSummary, ConnectorStatus, Features, Memory, PythonStatus } from '../../shared/api'
 import type { Theme } from './theme'
+import { ADVICE_LABEL, VISIBILITY } from './visibility'
 
 const api = window.plotter
 
-export type Tab = 'account' | 'general' | 'features' | 'memory' | 'connectors' | 'archived'
+export type Tab = 'account' | 'general' | 'features' | 'memory' | 'connectors' | 'archived' | 'visibility'
 
 const FEATURE_INFO: { key: keyof Features; name: string; text: string }[] = [
   { key: 'webSearch', name: 'Web search', text: 'Search the web and open links you give. Your question is sent to the web search.' },
@@ -76,6 +77,13 @@ function NavIcon({ tab }: { tab: Tab | 'back' }): React.JSX.Element {
           <path d="M9 7V3M15 7V3M7 7h10v4a5 5 0 0 1-10 0ZM12 16v5" />
         </svg>
       )
+    case 'visibility':
+      return (
+        <svg {...p}>
+          <path d="M12 3 4.5 6v5.5c0 4.4 3.1 8.2 7.5 9.5 4.4-1.3 7.5-5.1 7.5-9.5V6Z" />
+          <path d="M12 3v18" />
+        </svg>
+      )
     case 'archived':
       return (
         <svg {...p}>
@@ -97,7 +105,13 @@ const NAV: { group: string; items: { tab: Tab; label: string; words: string }[] 
       { tab: 'connectors', label: 'Connectors', words: 'google gmail calendar drive notion' }
     ]
   },
-  { group: 'Data', items: [{ tab: 'archived', label: 'Archived chats', words: 'archive unarchive delete chats' }] }
+  {
+    group: 'Data',
+    items: [
+      { tab: 'archived', label: 'Archived chats', words: 'archive unarchive delete chats' },
+      { tab: 'visibility', label: 'Public & private', words: 'public private github open source repo code visibility privacy' }
+    ]
+  }
 ]
 
 export interface SettingsProps {
@@ -162,6 +176,7 @@ export function Settings(props: SettingsProps): React.JSX.Element {
           {tab === 'memory' && <MemoryTab />}
           {tab === 'connectors' && <ConnectorsTab />}
           {tab === 'archived' && <ArchivedTab {...props} />}
+          {tab === 'visibility' && <VisibilityTab />}
         </div>
       </section>
     </div>
@@ -496,5 +511,54 @@ export function CustomizePanel({ open, onSettings }: { open: boolean; onSettings
         ⚙ All settings
       </button>
     </div>
+  )
+}
+
+/** Which parts of Plotter are public (in the GitHub repo) and which are private, with advice and the tradeoff. */
+function VisibilityTab(): React.JSX.Element {
+  const all = VISIBILITY.flatMap((g) => g.items)
+  const count = (f: (a: (typeof all)[number]) => boolean): number => all.filter(f).length
+  return (
+    <>
+      <h3>Public &amp; private</h3>
+      <p className="settings-lead">
+        What anyone can see in Plotter’s GitHub repo, what stays on this PC, and what could move to a private folder. The rule: code that uses your ChatGPT plan stays
+        public (OpenAI’s plan-usage track is for open-source apps); the rest can be private. Moving a feature to a private folder doesn’t slow Plotter down: it’s still built
+        into the same app. The costs are a second repo to keep, and that code already pushed stays in the public history.
+      </p>
+      <div className="vis-summary">
+        <div className="vis-stat">
+          <b>{count((a) => a.now === 'private')}</b>
+          <span>private now</span>
+        </div>
+        <div className="vis-stat">
+          <b>{count((a) => a.advice === 'must-public')}</b>
+          <span>must stay public</span>
+        </div>
+        <div className="vis-stat accent">
+          <b>{count((a) => a.advice === 'can-private' || a.advice === 'partly')}</b>
+          <span>public now, can be private</span>
+        </div>
+      </div>
+      {VISIBILITY.map((g) => (
+        <section key={g.title} className="vis-group">
+          <h4>{g.title}</h4>
+          <p className="vis-lead">{g.lead}</p>
+          {g.items.map((it) => (
+            <div key={it.name} className="vis-row">
+              <div className="vis-main">
+                <div className="vis-name">{it.name}</div>
+                <div className="vis-why">{it.why}</div>
+                <div className="vis-trade">{it.tradeoff}</div>
+              </div>
+              <div className="vis-badges">
+                <span className={`vis-badge now-${it.now}`}>{it.now === 'private' ? '🔒 Private now' : '🌐 Public now'}</span>
+                {it.advice !== 'keep-private' && <span className={`vis-badge advice-${it.advice}`}>{ADVICE_LABEL[it.advice]}</span>}
+              </div>
+            </div>
+          ))}
+        </section>
+      ))}
+    </>
   )
 }
