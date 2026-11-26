@@ -27,6 +27,12 @@ const api: PlotterApi = {
       return () => ipcRenderer.removeListener('projects:changed', handler)
     }
   },
+  images: {
+    status: () => ipcRenderer.invoke('images:status'),
+    setKey: (key) => ipcRenderer.invoke('images:setKey', key),
+    clearKey: () => ipcRenderer.invoke('images:clearKey'),
+    setOptions: (patch) => ipcRenderer.invoke('images:setOptions', patch)
+  },
   onSideDelivery: (listener) => {
     const handler = (_e: IpcRendererEvent, d: SideDelivery): void => listener(d)
     ipcRenderer.on('side:deliver', handler)

@@ -5307,3 +5307,85 @@ body,
   margin-bottom: 4px;
   text-align: right;
 }
+
+/* ---------- pictures: drawn, from the image model, or from tools ---------- */
+.figure {
+  position: relative;
+  margin: 0;
+  max-width: 100%;
+}
+.figure img {
+  display: block;
+  max-width: 100%;
+  max-height: 560px;
+  border-radius: 8px;
+}
+.toolrun.image .toolrun-figures {
+  background: var(--cream);
+  justify-content: center;
+}
+.figure-save {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(20, 16, 12, 0.72);
+  color: #fff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0;
+  transition: opacity 0.15s;
+  cursor: pointer;
+}
+.figure:hover .figure-save,
+.figure-save:focus-visible {
+  opacity: 1;
+}
+/* Settings › Images */
+.setting-select {
+  font: inherit;
+  font-size: 13.5px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--sand);
+  background: var(--surface);
+  color: var(--ink);
+}
+.images-key .setting-text {
+  flex: 1;
+}
+.images-key-form {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  max-width: 460px;
+}
+.images-key-form input {
+  flex: 1;
+  font: inherit;
+  font-size: 14px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--sand);
+  background: var(--paper);
+  color: var(--ink);
+}
+.images-key-form input:focus {
+  outline: 0;
+  border-color: var(--focus);
+}
+/* an SVG sized only by its viewBox has no width of its own in a flex row: give drawn pictures one */
+.figure:has(img[src^='data:image/svg']) {
+  width: min(100%, 640px);
+}
+.figure img[src^='data:image/svg'] {
+  width: 100%;
+  height: auto;
+}

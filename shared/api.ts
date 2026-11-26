@@ -21,7 +21,7 @@ export interface Attachment {
 /** Something Plotter did with one of its own tools while answering (shown in the reply as a card). */
 export interface ToolRun {
   id: string
-  kind: 'python' | 'memory' | 'connector' | 'market' | 'side'
+  kind: 'python' | 'memory' | 'connector' | 'market' | 'side' | 'image'
   /** One line, e.g. "Ran Python", "Saved to memory", "Searched Gmail". */
   title: string
   /** Python: the code; connector: the request. */
@@ -99,6 +99,22 @@ export interface Chat {
   cc?: ClaudeChatConfig
   /** The project it belongs to (its chats share the project's memory). */
   projectId?: string
+}
+
+/** Settings › Images: which image model, and how good by default. */
+export interface ImageOptions {
+  model: string
+  quality: 'low' | 'medium' | 'high'
+}
+
+export interface ImageKeyStatus {
+  /** An OpenAI API key is saved (pictures from the image model are possible). */
+  set: boolean
+  /** The key's last characters, to recognise it. */
+  hint?: string
+  options: ImageOptions
+  /** The image models to choose from (empty when this build has no image model). */
+  models: string[]
 }
 
 /** A group of chats (ChatGPT and Claude Code) that share a small memory of what matters in the project. */
@@ -369,6 +385,13 @@ export interface PlotterApi {
     removeNote: (id: string, noteId: string) => Promise<Project>
     /** A project changed (a chat saved a note, a chat moved in or out). */
     onChanged: (listener: () => void) => () => void
+  }
+  images: {
+    status: () => Promise<ImageKeyStatus>
+    /** Checks the key with OpenAI, then saves it encrypted. */
+    setKey: (key: string) => Promise<ImageKeyStatus>
+    clearKey: () => Promise<ImageKeyStatus>
+    setOptions: (patch: Partial<ImageOptions>) => Promise<ImageKeyStatus>
   }
   /** A chat sent something to the chat beside it. */
   onSideDelivery: (listener: (d: SideDelivery) => void) => () => void

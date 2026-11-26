@@ -3,6 +3,7 @@ import { app, BrowserWindow, dialog, ipcMain, shell, nativeImage, nativeTheme, p
 import { join } from 'node:path'
 import { authState, cancelSignIn, loadSession, signIn, signOut } from './auth'
 import { projectsChanged, setAppEmitter } from './appEvents'
+import { clearImageKey, imageKeyStatus, setImageKey, setImageOptions } from '@private/main/images'
 import { addNote, createProject, editNote, listProjects, removeNote, removeProject, renameProject } from './projects'
 import { forgetModel, generateProjectBrief, generateSuggestion, generateTitle, primaryModel, ReplyError } from './openai'
 import { reply } from './assistant'
@@ -146,6 +147,14 @@ export const handlers: Record<string, (...args: never[]) => unknown> = {
     const p = removeNote(String(id), String(noteId))
     projectsChanged()
     return p
+  },
+
+  'images:status': () => imageKeyStatus(),
+  'images:setKey': (key: string) => setImageKey(String(key ?? '')),
+  'images:clearKey': () => clearImageKey(),
+  'images:setOptions': (patch: Record<string, unknown>) => {
+    setImageOptions({ model: typeof patch?.['model'] === 'string' ? patch['model'] : undefined, quality: patch?.['quality'] as 'low' | 'medium' | 'high' | undefined })
+    return imageKeyStatus()
   },
 
   'chats:list': () => listChats(),

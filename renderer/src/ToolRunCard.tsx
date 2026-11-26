@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import type { ToolRun } from '../../shared/api'
+import { Figure } from './Figure'
 
 /** A Plotter tool run inside a reply: "Ran Python" (code, output, figures), "Saved to memory", "Searched Gmail"… */
 export function ToolRunCard({ run }: { run: ToolRun }): React.JSX.Element {
   const [open, setOpen] = useState(false)
   const hasDetail = !!(run.code || run.output || run.error)
-  const icon = run.kind === 'python' ? '🐍' : run.kind === 'memory' ? '🧠' : run.kind === 'market' ? '🧩' : run.kind === 'side' ? '↔' : '🔗'
+  const icon = run.kind === 'python' ? '🐍' : run.kind === 'memory' ? '🧠' : run.kind === 'market' ? '🧩' : run.kind === 'side' ? '↔' : run.kind === 'image' ? '🎨' : '🔗'
   return (
     <div className={`toolrun ${run.kind} ${run.error ? 'failed' : ''}`}>
       <button className="toolrun-head" onClick={() => hasDetail && setOpen((o) => !o)} disabled={!hasDetail}>
@@ -28,7 +29,7 @@ export function ToolRunCard({ run }: { run: ToolRun }): React.JSX.Element {
       {run.figures && run.figures.length > 0 && (
         <div className="toolrun-figures">
           {run.figures.map((f, i) => (
-            <img key={i} src={f} alt={`Figure ${i + 1}`} />
+            <Figure key={i} src={f} name={run.title.replace(/^(Drew|Made) /, '')} alt={`${run.title} (${i + 1})`} />
           ))}
         </div>
       )}

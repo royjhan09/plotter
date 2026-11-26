@@ -2,6 +2,7 @@ import { INSTRUCTIONS, WEB_INSTRUCTIONS, runConversation, type ConversationHandl
 import { addMemory, getChat, listMemories, readFeatures, removeMemory } from './store'
 import { addNote, chatDigest, projectContext, removeNote } from './projects'
 import { deliverToSide, projectsChanged } from './appEvents'
+import { generateWithKey, imageKeyStatus, IMAGES } from '@private/main/images'
 import { pythonTool } from './python'
 import { connectorTools } from './connectors'
 import { marketTools } from './marketChat'
@@ -133,6 +134,84 @@ function sideTools(b: BesideChat, chatTitle: string): LocalTool[] {
   ]
 }
 
+/** An SVG the model wrote, made safe to show as a picture (an <img> never runs scripts, but keep the file clean). */
+export function cleanSvg(raw: string): string {
+  let svg = raw.trim().replace(/^```(?:svg|xml)?\s*/i, '').replace(/```$/, '').trim()
+  const start = svg.search(/<svg[\s>]/i)
+  const end = svg.toLowerCase().lastIndexOf('</svg>')
+  if (start < 0 || end < 0) throw new Error('That is not an SVG (it must start with <svg and end with </svg>).')
+  svg = svg.slice(start, end + 6)
+  svg = svg.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/\son\w+\s*=\s*("[^"]*"|'[^']*')/gi, '')
+  if (!/\sxmlns=/.test(svg.slice(0, 200))) svg = svg.replace(/<svg/i, '<svg xmlns="http://www.w3.org/2000/svg"')
+  if (svg.length > 400_000) throw new Error('The SVG is too large (over 400 KB).')
+  return svg
+}
+
+const IMAGE_INSTRUCTIONS = (model: boolean): string =>
+  model
+    ? `Pictures: when the user asks you to make an image, picture, photo, illustration, logo, icon, poster or artwork, call generate_image with a detailed prompt (subject, style, composition, colours, any exact text in quotes). It uses OpenAI's image model and each picture is billed to the user's own API key, so make one picture per request unless they ask for more, and pick quality "low" for quick drafts. Use draw_picture instead when they ask for a vector/SVG or a simple flat graphic. Keep using chart, mermaid and ui blocks for charts, diagrams and UI mockups. The picture is shown to the user automatically: do not describe it at length or paste links.`
+    : `Pictures: when the user asks you to make an image, picture, illustration, logo, icon, poster or artwork, call draw_picture with a complete, polished SVG (viewBox set, no external images or fonts, text in the user's language). Aim for good design: clear shapes, a pleasing palette, balanced layout. You cannot make photos or photorealistic art; if they want that, say so briefly and mention that adding an OpenAI API key in Settings › Images lets Plotter use OpenAI's image model. Keep using chart, mermaid and ui blocks for charts, diagrams and UI mockups. The picture is shown to the user automatically.`
+
+function imageTools(model: boolean): LocalTool[] {
+  const tools: LocalTool[] = [
+    {
+      name: 'draw_picture',
+      description: 'Show the user a picture you draw yourself as SVG (icons, logos, illustrations, banners, simple art).',
+      parameters: {
+        type: 'object',
+        properties: {
+          title: { type: 'string', description: 'A short name for the picture.' },
+          svg: { type: 'string', description: 'The complete SVG document, from <svg to </svg>.' }
+        },
+        required: ['title', 'svg']
+      },
+      label: () => 'Drawing the picture…',
+      run: async (args) => {
+        const title = String(args['title'] ?? 'Picture').slice(0, 80)
+        try {
+          const svg = cleanSvg(String(args['svg'] ?? ''))
+          return {
+            output: JSON.stringify({ shown: true }),
+            run: { kind: 'image', title: `Drew ${title}`, figures: [`data:image/svg+xml;base64,${Buffer.from(svg, 'utf8').toString('base64')}`] }
+          }
+        } catch (e) {
+          return { output: JSON.stringify({ error: e instanceof Error ? e.message : String(e) }) }
+        }
+      }
+    }
+  ]
+  if (model)
+    tools.push({
+      name: 'generate_image',
+      description: "Make a picture with OpenAI's image model (billed to the user's API key).",
+      parameters: {
+        type: 'object',
+        properties: {
+          prompt: { type: 'string', description: 'A detailed description of the picture.' },
+          size: { type: 'string', enum: ['auto', '1024x1024', '1536x1024', '1024x1536'], description: 'Square, landscape or portrait.' },
+          quality: { type: 'string', enum: ['low', 'medium', 'high'], description: 'Leave out to use the user’s default.' },
+          transparent: { type: 'boolean', description: 'A transparent background (for logos and stickers).' }
+        },
+        required: ['prompt']
+      },
+      label: () => 'Making the picture… (this takes up to a minute)',
+      run: async (args, signal) => {
+        const prompt = String(args['prompt'] ?? '')
+        try {
+          const png = await generateWithKey(
+            { prompt, size: args['size'] as string | undefined, quality: args['quality'] as string | undefined, transparent: !!args['transparent'] },
+            signal
+          )
+          return { output: JSON.stringify({ shown: true }), run: { kind: 'image', title: 'Made a picture', code: prompt, figures: [png] } }
+        } catch (e) {
+          const why = e instanceof Error ? e.message : String(e)
+          return { output: JSON.stringify({ error: why }), run: { kind: 'image', title: 'The picture could not be made', error: why } }
+        }
+      }
+    })
+  return tools
+}
+
 /** All files attached anywhere in the chat that Python can open. */
 function chatFiles(req: SendRequest): Attachment[] {
   const seen = new Map<string, Attachment>()
@@ -179,6 +258,9 @@ export async function reply(req: SendRequest, handlers: ConversationHandlers, si
       )
     tools.push(...sideTools(req.beside, title))
   }
+  const imageModel = IMAGES && imageKeyStatus().set
+  parts.push(IMAGE_INSTRUCTIONS(imageModel))
+  tools.push(...imageTools(imageModel))
   if (f.canvas || req.canvas) parts.push(CANVAS_INSTRUCTIONS)
   if (req.canvas) parts.push(canvasContext(req))
   if (req.research) parts.push(RESEARCH_INSTRUCTIONS)

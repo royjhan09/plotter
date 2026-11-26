@@ -70,6 +70,12 @@ export function installDevBridge(): void {
         return () => listeners.projects.delete(l)
       }
     },
+    images: {
+      status: () => call('images:status'),
+      setKey: (key) => call('images:setKey', key),
+      clearKey: () => call('images:clearKey'),
+      setOptions: (patch) => call('images:setOptions', patch)
+    },
     onSideDelivery: (l) => {
       listeners.side.add(l)
       return () => listeners.side.delete(l)

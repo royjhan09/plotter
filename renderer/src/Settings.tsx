@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
-import type { ChatMetaPatch, ChatSummary, ConnectorStatus, Features, Memory, PythonStatus } from '../../shared/api'
+import type { ChatMetaPatch, ChatSummary, ConnectorStatus, Features, ImageKeyStatus, Memory, PythonStatus } from '../../shared/api'
 import type { Theme } from './theme'
 import { ADVICE_LABEL, VISIBILITY } from './visibility'
 
 const api = window.plotter
 
-export type Tab = 'account' | 'general' | 'features' | 'memory' | 'connectors' | 'archived' | 'visibility'
+export type Tab = 'account' | 'general' | 'features' | 'images' | 'memory' | 'connectors' | 'archived' | 'visibility'
 
 const FEATURE_INFO: { key: keyof Features; name: string; text: string }[] = [
   { key: 'webSearch', name: 'Web search', text: 'Search the web and open links you give. Your question is sent to the web search.' },
@@ -57,6 +57,14 @@ function NavIcon({ tab }: { tab: Tab | 'back' }): React.JSX.Element {
           <path d="M12 2.5v2.5M12 19v2.5M4.6 4.6l1.8 1.8M17.6 17.6l1.8 1.8M2.5 12H5M19 12h2.5M4.6 19.4l1.8-1.8M17.6 6.4l1.8-1.8" />
         </svg>
       )
+    case 'images':
+      return (
+        <svg {...p}>
+          <rect x="3.5" y="4.5" width="17" height="15" rx="2.5" />
+          <circle cx="9" cy="10" r="1.8" />
+          <path d="m4 17 5-4.5 4 3.5 3-2.5 4 3.5" />
+        </svg>
+      )
     case 'features':
       return (
         <svg {...p}>
@@ -101,6 +109,7 @@ const NAV: { group: string; items: { tab: Tab; label: string; words: string }[] 
     items: [
       { tab: 'general', label: 'General', words: 'theme appearance dark light mode' },
       { tab: 'features', label: 'Features', words: 'web search python canvas tools' },
+      { tab: 'images', label: 'Images', words: 'image picture photo generate draw openai api key gpt-image' },
       { tab: 'memory', label: 'Memory', words: 'remember forget memories' },
       { tab: 'connectors', label: 'Connectors', words: 'google gmail calendar drive notion' }
     ]
@@ -173,6 +182,7 @@ export function Settings(props: SettingsProps): React.JSX.Element {
           {tab === 'account' && <AccountTab {...props} />}
           {tab === 'general' && <GeneralTab theme={props.theme} setTheme={props.setTheme} />}
           {tab === 'features' && <FeaturesTab />}
+          {tab === 'images' && <ImagesTab />}
           {tab === 'memory' && <MemoryTab />}
           {tab === 'connectors' && <ConnectorsTab />}
           {tab === 'archived' && <ArchivedTab {...props} />}
@@ -315,6 +325,112 @@ function FeaturesTab(): React.JSX.Element {
           <Toggle on={f[x.key]} label={x.name} onChange={(v) => void api.features.set({ [x.key]: v }).then(setF)} />
         </div>
       ))}
+    </>
+  )
+}
+
+const QUALITY_TEXT: Record<string, string> = {
+  low: 'Low: fastest and cheapest, good for drafts',
+  medium: 'Medium: a good balance',
+  high: 'High: best detail, costs the most'
+}
+
+/**
+ * Pictures: drawn by the chats (free, always on) or made by OpenAI's image model with the user's own API key.
+ * The key is typed here by the user, checked with OpenAI, and kept encrypted on this PC.
+ */
+function ImagesTab(): React.JSX.Element {
+  const [st, setSt] = useState<ImageKeyStatus | null>(null)
+  const [key, setKey] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  useEffect(() => void api.images.status().then(setSt), [])
+  if (!st) return <div className="muted">Loading…</div>
+  const clean = (e: unknown): string => (e instanceof Error ? e.message : String(e)).replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
+  const save = async (): Promise<void> => {
+    setBusy(true)
+    setError(null)
+    try {
+      setSt(await api.images.setKey(key))
+      setKey('')
+    } catch (e) {
+      setError(clean(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <>
+      <h3>Images</h3>
+      <p className="settings-lead">
+        Ask any chat for a picture. Without a key, ChatGPT and Claude Code draw it themselves as a vector picture (free, on your plans): good for icons, logos, illustrations and banners. Add your own OpenAI API key to use OpenAI’s image model as well, for photos and detailed artwork.
+      </p>
+      <div className="setting-row">
+        <div className="setting-text">
+          <div className="setting-name">Drawn pictures</div>
+          <div className="setting-desc">Always on. Each picture can be saved as a PNG.</div>
+        </div>
+        <span className="setting-value">On</span>
+      </div>
+      {st.models.length === 0 ? (
+        <div className="setting-row">
+          <div className="setting-text">
+            <div className="setting-name">OpenAI’s image model</div>
+            <div className="setting-desc">Not part of this build.</div>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="setting-row images-key">
+            <div className="setting-text">
+              <div className="setting-name">OpenAI API key</div>
+              <div className="setting-desc">
+                {st.set
+                  ? `Saved (${st.hint}), encrypted on this PC. Pictures from the image model are billed to this key, not to your ChatGPT plan.`
+                  : 'Pictures from the image model are billed to your key (roughly $0.01 to $0.20 each, by quality and size), not to your ChatGPT plan. Create a key at platform.openai.com › API keys. OpenAI may ask you to verify your organisation before its image models work.'}
+              </div>
+              {!st.set && (
+                <div className="images-key-form">
+                  <input type="password" placeholder="sk-…" value={key} autoComplete="off" spellCheck={false} onChange={(e) => setKey(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && key.trim() && void save()} />
+                  <button className="btn small primary" disabled={!key.trim() || busy} onClick={() => void save()}>
+                    {busy ? 'Checking…' : 'Save key'}
+                  </button>
+                </div>
+              )}
+              {error && <div className="settings-error">{error}</div>}
+            </div>
+            {st.set && (
+              <button className="btn small" onClick={() => void api.images.clearKey().then(setSt)}>
+                Remove key
+              </button>
+            )}
+          </div>
+          <div className="setting-row">
+            <div className="setting-text">
+              <div className="setting-name">Image model</div>
+              <div className="setting-desc">gpt-image-2 is OpenAI’s newest.</div>
+            </div>
+            <select className="setting-select" value={st.options.model} onChange={(e) => void api.images.setOptions({ model: e.target.value }).then(setSt)}>
+              {st.models.map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="setting-row">
+            <div className="setting-text">
+              <div className="setting-name">Default quality</div>
+              <div className="setting-desc">{QUALITY_TEXT[st.options.quality]}. A chat may choose differently when you ask.</div>
+            </div>
+            <select className="setting-select" value={st.options.quality} onChange={(e) => void api.images.setOptions({ quality: e.target.value as 'low' | 'medium' | 'high' }).then(setSt)}>
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+            </select>
+          </div>
+        </>
+      )}
     </>
   )
 }

@@ -46,7 +46,8 @@ export const VISIBILITY: VisibilityGroup[] = [
       },
       { name: 'Connector sign-ins (Google, Notion)', now: 'private', advice: 'keep-private', why: 'Encrypted on this PC.', tradeoff: 'Nothing to change.' },
       { name: 'Claude Code sessions', now: 'private', advice: 'keep-private', why: 'Kept by Claude Code in your user folder.', tradeoff: 'Nothing to change.' },
-      { name: 'Projects and their shared memory', now: 'private', advice: 'keep-private', why: 'Stored on this PC (projects.json).', tradeoff: 'Nothing to change.' }
+      { name: 'Projects and their shared memory', now: 'private', advice: 'keep-private', why: 'Stored on this PC (projects.json).', tradeoff: 'Nothing to change.' },
+      { name: 'Your OpenAI API key for pictures', now: 'private', advice: 'keep-private', why: 'Encrypted with Windows (DPAPI) on this PC (images.bin).', tradeoff: 'Nothing to change.' }
     ]
   },
   {
@@ -60,6 +61,13 @@ export const VISIBILITY: VisibilityGroup[] = [
         now: 'private',
         advice: 'keep-private',
         why: 'How Claude Code gets the shared memory and the chat beside it, and how its notes and messages are picked out of its answers.',
+        tradeoff: MOVED
+      },
+      {
+        name: 'Pictures from OpenAI’s image model',
+        now: 'private',
+        advice: 'keep-private',
+        why: 'Uses your own API key, not your ChatGPT plan: the key store, the calls to the image model, and the image tool for Claude Code.',
         tradeoff: MOVED
       },
       { name: 'PDF export and preview', now: 'private', advice: 'keep-private', why: 'Prints a chat on this PC.', tradeoff: MOVED },
@@ -96,6 +104,13 @@ export const VISIBILITY: VisibilityGroup[] = [
         advice: 'must-public',
         why: 'Tools ChatGPT uses during replies: look at and send to the chat beside, save and forget project notes (main/assistant.ts).',
         tradeoff: 'Same as above.'
+      },
+      {
+        name: 'Pictures in ChatGPT replies (drawn, or handed to the image model)',
+        now: 'public',
+        advice: 'must-public',
+        why: 'The draw_picture and generate_image tools ChatGPT uses during replies (main/assistant.ts).',
+        tradeoff: 'Shows that pictures can be drawn or made, not how the image model is called.'
       },
       {
         name: 'Handing Market tools to a ChatGPT reply',
