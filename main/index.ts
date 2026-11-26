@@ -10,6 +10,7 @@ import { onSpeechStatus, speechStatus, transcribe, warmSpeech } from './speech'
 import { clearMemories, getChat, listChats, listMemories, readFeatures, readSettings, removeChat, removeMemory, saveChat, updateFeatures, updateSettings } from './store'
 import { startDevBridge } from './devBridge'
 import { getUiFrame, putUiFrame, UI_FRAME_CSP } from './uiFrames'
+import { showInExplorer } from './frontExplorer'
 import { USAGE_URL, type Chat, type ConnectorId, type Features, type ReplyEvent, type SendRequest } from '../shared/api'
 
 app.setName('Plotter')
