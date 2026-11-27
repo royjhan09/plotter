@@ -776,7 +776,7 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
               : handOff
                 ? 'Say what to do with it (optional), then send'
                 : p.model
-                ? 'Ask Plotter anything'
+                ? `Ask ${role ? role.name : 'Plotter'} anything`
                 : p.modelError
                   ? 'Plotter could not load its model'
                   : 'Loading…'
