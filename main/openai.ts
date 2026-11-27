@@ -176,10 +176,28 @@ interface RoundRequest {
   input: unknown[]
   tools: unknown[]
   verbosity: 'low' | 'medium' | 'high'
+  /** What the call is for, in the usage log (dev measurements). */
+  tag?: string
 }
+
+/** Token use per call (dev: the browser-mode server keeps the last calls, to measure what features cost). */
+export interface UsageEntry {
+  at: number
+  tag: string
+  ms: number
+  input: number
+  cached: number
+  output: number
+  reasoning: number
+  instructionsChars: number
+  inputItems: number
+  tools: number
+}
+export const usageLog: UsageEntry[] = []
 
 /** One streamed request. Resolves with the response's output items on response.completed; anything else throws. */
 export async function streamRound(req: RoundRequest, handlers: StreamHandlers, signal: AbortSignal): Promise<{ output: unknown[] }> {
+  const started = Date.now()
   const res = await authedFetch('/responses', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
@@ -222,7 +240,12 @@ export async function streamRound(req: RoundRequest, handlers: StreamHandlers, s
       delta?: string
       item?: { type?: string; action?: SearchAction }
       annotation?: { type?: string; url?: string; title?: string }
-      response?: { output?: unknown[]; error?: { code?: string; message?: string }; incomplete_details?: { reason?: string } }
+      response?: {
+        output?: unknown[]
+        error?: { code?: string; message?: string }
+        incomplete_details?: { reason?: string }
+        usage?: { input_tokens?: number; output_tokens?: number; input_tokens_details?: { cached_tokens?: number }; output_tokens_details?: { reasoning_tokens?: number } }
+      }
       code?: string
       message?: string
     }
@@ -247,9 +270,26 @@ export async function streamRound(req: RoundRequest, handlers: StreamHandlers, s
         if (ev.annotation?.type === 'url_citation' && ev.annotation.url)
           handlers.onSource({ url: ev.annotation.url.replace(/[?&]utm_source=openai$/, ''), title: ev.annotation.title || hostOf(ev.annotation.url) })
         break
-      case 'response.completed':
+      case 'response.completed': {
         output = ev.response?.output ?? []
+        const u = ev.response?.usage
+        if (u) {
+          usageLog.push({
+            at: Date.now(),
+            tag: req.tag ?? 'other',
+            ms: Date.now() - started,
+            input: u.input_tokens ?? 0,
+            cached: u.input_tokens_details?.cached_tokens ?? 0,
+            output: u.output_tokens ?? 0,
+            reasoning: u.output_tokens_details?.reasoning_tokens ?? 0,
+            instructionsChars: req.instructions.length,
+            inputItems: req.input.length,
+            tools: req.tools.length
+          })
+          if (usageLog.length > 500) usageLog.splice(0, usageLog.length - 500)
+        }
         break
+      }
       case 'response.failed': {
         const e = ev.response?.error
         throw new ReplyError(e?.code ?? 'failed', e?.message ?? 'The reply failed.')
@@ -288,7 +328,7 @@ const MAX_TOOL_ROUNDS = 12
  * results to the input and stream again → … until it answers without calling a tool (or MAX_TOOL_ROUNDS).
  */
 export async function runConversation(
-  opts: { model: string; effort: string; instructions: string; history: HistoryItem[]; webSearch: boolean; tools: LocalTool[]; verbosity?: 'low' | 'medium' | 'high' },
+  opts: { model: string; effort: string; instructions: string; history: HistoryItem[]; webSearch: boolean; tools: LocalTool[]; verbosity?: 'low' | 'medium' | 'high'; tag?: string },
   handlers: ConversationHandlers,
   signal: AbortSignal
 ): Promise<void> {
@@ -301,7 +341,7 @@ export async function runConversation(
   let runSeq = 0
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
     const { output } = await streamRound(
-      { model: opts.model, effort: opts.effort, instructions: opts.instructions, input, tools, verbosity: opts.verbosity ?? 'medium' },
+      { model: opts.model, effort: opts.effort, instructions: opts.instructions, input, tools, verbosity: opts.verbosity ?? 'medium', ...(opts.tag ? { tag: opts.tag } : {}) },
       handlers,
       signal
     )

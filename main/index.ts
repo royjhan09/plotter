@@ -10,6 +10,7 @@ import { cleanDraft, listRoles, removeRole, saveRole } from '@private/main/roles
 import { getCompany, labelLine, linkRoles, placeRole, renameCompany, unlinkRoles } from '@private/main/company'
 import { addUseWhen, createKit, getKit, kitFolder, listKits, listUsage, removeComponent, removeKit, removeRule, restoreVersion, saveComponent, saveRule, setDefaultKit, updateKit, versionCode } from '@private/main/kits'
 import { nextSpeaker, suggestMembers } from './team'
+import { usageLog } from './openai'
 import { draftRole, forgetModel, generateProjectBrief, generateSuggestion, generateTitle, primaryModel, ReplyError } from './openai'
 import { reply } from './assistant'
 import { onPythonStatus, pythonStatus, PY_SCHEME } from './python'
@@ -154,6 +155,11 @@ export const handlers: Record<string, (...args: never[]) => unknown> = {
     return nextSpeaker(chat, Array.isArray(history) ? history : [], Number(turnsLeft) || 0)
   },
   'team:suggest': (purpose: string) => suggestMembers(String(purpose ?? '')),
+  // dev measurements only (the browser-mode server): token use per ChatGPT call
+  'debug:usage': () => (BROWSER_ONLY ? usageLog : []),
+  'debug:usageClear': () => {
+    if (BROWSER_ONLY) usageLog.length = 0
+  },
   'company:get': () => getCompany(),
   'company:rename': (name: string) => renameCompany(String(name ?? '')),
   'company:place': (roleId: string, reportsTo: string | null) => placeRole(String(roleId), reportsTo ? String(reportsTo) : null),

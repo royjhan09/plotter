@@ -381,7 +381,8 @@ export async function reply(req: SendRequest, handlers: ConversationHandlers, si
       history: team ? teamHistory(req.history, role!.id) : req.history,
       webSearch,
       tools,
-      verbosity: req.research ? 'high' : 'medium'
+      verbosity: req.research ? 'high' : 'medium',
+      tag: team ? `member:${role!.name}` : role ? `role:${role.name}` : 'chat'
     },
     handlers,
     signal

@@ -35,12 +35,12 @@ Read the purpose, the members and the conversation. Pick the member whose job fi
 Answer with JSON only:
 {"next": "<member name>" or "done", "to": "<member name>" or "you", "note": "what they should do now, one short line", "done": "when next is done: one line on why (finished, or the question for the user)"}`
 
-async function askJson(instructions: string, text: string): Promise<Record<string, unknown>> {
+async function askJson(instructions: string, text: string, tag: string): Promise<Record<string, unknown>> {
   const model = await primaryModel()
   const effort = model.efforts.find((e) => e.effort === 'low')?.effort ?? model.defaultEffort
   let out = ''
   await streamRound(
-    { model: model.slug, effort, instructions, input: [toInput({ role: 'user', text })], tools: [], verbosity: 'low' },
+    { model: model.slug, effort, instructions, input: [toInput({ role: 'user', text })], tools: [], verbosity: 'low', tag },
     { onDelta: (t) => (out += t), onActivity: () => undefined, onSource: () => undefined },
     AbortSignal.timeout(90_000)
   )
@@ -58,7 +58,8 @@ export async function nextSpeaker(chat: Chat, history: HistoryItem[], turnsLeft:
   if (turnsLeft <= 0) return { speaker: null, done: 'The team has taken its turns for this message.' }
   const j = await askJson(
     FACILITATOR,
-    `Company: ${getCompany().name}\nPurpose of this chat: ${chat.team?.purpose ?? chat.title}\nMembers:\n${members.map(memberLine).join('\n')}\nTurns left before the user is asked again: ${turnsLeft}\n\nThe conversation:\n${transcript(history)}`
+    `Company: ${getCompany().name}\nPurpose of this chat: ${chat.team?.purpose ?? chat.title}\nMembers:\n${members.map(memberLine).join('\n')}\nTurns left before the user is asked again: ${turnsLeft}\n\nThe conversation:\n${transcript(history)}`,
+    'facilitator'
   )
   const pick = String(j['next'] ?? '').trim().toLowerCase()
   const who = members.find((m) => m.name.toLowerCase() === pick) ?? members.find((m) => pick && (pick.includes(m.name.toLowerCase()) || m.name.toLowerCase().includes(pick)))
@@ -74,7 +75,8 @@ export async function suggestMembers(purpose: string): Promise<string[]> {
   if (!roles.length || !purpose.trim()) return []
   const j = await askJson(
     'You pick which of the user\'s roles should be in a team chat for a purpose: only those whose job the work needs (usually 2 to 4). Answer with JSON only: {"members": ["<role name>", ...]}',
-    `Purpose: ${purpose}\nRoles:\n${roles.map(memberLine).join('\n')}`
+    `Purpose: ${purpose}\nRoles:\n${roles.map(memberLine).join('\n')}`,
+    'suggest-members'
   )
   const names = Array.isArray(j['members']) ? (j['members'] as unknown[]).map((x) => String(x).toLowerCase()) : []
   return roles.filter((r) => names.includes(r.name.toLowerCase())).map((r) => r.id)
