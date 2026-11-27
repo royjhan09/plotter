@@ -262,7 +262,14 @@ function modeInstructions(req: SendRequest, imageModel: boolean): string {
 function teamLine(r: RoleEntity): string {
   const t = roleTeam(r)
   if (!t) return ''
-  return `You work at ${getCompany().name}. You report to ${t.manager}.${t.reports.length ? ` Reporting to you: ${t.reports.join(', ')}. Keep their work in mind, and say when something is theirs to do.` : ''}`
+  return [
+    `You work at ${getCompany().name}.`,
+    t.manager ? `You report to ${t.manager}.` : '',
+    t.reports.length ? `Reporting to you: ${t.reports.join(', ')}. Keep their work in mind, and say when something is theirs to do.` : '',
+    t.relations.length ? `How you work with the others: ${t.relations.join(' ')} Act on these: say when to hand something on, or what the other role would check.` : ''
+  ]
+    .filter(Boolean)
+    .join(' ')
 }
 
 /** A role's job, said to ChatGPT before everything else. */

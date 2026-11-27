@@ -91,6 +91,9 @@ export function installDevBridge(): void {
       get: () => call('company:get'),
       rename: (name) => call('company:rename', name),
       place: (roleId, reportsTo) => call('company:place', roleId, reportsTo),
+      labelLine: (roleId, label) => call('company:labelLine', roleId, label),
+      link: (link) => call('company:link', link),
+      unlink: (id) => call('company:unlink', id),
       onChanged: (l) => {
         listeners.company.add(l)
         return () => listeners.company.delete(l)

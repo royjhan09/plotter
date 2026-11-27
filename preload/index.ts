@@ -42,6 +42,9 @@ const api: PlotterApi = {
     get: () => ipcRenderer.invoke('company:get'),
     rename: (name) => ipcRenderer.invoke('company:rename', name),
     place: (roleId, reportsTo) => ipcRenderer.invoke('company:place', roleId, reportsTo),
+    labelLine: (roleId, label) => ipcRenderer.invoke('company:labelLine', roleId, label),
+    link: (link) => ipcRenderer.invoke('company:link', link),
+    unlink: (id) => ipcRenderer.invoke('company:unlink', id),
     onChanged: (listener) => {
       const handler = (): void => listener()
       ipcRenderer.on('company:changed', handler)

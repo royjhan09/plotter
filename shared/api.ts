@@ -325,7 +325,34 @@ export interface Company {
   name: string
   /** A role's id → the id of the role it reports to, or "you". Roles not in here are not on the chart yet. */
   reportsTo: Record<string, string>
+  /** What the line from a role's manager to it means ("manages" when not set): role id → label. */
+  lineLabels?: Record<string, string>
+  /** Working relations between roles, beside who reports to whom. */
+  links?: RoleLink[]
   updatedAt: number
+}
+
+/** A kind of working relation between two roles (or custom, with its own label). */
+export type RoleLinkKind = 'hands-off' | 'reviews' | 'advises' | 'works-with' | 'depends' | 'custom'
+
+/** How each kind of relation is said and drawn. works-with goes both ways; the rest point from → to. */
+export const ROLE_LINK_KINDS: Record<RoleLinkKind, { label: string; color: string; both?: boolean }> = {
+  'hands-off': { label: 'hands work to', color: '#e8590c' },
+  reviews: { label: 'reviews the work of', color: '#0c8599' },
+  advises: { label: 'advises', color: '#7048e8' },
+  'works-with': { label: 'works with', color: '#2f9e44', both: true },
+  depends: { label: 'depends on', color: '#495057' },
+  custom: { label: '', color: '#d6336c' }
+}
+
+/** A working relation: from one role to another, of a kind, with its own words if wanted. */
+export interface RoleLink {
+  id: string
+  from: string
+  to: string
+  kind: RoleLinkKind
+  /** Shown on the diagram instead of the kind's words (e.g. "hands designs to"). */
+  label?: string
 }
 
 export type RoleDraft = Omit<RoleEntity, 'id' | 'replies' | 'createdAt' | 'updatedAt'>
@@ -625,6 +652,10 @@ export interface PlotterApi {
     rename: (name: string) => Promise<Company>
     /** Puts a role on the chart under someone ("you" or a role's id), or takes it off (null). */
     place: (roleId: string, reportsTo: string | null) => Promise<Company>
+    /** What the line from a role's manager to it says (empty: "manages"). */
+    labelLine: (roleId: string, label: string) => Promise<Company>
+    link: (link: Omit<RoleLink, 'id'>) => Promise<Company>
+    unlink: (linkId: string) => Promise<Company>
     onChanged: (listener: () => void) => () => void
   }
   roles: {

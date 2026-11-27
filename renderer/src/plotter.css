@@ -7003,3 +7003,165 @@ body,
 .org ul > li:only-child::after {
   border-radius: 0;
 }
+/* the org chart as a laid-out diagram: boxes placed by code, an SVG layer for lines and relations */
+.org-canvas {
+  position: relative;
+  margin: 0 auto;
+}
+.org-lines {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+.org-line {
+  fill: none;
+  stroke: var(--sand-strong);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+.org-link {
+  fill: none;
+  stroke-width: 2.2;
+  stroke-dasharray: 7 5;
+  opacity: 0.85;
+  transition: stroke-width 0.15s, opacity 0.15s;
+}
+.org-link.on {
+  stroke-width: 3.4;
+  opacity: 1;
+}
+.org-canvas .org-node {
+  position: absolute;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+.org-canvas .org-node.you {
+  justify-content: center;
+}
+.org-line-label,
+.org-link-label {
+  position: absolute;
+  z-index: 2;
+  transform: translate(-50%, -50%);
+  white-space: nowrap;
+  padding: 2px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--sand-strong);
+  background: var(--paper);
+  font: inherit;
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+.org-line-label {
+  color: var(--muted);
+  cursor: text;
+}
+.org-line-label:hover {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+.org-line-label.editing {
+  width: 110px;
+  text-align: center;
+  color: var(--ink);
+  border-color: var(--ink);
+  outline: none;
+}
+.org-link-label {
+  font-weight: 600;
+  border-width: 1.5px;
+  cursor: default;
+}
+.org-link-label.on {
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 22%, transparent);
+}
+/* the relations panel under the chart */
+.org-relations {
+  margin-top: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--sand);
+  border-radius: 14px;
+  background: var(--surface);
+}
+.org-relations-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin-bottom: 10px;
+}
+.org-relations-head h4 {
+  margin: 0;
+  font-size: 14px;
+}
+.org-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.org-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.org-legend-line {
+  display: inline-block;
+  width: 22px;
+  border-top: 2px dashed;
+}
+.org-legend-line.solid {
+  border-top: 2px solid var(--sand-strong);
+}
+.org-relation-list {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+}
+.org-relation-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  font-size: 13.5px;
+}
+.org-relation-list li.on {
+  background: var(--bubble);
+}
+.org-relation-words {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 1px 8px;
+  border: 1.5px solid;
+  border-radius: 999px;
+}
+.org-relation-off {
+  font-size: 12px;
+  color: var(--muted);
+}
+.org-relation-list .kit-variant-x {
+  margin-left: auto;
+}
+.org-relation-add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.org-relation-add select,
+.org-relation-add input {
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--sand);
+  border-radius: 8px;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+}
+.org-relation-add input {
+  width: 170px;
+}
