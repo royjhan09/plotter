@@ -219,9 +219,24 @@ function chatFiles(req: SendRequest): Attachment[] {
   return [...seen.values()]
 }
 
+/** What the user picked in the + menu for their latest message, as instructions for this reply. */
+function modeInstructions(req: SendRequest, imageModel: boolean): string {
+  const m = req.modes
+  if (!m) return ''
+  const out: string[] = []
+  if (m.image)
+    out.push(
+      `The user chose "Image generation" for their latest message: answer it by making a picture now with ${imageModel ? 'generate_image (or draw_picture if they ask for a vector or flat graphic)' : 'draw_picture'}, following what they describe. If they attached a picture, use it as the reference.`
+    )
+  if (m.search) out.push('The user chose "Web search" for their latest message: search the web before answering, and cite what you found.')
+  if (m.tools?.length)
+    out.push(`The user picked these tools for their latest message: ${m.tools.map((t) => t.name).join(', ')}. Use them to answer it.`)
+  return out.join('\n')
+}
+
 export async function reply(req: SendRequest, handlers: ConversationHandlers, signal: AbortSignal): Promise<void> {
   const f = readFeatures()
-  const webSearch = f.webSearch || !!req.research
+  const webSearch = f.webSearch || !!req.research || !!req.modes?.search
   const tools: LocalTool[] = []
   const parts = [INSTRUCTIONS]
   if (webSearch) parts.push(WEB_INSTRUCTIONS)
@@ -261,6 +276,8 @@ export async function reply(req: SendRequest, handlers: ConversationHandlers, si
   const imageModel = IMAGES && imageKeyStatus().set
   parts.push(IMAGE_INSTRUCTIONS(imageModel))
   tools.push(...imageTools(imageModel))
+  const picked = modeInstructions(req, imageModel)
+  if (picked) parts.push(picked)
   if (f.canvas || req.canvas) parts.push(CANVAS_INSTRUCTIONS)
   if (req.canvas) parts.push(canvasContext(req))
   if (req.research) parts.push(RESEARCH_INSTRUCTIONS)

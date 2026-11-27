@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import type { Attachment, EffortLevel, SpeechStatus } from '../../shared/api'
-import { ClaudeCodeIcon } from './ClaudeBuddy'
+import type { Attachment, EffortLevel, MessageModes, Project, SpeechStatus } from '../../shared/api'
+import { LIBRARY, LibraryPicker } from '@private/renderer/Library'
+import { MenuIcon, PlusMenu } from './PlusMenu'
 import { ACCEPT, badgeFor, sizeLabel, toAttachment } from './attachments'
 import { startRecording, type Recording } from './audio'
 import { DRAWING, PictureViewer, SketchEditor, type RectSource } from '@private/renderer/ImageViewer'
@@ -56,18 +57,7 @@ const Cross = (): React.JSX.Element => (
     <path d="M6 6l12 12M18 6 6 18" />
   </svg>
 )
-const Clip = (): React.JSX.Element => (
-  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-    <path d="m20 11.5-8.2 8.2a5 5 0 0 1-7.1-7.1l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7l-8.5 8.5a1.7 1.7 0 0 1-2.4-2.4l7.8-7.8" />
-  </svg>
-)
 
-const Telescope = (): React.JSX.Element => (
-  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="11" cy="11" r="6.5" />
-    <path d="m20 20-4.2-4.2M8.5 11h5M11 8.5v5" />
-  </svg>
-)
 
 export function speechStatusText(s: SpeechStatus): string | null {
   if (s.state === 'downloading') return `Downloading speech model (first time only)… ${s.percent}%`
@@ -83,6 +73,17 @@ export function useSpeechStatus(): SpeechStatus {
     return api.speech.onStatus(setS)
   }, [])
   return s
+}
+
+/** A white canvas to sketch on (the sketch editor draws on a picture). */
+function blankCanvas(): string {
+  const c = document.createElement('canvas')
+  c.width = 1280
+  c.height = 800
+  const g = c.getContext('2d')!
+  g.fillStyle = '#ffffff'
+  g.fillRect(0, 0, c.width, c.height)
+  return c.toDataURL('image/png')
 }
 
 // ---------------------------------------------------------------- composer
@@ -102,6 +103,12 @@ interface Props {
   /** Deep research for the next message (many searches, a long cited report). */
   research: boolean
   setResearch: (on: boolean) => void
+  /** Picked in the + menu for the next message: make a picture, search the web, use these tools. */
+  modes: MessageModes
+  setModes: (m: MessageModes) => void
+  /** "Start in a project": the projects to choose from, and what to do with the choice ('new' makes one). */
+  projects?: Project[]
+  onStartInProject?: (id: string) => void
   /** Opens "Send to Claude Code" with the message box's text as the task (absent when there is no chat yet). */
   onClaudeCode?: () => void
   /** claude: a Claude Code chat's box (no files, deep research or voice mode). */
@@ -125,6 +132,8 @@ export function Composer(p: Props): React.JSX.Element {
   const input = useRef<HTMLTextAreaElement>(null)
   const filePicker = useRef<HTMLInputElement>(null)
   const [menu, setMenu] = useState<'plus' | null>(null)
+  const [library, setLibrary] = useState(false)
+  const [sketching, setSketching] = useState(false)
   const [dictation, setDictation] = useState<'off' | 'recording' | 'transcribing'>('off')
   // a picture opened large from its thumbnail, or being drawn on
   const [viewing, setViewing] = useState<{ id: string; from: RectSource } | null>(null)
@@ -206,15 +215,74 @@ export function Composer(p: Props): React.JSX.Element {
         if (p.variant !== 'claude') void addFiles(e.dataTransfer.files)
       }}
     >
-      {p.research && (
+      {menu === 'plus' && (
+        <PlusMenu
+          research={p.research}
+          modes={p.modes}
+          projects={p.projects}
+          canSketch={DRAWING}
+          canLibrary={LIBRARY}
+          onClose={() => setMenu(null)}
+          onFiles={() => filePicker.current?.click()}
+          onLibrary={() => setLibrary(true)}
+          onSketch={() => setSketching(true)}
+          onResearch={(on) => p.setResearch(on)}
+          onModes={(m) => {
+            p.setModes(m)
+            input.current?.focus()
+          }}
+          onStartInProject={p.onStartInProject}
+          onClaudeCode={p.onClaudeCode}
+        />
+      )}
+      {(p.research || p.modes.image || p.modes.search || (p.modes.tools?.length ?? 0) > 0) && (
         <div className="mode-chips">
-          <span className="mode-chip">
-            <Telescope /> Deep research
-            <button title="Turn off deep research" onClick={() => p.setResearch(false)}>
-              ×
-            </button>
-          </span>
+          {p.research && (
+            <span className="mode-chip">
+              <MenuIcon name="research" /> Deep research
+              <button title="Turn off deep research" onClick={() => p.setResearch(false)}>
+                ×
+              </button>
+            </span>
+          )}
+          {p.modes.image && (
+            <span className="mode-chip">
+              <MenuIcon name="image" /> Image generation
+              <button title="Turn off image generation" onClick={() => p.setModes({ ...p.modes, image: false })}>
+                ×
+              </button>
+            </span>
+          )}
+          {p.modes.search && (
+            <span className="mode-chip">
+              <MenuIcon name="search" /> Web search
+              <button title="Turn off web search" onClick={() => p.setModes({ ...p.modes, search: false })}>
+                ×
+              </button>
+            </span>
+          )}
+          {(p.modes.tools ?? []).map((t) => (
+            <span key={t.id} className="mode-chip tool">
+              ${t.name.toLowerCase().replace(/\s+/g, '')}
+              <button title={`Don’t use ${t.name}`} onClick={() => p.setModes({ ...p.modes, tools: (p.modes.tools ?? []).filter((x) => x.id !== t.id) })}>
+                ×
+              </button>
+            </span>
+          ))}
         </div>
+      )}
+      {library && <LibraryPicker onPick={(a) => p.setAttachments((prev) => [...prev, a])} onClose={() => setLibrary(false)} />}
+      {sketching && (
+        <SketchEditor
+          src={blankCanvas()}
+          onClose={() => setSketching(false)}
+          onSave={(data) => {
+            const size = Math.round(((data.length - data.indexOf(',') - 1) * 3) / 4)
+            const n = p.attachments.filter((a) => a.name.startsWith('Sketch')).length
+            p.setAttachments((prev) => [...prev, { id: Math.random().toString(36).slice(2, 10), kind: 'image', name: n ? `Sketch ${n + 1}.png` : 'Sketch.png', mime: 'image/png', size, data }])
+            setSketching(false)
+          }}
+        />
       )}
       {p.topSlot}
       {p.attachments.length > 0 && (
@@ -279,50 +347,15 @@ export function Composer(p: Props): React.JSX.Element {
         {p.leadSlot ?? (
         <div className="pop-anchor">
           <button
-            className="icon-btn"
-            title="Add photos & files"
+            className={`icon-btn ${menu ? 'on' : ''}`}
+            title="Add files and more"
             onClick={(e) => {
               e.stopPropagation()
-              setMenu(menu === 'plus' ? null : 'plus')
+              setMenu(menu ? null : 'plus')
             }}
           >
             <Plus />
           </button>
-          {menu === 'plus' && (
-            <div className="pop left" onClick={(e) => e.stopPropagation()}>
-              <button
-                className="pop-item"
-                onClick={() => {
-                  setMenu(null)
-                  filePicker.current?.click()
-                }}
-              >
-                <Clip /> Add photos & files
-              </button>
-              <button
-                className={`pop-item ${p.research ? 'on' : ''}`}
-                onClick={() => {
-                  setMenu(null)
-                  p.setResearch(!p.research)
-                }}
-              >
-                <Telescope /> Deep research
-                {p.research && <span className="pop-check">✓</span>}
-              </button>
-              {p.onClaudeCode && (
-                <button
-                  className="pop-item"
-                  title="Hand a coding task to your own Claude Code"
-                  onClick={() => {
-                    setMenu(null)
-                    p.onClaudeCode?.()
-                  }}
-                >
-                  <ClaudeCodeIcon /> Send to Claude Code
-                </button>
-              )}
-            </div>
-          )}
           <input
             ref={filePicker}
             type="file"

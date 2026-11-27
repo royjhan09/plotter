@@ -1,7 +1,7 @@
 import { useState } from 'react'
 
 /** A picture as a PNG data: URL (an SVG is drawn onto a canvas at twice its size first). */
-async function asPng(src: string): Promise<string> {
+export async function asPng(src: string): Promise<string> {
   if (!src.startsWith('data:image/svg')) return src
   const img = new Image()
   img.src = src

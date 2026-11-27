@@ -3,6 +3,7 @@ import { app, BrowserWindow, dialog, ipcMain, shell, nativeImage, nativeTheme, p
 import { join } from 'node:path'
 import { authState, cancelSignIn, loadSession, signIn, signOut } from './auth'
 import { projectsChanged, setAppEmitter } from './appEvents'
+import { getLibraryItem, listLibrary } from '@private/main/library'
 import { clearImageKey, imageKeyStatus, setImageKey, setImageOptions } from '@private/main/images'
 import { addNote, createProject, editNote, listProjects, removeNote, removeProject, renameProject } from './projects'
 import { forgetModel, generateProjectBrief, generateSuggestion, generateTitle, primaryModel, ReplyError } from './openai'
@@ -17,7 +18,7 @@ import { showInExplorer } from './frontExplorer'
 import { pdfHandlers } from '@private/main/pdf'
 import { checkMarketTool, closeAllMarket, listMarket, removeMarketTool, saveMarketTool, setMarketConnected } from '@private/main/market'
 import { claudeCodeAvailable, makeProjectFolder, recentFolders, suggestProjectFolder, sendToClaude, settleStale, stopAllClaude, stopClaude } from '@private/main/claudeCode'
-import { USAGE_URL, type BesideChat, type Chat, type ChatMetaPatch, type MarketToolInput, type ConnectorId, type Features, type ReplyEvent, type SendRequest } from '../shared/api'
+import { USAGE_URL, type BesideChat, type Chat, type LibraryRef, type ChatMetaPatch, type MarketToolInput, type ConnectorId, type Features, type ReplyEvent, type SendRequest } from '../shared/api'
 
 app.setName('Plotter')
 // Interactive previews live on their own scheme/origin (see uiFrames.ts). Must be registered before ready.
@@ -149,6 +150,8 @@ export const handlers: Record<string, (...args: never[]) => unknown> = {
     return p
   },
 
+  'library:list': () => listLibrary(),
+  'library:get': (ref: LibraryRef) => getLibraryItem(ref),
   'images:status': () => imageKeyStatus(),
   'images:setKey': (key: string) => setImageKey(String(key ?? '')),
   'images:clearKey': () => clearImageKey(),

@@ -54,6 +54,8 @@ export interface ChatMessage {
   from?: HandOff
   /** The user meant this message for the chat beside (the "→" toggle): this chat writes it up and sends it there. */
   toSide?: boolean
+  /** What the user picked in the + menu for this message (shown as chips on it). */
+  modes?: MessageModes
   at: number
 }
 
@@ -115,6 +117,44 @@ export interface ImageKeyStatus {
   options: ImageOptions
   /** The image models to choose from (empty when this build has no image model). */
   models: string[]
+}
+
+/** A connector or Market tool picked in the + menu ("$gmail"): the reply should use it. */
+export interface ToolPick {
+  id: string
+  name: string
+  kind: 'connector' | 'market'
+  icon?: string
+}
+
+/** The + menu's choices for one message. */
+export interface MessageModes {
+  /** Image generation: the reply makes a picture. */
+  image?: boolean
+  /** Web search: the reply searches the web first. */
+  search?: boolean
+  tools?: ToolPick[]
+}
+
+/** Where a library item lives: a chat's message, and which file or picture in it. */
+export interface LibraryRef {
+  chatId: string
+  messageId: string
+  /** attachment: a file the user sent. figure: a picture in a reply (drawn, made, or from a tool). cc: a picture in a Claude Code reply. */
+  source: 'attachment' | 'figure' | 'cc'
+  index: number
+}
+
+/** A file or picture from any chat, to attach again ("Import from library"). */
+export interface LibraryItem {
+  ref: LibraryRef
+  name: string
+  kind: Attachment['kind']
+  /** A small preview (pictures only). */
+  thumb?: string
+  size?: number
+  chatTitle: string
+  at: number
 }
 
 /** A group of chats (ChatGPT and Claude Code) that share a small memory of what matters in the project. */
@@ -321,6 +361,8 @@ export interface SendRequest {
   beside?: BesideChat
   /** The user meant this message for the chat beside: the reply must send it there. */
   toSide?: boolean
+  /** Picked in the + menu for this message: make a picture, search the web, use these tools. */
+  modes?: MessageModes
 }
 
 /** Settings → Features. */
@@ -392,6 +434,12 @@ export interface PlotterApi {
     setKey: (key: string) => Promise<ImageKeyStatus>
     clearKey: () => Promise<ImageKeyStatus>
     setOptions: (patch: Partial<ImageOptions>) => Promise<ImageKeyStatus>
+  }
+  library: {
+    /** Files and pictures from every chat, newest first. */
+    list: () => Promise<LibraryItem[]>
+    /** One of them, ready to attach. */
+    get: (ref: LibraryRef) => Promise<Attachment>
   }
   /** A chat sent something to the chat beside it. */
   onSideDelivery: (listener: (d: SideDelivery) => void) => () => void

@@ -76,6 +76,10 @@ export function installDevBridge(): void {
       clearKey: () => call('images:clearKey'),
       setOptions: (patch) => call('images:setOptions', patch)
     },
+    library: {
+      list: () => call('library:list'),
+      get: (ref) => call('library:get', ref)
+    },
     onSideDelivery: (l) => {
       listeners.side.add(l)
       return () => listeners.side.delete(l)

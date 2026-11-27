@@ -70,6 +70,7 @@ export const VISIBILITY: VisibilityGroup[] = [
         why: 'Uses your own API key, not your ChatGPT plan: the key store, the calls to the image model, and the image tool for Claude Code.',
         tradeoff: MOVED
       },
+      { name: 'Import from library', now: 'private', advice: 'keep-private', why: 'Gathers the files and pictures from your chats to attach again.', tradeoff: MOVED },
       { name: 'PDF export and preview', now: 'private', advice: 'keep-private', why: 'Prints a chat on this PC.', tradeoff: MOVED },
       { name: 'Picture viewer and drawing on pictures', now: 'private', advice: 'keep-private', why: 'Runs on this PC.', tradeoff: `${MOVED} The public stand-in still shows a picture full size, without the zoom or drawing.` }
     ]
@@ -111,6 +112,13 @@ export const VISIBILITY: VisibilityGroup[] = [
         advice: 'must-public',
         why: 'The draw_picture and generate_image tools ChatGPT uses during replies (main/assistant.ts).',
         tradeoff: 'Shows that pictures can be drawn or made, not how the image model is called.'
+      },
+      {
+        name: 'The + menu’s choices: image generation, web search, $tools',
+        now: 'public',
+        advice: 'must-public',
+        why: 'They change what ChatGPT is asked to do for that message (main/assistant.ts).',
+        tradeoff: 'Same as above.'
       },
       {
         name: 'Handing Market tools to a ChatGPT reply',

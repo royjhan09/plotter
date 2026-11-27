@@ -4,6 +4,7 @@ import { Markdown } from './Markdown'
 import { badgeFor, sizeLabel } from './attachments'
 import { PictureViewer } from '@private/renderer/ImageViewer'
 import { ClaudeBuddy } from './ClaudeBuddy'
+import { MenuIcon } from './PlusMenu'
 import { ClaudeTurn } from '@private/renderer/ClaudeCode'
 import icon from '../../assets/icon.png'
 
@@ -57,6 +58,25 @@ export function Message({
           </div>
         )}
         {m.toSide && <div className="to-side-label">To the chat beside</div>}
+        {m.modes && (m.modes.image || m.modes.search || (m.modes.tools?.length ?? 0) > 0) && (
+          <div className="msg-modes">
+            {m.modes.image && (
+              <span className="msg-mode">
+                <MenuIcon name="image" /> Image generation
+              </span>
+            )}
+            {m.modes.search && (
+              <span className="msg-mode">
+                <MenuIcon name="search" /> Web search
+              </span>
+            )}
+            {(m.modes.tools ?? []).map((t) => (
+              <span key={t.id} className="msg-mode tool">
+                ${t.name.toLowerCase().replace(/\s+/g, '')}
+              </span>
+            ))}
+          </div>
+        )}
         {m.from && <HandOffCard from={m.from} />}
         {m.text && <div className="bubble">{m.text}</div>}
       </div>

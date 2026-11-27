@@ -33,6 +33,10 @@ const api: PlotterApi = {
     clearKey: () => ipcRenderer.invoke('images:clearKey'),
     setOptions: (patch) => ipcRenderer.invoke('images:setOptions', patch)
   },
+  library: {
+    list: () => ipcRenderer.invoke('library:list'),
+    get: (ref) => ipcRenderer.invoke('library:get', ref)
+  },
   onSideDelivery: (listener) => {
     const handler = (_e: IpcRendererEvent, d: SideDelivery): void => listener(d)
     ipcRenderer.on('side:deliver', handler)

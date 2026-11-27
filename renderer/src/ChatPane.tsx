@@ -1,5 +1,5 @@
 import { useCallback, useContext, useEffect, useRef, useState } from 'react'
-import type { Attachment, Chat, ChatKind, ChatMessage, BesideChat, ClaudeChatConfig, HandOff, Model, Project, ReplyEvent } from '../../shared/api'
+import type { Attachment, Chat, ChatKind, ChatMessage, BesideChat, ClaudeChatConfig, HandOff, MessageModes, Model, Project, ReplyEvent } from '../../shared/api'
 import { Composer, EffortMenu } from './Composer'
 import { VoiceMode } from './VoiceMode'
 import { toAttachment } from './attachments'
@@ -104,6 +104,8 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
   const [activity, setActivity] = useState<string | null>(null)
   const [limitHit, setLimitHit] = useState(false)
   const [research, setResearch] = useState(false)
+  // the + menu's choices for the next message: image generation, web search, $tools
+  const [modes, setModes] = useState<MessageModes>({})
   const [voice, setVoice] = useState(false)
   const canvas = useContext(CanvasContext)
   const chatRef = useRef<Chat | null>(null)
@@ -413,6 +415,18 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
     }
   }
 
+  /** "Start in a project" from the + menu: this new chat (or a new one, if this chat has begun) starts in the project. */
+  const startInProject = async (id: string): Promise<void> => {
+    let projectId = id
+    if (id === 'new') {
+      const made = await api.projects.create('New project')
+      projectId = made.id
+    }
+    if (chatRef.current) newChat('chatgpt')
+    setNewProject(projectId)
+    toast(`New chats here start in “${p.projects.find((x) => x.id === projectId)?.name ?? 'New project'}”.`)
+  }
+
   /** Sends the message box (or, with incoming, what the chat beside just sent) to Claude Code. */
   const sendClaude = async (incoming?: HandOff): Promise<void> => {
     const current = chatRef.current
@@ -467,7 +481,8 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
     if (typed) setHandOff(null)
     const now = Date.now()
     const asResearch = research && typed
-    const user: ChatMessage = { id: newId(), role: 'user', text, at: now, ...(files.length ? { attachments: files } : {}), ...(asResearch ? { research: true } : {}), ...(incoming ? { from: incoming } : {}), ...(typed && toSide && p.beside ? { toSide: true } : {}) }
+    const picked: MessageModes | undefined = typed && (modes.image || modes.search || modes.tools?.length) ? modes : undefined
+    const user: ChatMessage = { id: newId(), role: 'user', text, at: now, ...(files.length ? { attachments: files } : {}), ...(asResearch ? { research: true } : {}), ...(incoming ? { from: incoming } : {}), ...(typed && toSide && p.beside ? { toSide: true } : {}), ...(picked ? { modes: picked } : {}) }
     const reply: ChatMessage = { id: newId(), role: 'assistant', text: '', at: now }
     const current = chatRef.current
     const base: Chat = current ?? { id: newId(), title: incoming ? `From ${incoming.chat}`.slice(0, 60) : titleFrom(text, files), model: p.model.slug, messages: [], createdAt: now, updatedAt: now, ...(newProject ? { projectId: newProject } : {}) }
@@ -480,6 +495,7 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
       setDraft('')
       setAttachments([])
       setResearch(false)
+      setModes({})
     }
     setLimitHit(false)
     const requestId = newId()
@@ -497,6 +513,7 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
         effort: p.effort,
         history: history.map((m) => ({ role: m.role, text: withHandOff(m), ...(m.attachments ? { attachments: m.attachments } : {}) })),
         research: asResearch,
+        ...(picked ? { modes: picked } : {}),
         canvas: canvas.current,
         // only a message the user typed or spoke may send something to the chat beside (no ping-pong)
         ...(p.beside && typed ? { beside: p.beside, ...(toSide ? { toSide: true } : {}) } : {})
@@ -748,6 +765,10 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
           onError={toast}
           research={research}
           setResearch={setResearch}
+          modes={modes}
+          setModes={setModes}
+          projects={p.projects}
+          onStartInProject={isClaude ? undefined : (id) => void startInProject(id)}
           onClaudeCode={isClaude || !CLAUDE_CODE ? undefined : () => p.onSendToClaude(draft)}
           variant={isClaude ? 'claude' : 'chatgpt'}
           suggestion={handOff ? undefined : suggestion}
