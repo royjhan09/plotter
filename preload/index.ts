@@ -19,6 +19,7 @@ const api: PlotterApi = {
     rename: (id, name) => ipcRenderer.invoke('projects:rename', id, name),
     remove: (id) => ipcRenderer.invoke('projects:remove', id),
     addNote: (id, text) => ipcRenderer.invoke('projects:addNote', id, text),
+    setKit: (id, kitId) => ipcRenderer.invoke('projects:setKit', id, kitId),
     editNote: (id, noteId, text) => ipcRenderer.invoke('projects:editNote', id, noteId, text),
     removeNote: (id, noteId) => ipcRenderer.invoke('projects:removeNote', id, noteId),
     onChanged: (listener) => {
@@ -36,6 +37,19 @@ const api: PlotterApi = {
   library: {
     list: () => ipcRenderer.invoke('library:list'),
     get: (ref) => ipcRenderer.invoke('library:get', ref)
+  },
+  kits: {
+    list: () => ipcRenderer.invoke('kits:list'),
+    get: (id) => ipcRenderer.invoke('kits:get', id),
+    create: (name, copyFrom) => ipcRenderer.invoke('kits:create', name, copyFrom),
+    update: (id, patch) => ipcRenderer.invoke('kits:update', id, patch),
+    remove: (id) => ipcRenderer.invoke('kits:remove', id),
+    setDefault: (id) => ipcRenderer.invoke('kits:setDefault', id),
+    saveRule: (id, rule) => ipcRenderer.invoke('kits:saveRule', id, rule),
+    removeRule: (id, ruleId) => ipcRenderer.invoke('kits:removeRule', id, ruleId),
+    saveComponent: (id, c) => ipcRenderer.invoke('kits:saveComponent', id, c),
+    removeComponent: (id, cid) => ipcRenderer.invoke('kits:removeComponent', id, cid),
+    openFolder: (id) => ipcRenderer.invoke('kits:openFolder', id)
   },
   onSideDelivery: (listener) => {
     const handler = (_e: IpcRendererEvent, d: SideDelivery): void => listener(d)

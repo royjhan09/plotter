@@ -6,16 +6,16 @@ import { Figure } from './Figure'
 export function ToolRunCard({ run }: { run: ToolRun }): React.JSX.Element {
   const [open, setOpen] = useState(false)
   const hasDetail = !!(run.code || run.output || run.error)
-  const icon = run.kind === 'python' ? '🐍' : run.kind === 'memory' ? '🧠' : run.kind === 'market' ? '🧩' : run.kind === 'side' ? '↔' : run.kind === 'image' ? '🎨' : '🔗'
+  const icon = run.kind === 'python' ? '🐍' : run.kind === 'memory' ? '🧠' : run.kind === 'market' ? '🧩' : run.kind === 'side' ? '↔' : run.kind === 'image' ? '🎨' : run.kind === 'kit' ? '◧' : '🔗'
   return (
     <div className={`toolrun ${run.kind} ${run.error ? 'failed' : ''}`}>
       <button className="toolrun-head" onClick={() => hasDetail && setOpen((o) => !o)} disabled={!hasDetail}>
         <span className="toolrun-icon">{icon}</span>
         <span className="toolrun-title">{run.title}</span>
-        {run.kind === 'memory' && run.output && <span className="toolrun-inline">{run.output}</span>}
-        {hasDetail && run.kind !== 'memory' && <span className="toolrun-toggle">{open ? 'Hide' : 'Show'}</span>}
+        {(run.kind === 'memory' || run.kind === 'kit') && run.output && <span className="toolrun-inline">{run.output}</span>}
+        {hasDetail && run.kind !== 'memory' && run.kind !== 'kit' && <span className="toolrun-toggle">{open ? 'Hide' : 'Show'}</span>}
       </button>
-      {open && run.kind !== 'memory' && (
+      {open && run.kind !== 'memory' && run.kind !== 'kit' && (
         <div className="toolrun-body">
           {run.code && (
             <pre className="toolrun-code">

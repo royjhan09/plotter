@@ -47,6 +47,7 @@ export const VISIBILITY: VisibilityGroup[] = [
       { name: 'Connector sign-ins (Google, Notion)', now: 'private', advice: 'keep-private', why: 'Encrypted on this PC.', tradeoff: 'Nothing to change.' },
       { name: 'Claude Code sessions', now: 'private', advice: 'keep-private', why: 'Kept by Claude Code in your user folder.', tradeoff: 'Nothing to change.' },
       { name: 'Projects and their shared memory', now: 'private', advice: 'keep-private', why: 'Stored on this PC (projects.json).', tradeoff: 'Nothing to change.' },
+      { name: 'Your design kits', now: 'private', advice: 'keep-private', why: 'Folders on this PC (kits/): rules, tokens and component files.', tradeoff: 'Nothing to change.' },
       { name: 'Your OpenAI API key for pictures', now: 'private', advice: 'keep-private', why: 'Encrypted with Windows (DPAPI) on this PC (images.bin).', tradeoff: 'Nothing to change.' }
     ]
   },
@@ -68,6 +69,13 @@ export const VISIBILITY: VisibilityGroup[] = [
         now: 'private',
         advice: 'keep-private',
         why: 'Uses your own API key, not your ChatGPT plan: the key store, the calls to the image model, and the image tool for Claude Code.',
+        tradeoff: MOVED
+      },
+      {
+        name: 'Design kits',
+        now: 'private',
+        advice: 'keep-private',
+        why: 'The kits page, where kits are kept, and how Claude Code gets your kit folder.',
         tradeoff: MOVED
       },
       { name: 'Import from library', now: 'private', advice: 'keep-private', why: 'Gathers the files and pictures from your chats to attach again.', tradeoff: MOVED },
@@ -119,6 +127,13 @@ export const VISIBILITY: VisibilityGroup[] = [
         advice: 'must-public',
         why: 'They change what ChatGPT is asked to do for that message (main/assistant.ts).',
         tradeoff: 'Same as above.'
+      },
+      {
+        name: 'Your design kit in ChatGPT replies',
+        now: 'public',
+        advice: 'must-public',
+        why: 'How ChatGPT is told your rules and components, and its tools to fetch and save them (main/assistant.ts).',
+        tradeoff: 'Shows that a kit is used, not what is in yours (that stays on this PC).'
       },
       {
         name: 'Handing Market tools to a ChatGPT reply',

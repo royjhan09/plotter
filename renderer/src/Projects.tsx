@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { PROJECT_MEMORY_LIMIT, type ChatKind, type ChatSummary, type Project } from '../../shared/api'
+import { PROJECT_MEMORY_LIMIT, type ChatKind, type ChatSummary, type KitSummary, type Project } from '../../shared/api'
 import { ClaudeBuddy } from './ClaudeBuddy'
 import { CLAUDE_CODE } from '@private/renderer/ClaudeCode'
 import icon from '../../assets/sprout.svg'
@@ -49,6 +49,8 @@ export function ProjectPage({
   const [draft, setDraft] = useState('')
   const [editing, setEditing] = useState<{ id: string; text: string } | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [kits, setKits] = useState<KitSummary[]>([])
+  useEffect(() => void api.kits.list().then(setKits, () => setKits([])), [])
   useEffect(() => setName(project.name), [project.name])
   useEffect(() => {
     const esc = (e: KeyboardEvent): void => {
@@ -197,6 +199,27 @@ export function ProjectPage({
             </button>
           </div>
         </section>
+
+        {kits.length > 0 && (
+          <section className="project-section">
+            <div className="project-section-head">
+              <h3>Design kit</h3>
+              <select
+                className="setting-select"
+                value={project.kitId ?? ''}
+                onChange={(e) => void api.projects.setKit(project.id, e.target.value || null).catch(fail)}
+              >
+                <option value="">Default ({kits.find((k) => k.isDefault)?.name ?? 'none'})</option>
+                {kits.map((k) => (
+                  <option key={k.id} value={k.id}>
+                    {k.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <p className="project-lead">The rules and components this project’s chats build with.</p>
+          </section>
+        )}
 
         <section className="project-section danger-zone">
           {confirmDelete ? (

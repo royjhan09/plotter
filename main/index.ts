@@ -5,7 +5,8 @@ import { authState, cancelSignIn, loadSession, signIn, signOut } from './auth'
 import { projectsChanged, setAppEmitter } from './appEvents'
 import { getLibraryItem, listLibrary } from '@private/main/library'
 import { clearImageKey, imageKeyStatus, setImageKey, setImageOptions } from '@private/main/images'
-import { addNote, createProject, editNote, listProjects, removeNote, removeProject, renameProject } from './projects'
+import { addNote, createProject, editNote, listProjects, removeNote, removeProject, renameProject, setProjectKit } from './projects'
+import { createKit, getKit, kitFolder, listKits, removeComponent, removeKit, removeRule, saveComponent, saveRule, setDefaultKit, updateKit } from '@private/main/kits'
 import { forgetModel, generateProjectBrief, generateSuggestion, generateTitle, primaryModel, ReplyError } from './openai'
 import { reply } from './assistant'
 import { onPythonStatus, pythonStatus, PY_SCHEME } from './python'
@@ -18,7 +19,7 @@ import { showInExplorer } from './frontExplorer'
 import { pdfHandlers } from '@private/main/pdf'
 import { checkMarketTool, closeAllMarket, listMarket, removeMarketTool, saveMarketTool, setMarketConnected } from '@private/main/market'
 import { claudeCodeAvailable, makeProjectFolder, recentFolders, suggestProjectFolder, sendToClaude, settleStale, stopAllClaude, stopClaude } from '@private/main/claudeCode'
-import { USAGE_URL, type BesideChat, type Chat, type LibraryRef, type ChatMetaPatch, type MarketToolInput, type ConnectorId, type Features, type ReplyEvent, type SendRequest } from '../shared/api'
+import { USAGE_URL, type BesideChat, type Chat, type KitComponent, type KitPatch, type KitRule, type LibraryRef, type ChatMetaPatch, type MarketToolInput, type ConnectorId, type Features, type ReplyEvent, type SendRequest } from '../shared/api'
 
 app.setName('Plotter')
 // Interactive previews live on their own scheme/origin (see uiFrames.ts). Must be registered before ready.
@@ -143,6 +144,27 @@ export const handlers: Record<string, (...args: never[]) => unknown> = {
     const p = editNote(String(id), String(noteId), String(text ?? ''))
     projectsChanged()
     return p
+  },
+  'projects:setKit': (id: string, kitId: string | null) => {
+    const p = setProjectKit(String(id), kitId ? String(kitId) : null)
+    projectsChanged()
+    return p
+  },
+  'kits:list': () => listKits(),
+  'kits:get': (id: string) => getKit(String(id)),
+  'kits:create': (name: string, copyFrom?: string) => createKit(String(name ?? ''), copyFrom ? String(copyFrom) : undefined),
+  'kits:update': (id: string, patch: KitPatch) => updateKit(String(id), patch ?? {}),
+  'kits:remove': (id: string) => removeKit(String(id)),
+  'kits:setDefault': (id: string) => setDefaultKit(String(id)),
+  'kits:saveRule': (id: string, rule: Partial<KitRule> & { text: string }) => saveRule(String(id), { ...rule, text: String(rule?.text ?? '') }),
+  'kits:removeRule': (id: string, ruleId: string) => removeRule(String(id), String(ruleId)),
+  'kits:saveComponent': (id: string, c: Partial<KitComponent> & { name: string; code: string }) =>
+    saveComponent(String(id), { ...c, name: String(c?.name ?? ''), code: String(c?.code ?? '') }),
+  'kits:removeComponent': (id: string, cid: string) => removeComponent(String(id), String(cid)),
+  'kits:openFolder': async (id: string) => {
+    const folder = kitFolder(String(id))
+    if (BROWSER_ONLY) return showInExplorer(folder)
+    await shell.openPath(folder)
   },
   'projects:removeNote': (id: string, noteId: string) => {
     const p = removeNote(String(id), String(noteId))

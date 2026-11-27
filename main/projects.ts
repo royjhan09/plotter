@@ -78,6 +78,14 @@ export function editNote(id: string, noteId: string, text: string): Project {
   return update(id, (p) => ({ ...p, notes: p.notes.map((n) => (n.id === noteId ? { ...n, text: clean, at: Date.now() } : n)) }))
 }
 
+/** The design kit the project's chats build with; null goes back to the default kit. */
+export function setProjectKit(id: string, kitId: string | null): Project {
+  return update(id, (p) => {
+    const { kitId: _old, ...rest } = p
+    return kitId ? { ...rest, kitId } : rest
+  })
+}
+
 export function removeNote(id: string, noteId: string): Project {
   return update(id, (p) => ({ ...p, notes: p.notes.filter((n) => n.id !== noteId) }))
 }

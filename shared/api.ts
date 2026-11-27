@@ -21,7 +21,7 @@ export interface Attachment {
 /** Something Plotter did with one of its own tools while answering (shown in the reply as a card). */
 export interface ToolRun {
   id: string
-  kind: 'python' | 'memory' | 'connector' | 'market' | 'side' | 'image'
+  kind: 'python' | 'memory' | 'connector' | 'market' | 'side' | 'image' | 'kit'
   /** One line, e.g. "Ran Python", "Saved to memory", "Searched Gmail". */
   title: string
   /** Python: the code; connector: the request. */
@@ -163,9 +163,67 @@ export interface Project {
   name: string
   /** Shared memory: short notes every chat in the project sees. Kept small on purpose (see PROJECT_MEMORY_LIMIT). */
   notes: ProjectNote[]
+  /** The design kit its chats build with (otherwise the default kit). */
+  kitId?: string
   createdAt: number
   updatedAt: number
 }
+
+/**
+ * A design kit: your design theme, kept once and reused in every app you build. Rules are your design
+ * principles; components are reusable pieces (a close button…), each with the situation it is for.
+ */
+export interface Kit {
+  id: string
+  name: string
+  description?: string
+  /** Design tokens, as CSS custom properties without the leading -- (accent: #e8590c). */
+  tokens: Record<string, string>
+  rules: KitRule[]
+  components: KitComponent[]
+  createdAt: number
+  updatedAt: number
+}
+
+export interface KitRule {
+  id: string
+  /** Copy, Layout, Icons, Buttons, Colour… */
+  category: string
+  text: string
+}
+
+export interface KitComponent {
+  id: string
+  name: string
+  category: string
+  /** The situation it is for: how one is chosen over another, and whether a new one is needed. */
+  useWhen: string
+  /** Self-contained HTML (with a <style>); adjustable values are CSS variables: var(--name, default). */
+  code: string
+  /** What was changed and why (so the same edit is never asked for twice). */
+  notes?: string
+  variants?: KitVariant[]
+  /** Who saved it last (you, a chat's title, Claude Code). */
+  by?: string
+  updatedAt: number
+}
+
+/** Named values for a component's variables (a red close button, a small one…). */
+export interface KitVariant {
+  name: string
+  vars: Record<string, string>
+}
+
+export interface KitSummary {
+  id: string
+  name: string
+  description?: string
+  rules: number
+  components: number
+  isDefault: boolean
+}
+
+export type KitPatch = { name?: string; description?: string; tokens?: Record<string, string> }
 
 export interface ProjectNote {
   id: string
@@ -203,6 +261,8 @@ export interface ClaudeChatConfig {
   sessionId?: string
   /** When the shared project memory was last sent to this session (it is sent again only after it changes). */
   projectSeenAt?: number
+  /** When the design kit was last sent to this session (sent again only after it changes). */
+  kitSeenAt?: number
 }
 
 /** "Send to Claude Code": edit = may change files; plan = reads and answers only. */
@@ -423,6 +483,8 @@ export interface PlotterApi {
     /** Deletes the project; its chats stay, outside any project. */
     remove: (id: string) => Promise<Project[]>
     addNote: (id: string, text: string) => Promise<Project>
+    /** The design kit the project's chats build with (null: the default kit). */
+    setKit: (id: string, kitId: string | null) => Promise<Project>
     editNote: (id: string, noteId: string, text: string) => Promise<Project>
     removeNote: (id: string, noteId: string) => Promise<Project>
     /** A project changed (a chat saved a note, a chat moved in or out). */
@@ -440,6 +502,21 @@ export interface PlotterApi {
     list: () => Promise<LibraryItem[]>
     /** One of them, ready to attach. */
     get: (ref: LibraryRef) => Promise<Attachment>
+  }
+  kits: {
+    list: () => Promise<KitSummary[]>
+    get: (id: string) => Promise<Kit>
+    /** A new kit, empty or copied from another. */
+    create: (name: string, copyFrom?: string) => Promise<Kit>
+    update: (id: string, patch: KitPatch) => Promise<Kit>
+    remove: (id: string) => Promise<KitSummary[]>
+    setDefault: (id: string) => Promise<KitSummary[]>
+    saveRule: (id: string, rule: Partial<KitRule> & { text: string }) => Promise<Kit>
+    removeRule: (id: string, ruleId: string) => Promise<Kit>
+    saveComponent: (id: string, component: Partial<KitComponent> & { name: string; code: string }) => Promise<Kit>
+    removeComponent: (id: string, componentId: string) => Promise<Kit>
+    /** Opens the kit's folder (its files, which Claude Code reads and saves to). */
+    openFolder: (id: string) => Promise<void>
   }
   /** A chat sent something to the chat beside it. */
   onSideDelivery: (listener: (d: SideDelivery) => void) => () => void

@@ -63,6 +63,7 @@ export function installDevBridge(): void {
       rename: (id, name) => call('projects:rename', id, name),
       remove: (id) => call('projects:remove', id),
       addNote: (id, text) => call('projects:addNote', id, text),
+      setKit: (id, kitId) => call('projects:setKit', id, kitId),
       editNote: (id, noteId, text) => call('projects:editNote', id, noteId, text),
       removeNote: (id, noteId) => call('projects:removeNote', id, noteId),
       onChanged: (l) => {
@@ -79,6 +80,19 @@ export function installDevBridge(): void {
     library: {
       list: () => call('library:list'),
       get: (ref) => call('library:get', ref)
+    },
+    kits: {
+      list: () => call('kits:list'),
+      get: (id) => call('kits:get', id),
+      create: (name, copyFrom) => call('kits:create', name, copyFrom),
+      update: (id, patch) => call('kits:update', id, patch),
+      remove: (id) => call('kits:remove', id),
+      setDefault: (id) => call('kits:setDefault', id),
+      saveRule: (id, rule) => call('kits:saveRule', id, rule),
+      removeRule: (id, ruleId) => call('kits:removeRule', id, ruleId),
+      saveComponent: (id, c) => call('kits:saveComponent', id, c),
+      removeComponent: (id, cid) => call('kits:removeComponent', id, cid),
+      openFolder: (id) => call('kits:openFolder', id)
     },
     onSideDelivery: (l) => {
       listeners.side.add(l)

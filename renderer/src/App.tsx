@@ -11,6 +11,7 @@ import { CLAUDE_CODE } from '@private/renderer/ClaudeCode'
 import { ChatPane, announceRename, cleanError } from './ChatPane'
 import { RailIcon } from './RailIcon'
 import { MARKET, Market } from '@private/renderer/Market'
+import { KITS, Kits } from '@private/renderer/Kits'
 import icon from '../../assets/sprout.svg'
 
 const api = window.plotter
@@ -159,6 +160,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
   const [settingsTab, setSettingsTab] = useState<SettingsTab>('account')
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [marketOpen, setMarketOpen] = useState(false)
+  const [kitsOpen, setKitsOpen] = useState(false)
   // Projects: groups of chats with a shared memory; one project's page can be open instead of the chats.
   const [projects, setProjects] = useState<Project[]>([])
   const [projectOpen, setProjectOpen] = useState<string | null>(null)
@@ -169,6 +171,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
   }, [refreshProjects])
   const openSettings = (tab: SettingsTab): void => {
     setMarketOpen(false)
+    setKitsOpen(false)
     setProjectOpen(null)
     setSettingsTab(tab)
     setSettingsOpen(true)
@@ -214,6 +217,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
   const openChat = (id: string, where: 'left' | 'right' = side): void => {
     setSettingsOpen(false)
     setMarketOpen(false)
+    setKitsOpen(false)
     setProjectOpen(null)
     if (where === 'right') setSplit(true)
     const other = where === 'left' ? rightId : leftId
@@ -229,6 +233,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
   const newChat = (): void => {
     setSettingsOpen(false)
     setMarketOpen(false)
+    setKitsOpen(false)
     setProjectOpen(null)
     setSideNew(side, 'chatgpt')
     setSideId(side, null)
@@ -238,6 +243,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
   const newClaudeChat = (beside: boolean, seed?: string, from?: HandOff, projectId?: string): void => {
     setSettingsOpen(false)
     setMarketOpen(false)
+    setKitsOpen(false)
     setProjectOpen(null)
     const where: 'left' | 'right' = beside ? (side === 'left' ? 'right' : 'left') : side
     if (where === 'right') setSplit(true)
@@ -290,6 +296,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
     refreshProjects()
     setSettingsOpen(false)
     setMarketOpen(false)
+    setKitsOpen(false)
     setProjectOpen(p.id)
   }
   /** A new chat of a kind inside a project, on the focused side. */
@@ -297,6 +304,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
     setProjectOpen(null)
     setSettingsOpen(false)
     setMarketOpen(false)
+    setKitsOpen(false)
     setSideNew(side, kind, undefined, undefined, projectId)
     setSideId(side, null)
   }
@@ -345,6 +353,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
   const openNew = (kind: ChatKind, where: 'left' | 'right'): void => {
     setSettingsOpen(false)
     setMarketOpen(false)
+    setKitsOpen(false)
     if (where === 'right') setSplit(true)
     setProjectOpen(null)
     setSideNew(where, kind)
@@ -426,10 +435,26 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
               onClick={() => {
                 setSettingsOpen(false)
                 setPanel(null)
+                setKitsOpen(false)
                 setMarketOpen(!marketOpen)
               }}
             >
               <RailIcon name="market" />
+            </button>
+          )}
+          {KITS && (
+            <button
+              className={`rail-btn ${kitsOpen ? 'on' : ''}`}
+              title="Design kits: your rules and components"
+              onClick={() => {
+                setSettingsOpen(false)
+                setMarketOpen(false)
+                setProjectOpen(null)
+                setPanel(null)
+                setKitsOpen(!kitsOpen)
+              }}
+            >
+              <RailIcon name="kits" />
             </button>
           )}
           <button className={`rail-btn ${settingsOpen ? 'on' : ''}`} title="Settings" onClick={() => (settingsOpen ? setSettingsOpen(false) : openSettings('general'))}>
@@ -536,6 +561,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
               onOpenProject={(id) => {
                 setSettingsOpen(false)
                 setMarketOpen(false)
+                setKitsOpen(false)
                 setProjectOpen(id)
                 if (!pinned) setPanel(null)
               }}
@@ -547,8 +573,9 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
       </aside>
 
       {marketOpen && !settingsOpen && <Market onClose={() => setMarketOpen(false)} />}
+      {kitsOpen && !settingsOpen && !marketOpen && <Kits onClose={() => setKitsOpen(false)} />}
 
-      {openProject && !settingsOpen && !marketOpen && (
+      {openProject && !settingsOpen && !marketOpen && !kitsOpen && (
         <ProjectPage
           project={openProject}
           chats={chats}
@@ -584,7 +611,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
 
       <div
         className={`panes ${split ? 'split' : ''}`}
-        hidden={settingsOpen || marketOpen || !!openProject}
+        hidden={settingsOpen || marketOpen || kitsOpen || !!openProject}
         onDragOver={onPanesDragOver}
         onDragLeave={(e) => {
           if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDropSide(null)

@@ -3,6 +3,8 @@ import { addMemory, getChat, listMemories, readFeatures, removeMemory } from './
 import { addNote, chatDigest, projectContext, removeNote } from './projects'
 import { deliverToSide, projectsChanged } from './appEvents'
 import { generateWithKey, imageKeyStatus, IMAGES } from '@private/main/images'
+import { kitBrief, kitFor, saveComponent, saveRule } from '@private/main/kits'
+import type { Kit } from '../shared/api'
 import { pythonTool } from './python'
 import { connectorTools } from './connectors'
 import { marketTools } from './marketChat'
@@ -219,6 +221,71 @@ function chatFiles(req: SendRequest): Attachment[] {
   return [...seen.values()]
 }
 
+const KIT_INSTRUCTIONS = (brief: string): string => `${brief}
+Whenever you design or build anything visual (ui blocks, HTML, CSS, app code, mockups, icons), follow the kit's rules without being reminded, and reuse its components: call kit_component to get one's code and use it as it is, changing only its CSS variables for a variation. Pick the component whose "use when" fits the situation; make a new one only when none fits, then save it with kit_save_component, describing its situation in use_when. When the user asks for a change to a kit component (e.g. a smaller X), make it and save it to the kit too, with a short note, so every app gets it. When the user states a lasting design preference, add it with kit_add_rule. Do not mention the kit in replies that have nothing to do with design.`
+
+function kitTools(kit: Kit, chatTitle: string): LocalTool[] {
+  return [
+    {
+      name: 'kit_component',
+      description: "Get a component's code from the user's design kit, by name.",
+      parameters: { type: 'object', properties: { name: { type: 'string' } }, required: ['name'] },
+      label: () => 'Looking in the design kit…',
+      run: async (args) => {
+        const name = String(args['name'] ?? '').toLowerCase()
+        const c = kit.components.find((x) => x.name.toLowerCase() === name) ?? kit.components.find((x) => x.name.toLowerCase().includes(name))
+        if (!c) return { output: JSON.stringify({ error: `No component named ${args['name']}. Components: ${kit.components.map((x) => x.name).join(', ')}` }) }
+        return {
+          output: JSON.stringify({ name: c.name, use_when: c.useWhen, notes: c.notes, variants: c.variants, code: c.code }),
+          run: { kind: 'kit', title: 'Used from your design kit', output: c.name }
+        }
+      }
+    },
+    {
+      name: 'kit_save_component',
+      description: "Save a component to the user's design kit (a new one, or a changed version of one with the same name).",
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string' },
+          category: { type: 'string', description: 'Buttons, Inputs, Icons, Layout, Cards, Navigation…' },
+          use_when: { type: 'string', description: 'The situation it is for, so the right one is picked next time.' },
+          code: { type: 'string', description: 'Self-contained HTML with a <style>; make adjustable values CSS variables with defaults: var(--name, default).' },
+          notes: { type: 'string', description: 'What changed and why, if this updates one.' }
+        },
+        required: ['name', 'use_when', 'code']
+      },
+      label: () => 'Saving to the design kit…',
+      run: async (args) => {
+        try {
+          saveComponent(kit.id, { name: String(args['name'] ?? ''), category: args['category'] as string | undefined, useWhen: String(args['use_when'] ?? ''), code: String(args['code'] ?? ''), notes: args['notes'] as string | undefined }, chatTitle)
+          return { output: JSON.stringify({ saved: true }), run: { kind: 'kit', title: 'Saved to your design kit', output: String(args['name'] ?? '') } }
+        } catch (e) {
+          return { output: JSON.stringify({ error: e instanceof Error ? e.message : String(e) }) }
+        }
+      }
+    },
+    {
+      name: 'kit_add_rule',
+      description: "Add a lasting design principle to the user's design kit.",
+      parameters: {
+        type: 'object',
+        properties: { category: { type: 'string', description: 'Copy, Layout, Icons, Buttons, Colour, Type…' }, text: { type: 'string', description: 'The rule, one or two sentences.' } },
+        required: ['text']
+      },
+      label: () => 'Adding a design rule…',
+      run: async (args) => {
+        try {
+          saveRule(kit.id, { category: args['category'] as string | undefined, text: String(args['text'] ?? '') })
+          return { output: JSON.stringify({ saved: true }), run: { kind: 'kit', title: 'Added a design rule', output: String(args['text'] ?? '') } }
+        } catch (e) {
+          return { output: JSON.stringify({ error: e instanceof Error ? e.message : String(e) }) }
+        }
+      }
+    }
+  ]
+}
+
 /** What the user picked in the + menu for their latest message, as instructions for this reply. */
 function modeInstructions(req: SendRequest, imageModel: boolean): string {
   const m = req.modes
@@ -264,6 +331,11 @@ export async function reply(req: SendRequest, handlers: ConversationHandlers, si
   if (project) {
     parts.push(PROJECT_INSTRUCTIONS(project.text))
     tools.push(...projectTools(project.project.id, title))
+  }
+  const kit = kitFor(project?.project.kitId)
+  if (kit) {
+    parts.push(KIT_INSTRUCTIONS(kitBrief(kit)))
+    tools.push(...kitTools(kit, title))
   }
   if (req.beside) {
     parts.push(SIDE_INSTRUCTIONS(req.beside))
