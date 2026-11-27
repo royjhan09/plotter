@@ -6,6 +6,7 @@ import { generateWithKey, imageKeyStatus, IMAGES } from '@private/main/images'
 import { kitBrief, kitFor } from '@private/main/kits'
 import { KIT_GUIDE, kitToolSpecs, runKitTool } from '@private/main/kitOps'
 import { bumpRole, getRole } from '@private/main/roles'
+import { getCompany, roleTeam } from '@private/main/company'
 import { ROLE_TOOL_INFO, type Kit, type RoleEntity, type RoleTool } from '../shared/api'
 import { pythonTool } from './python'
 import { connectorTools } from './connectors'
@@ -257,6 +258,13 @@ function modeInstructions(req: SendRequest, imageModel: boolean): string {
   return out.join('\n')
 }
 
+/** Where a role sits in the user's company: who it reports to and who reports to it. */
+function teamLine(r: RoleEntity): string {
+  const t = roleTeam(r)
+  if (!t) return ''
+  return `You work at ${getCompany().name}. You report to ${t.manager}.${t.reports.length ? ` Reporting to you: ${t.reports.join(', ')}. Keep their work in mind, and say when something is theirs to do.` : ''}`
+}
+
 /** A role's job, said to ChatGPT before everything else. */
 const ROLE_PROMPT = (r: RoleEntity): string =>
   [
@@ -265,6 +273,7 @@ const ROLE_PROMPT = (r: RoleEntity): string =>
     r.responsibilities.length ? `You are responsible for:\n${r.responsibilities.map((x) => `- ${x}`).join('\n')}` : '',
     r.boundaries ? `You do not: ${r.boundaries}` : '',
     r.style ? `How you talk: ${r.style}` : '',
+    teamLine(r),
     `Your tools: ${r.tools.length ? r.tools.map((t) => ROLE_TOOL_INFO[t].label).join(', ') : 'none (answer from what you know)'}. Stay in this role in every reply. When asked for something outside it, say so in a line and help as far as the role allows, or say who or what would be better placed.`
   ]
     .filter(Boolean)

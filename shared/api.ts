@@ -320,6 +320,14 @@ export interface RoleEntity {
   updatedAt: number
 }
 
+/** Your company: its name and who reports to whom (the roles' org chart, with you at the top). */
+export interface Company {
+  name: string
+  /** A role's id → the id of the role it reports to, or "you". Roles not in here are not on the chart yet. */
+  reportsTo: Record<string, string>
+  updatedAt: number
+}
+
 export type RoleDraft = Omit<RoleEntity, 'id' | 'replies' | 'createdAt' | 'updatedAt'>
 
 export interface KitSummary {
@@ -611,6 +619,13 @@ export interface PlotterApi {
     list: () => Promise<LibraryItem[]>
     /** One of them, ready to attach. */
     get: (ref: LibraryRef) => Promise<Attachment>
+  }
+  company: {
+    get: () => Promise<Company>
+    rename: (name: string) => Promise<Company>
+    /** Puts a role on the chart under someone ("you" or a role's id), or takes it off (null). */
+    place: (roleId: string, reportsTo: string | null) => Promise<Company>
+    onChanged: (listener: () => void) => () => void
   }
   roles: {
     list: () => Promise<RoleEntity[]>

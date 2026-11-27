@@ -1,7 +1,7 @@
 import type { Theme } from './theme'
 
 /** The rail's and top bar's line icons. */
-export function RailIcon({ name }: { name: 'new' | 'chats' | 'home' | 'customize' | 'search' | 'settings' | 'pin' | 'unpin' | 'market' | 'kits' | 'roles' }): React.JSX.Element {
+export function RailIcon({ name }: { name: 'new' | 'chats' | 'home' | 'customize' | 'search' | 'settings' | 'pin' | 'unpin' | 'market' | 'kits' | 'roles' | 'company' }): React.JSX.Element {
   const common = { viewBox: '0 0 24 24', width: 20, height: 20, fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const }
   if (name === 'new')
     return (
@@ -23,6 +23,15 @@ export function RailIcon({ name }: { name: 'new' | 'chats' | 'home' | 'customize
         <path d="M4 7h10M18 7h2M4 17h4M12 17h8" />
         <circle cx="16" cy="7" r="2" />
         <circle cx="10" cy="17" r="2" />
+      </svg>
+    )
+  if (name === 'company')
+    return (
+      <svg {...common}>
+        <path d="M4 20.5V6.5L11 3.5v17" />
+        <path d="M11 9.5h7.5a1.5 1.5 0 0 1 1.5 1.5v9.5" />
+        <path d="M2.5 20.5h19" />
+        <path d="M7 8v.01M7 11.5v.01M7 15v.01M14.5 13.5h2M14.5 17h2" />
       </svg>
     )
   if (name === 'roles')

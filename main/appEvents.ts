@@ -18,3 +18,6 @@ export const kitsChanged = (kitId: string): void => emitter('kits:changed', { ki
 
 /** A role was made, changed or grew. */
 export const rolesChanged = (): void => emitter('roles:changed', {})
+
+/** The company's name or org chart changed. */
+export const companyChanged = (): void => emitter('company:changed', {})

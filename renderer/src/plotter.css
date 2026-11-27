@@ -6734,3 +6734,272 @@ body,
 .chat-kind .role-bot {
   display: block;
 }
+/* company: projects and the team's org chart */
+.company-name {
+  display: block;
+  width: 100%;
+  margin: 10px 0 8px;
+  padding: 2px 6px;
+  margin-left: -6px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 28px;
+  font-weight: 700;
+}
+.company-name:hover {
+  border-color: var(--sand);
+}
+.company-name:focus {
+  outline: none;
+  border-color: var(--ink);
+}
+.company-section {
+  margin-top: 22px;
+}
+.company-section h3 {
+  font-size: 13px;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin: 0 0 10px;
+}
+.company-empty {
+  color: var(--muted);
+  font-size: 14px;
+  margin: 0;
+}
+.company-projects {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 12px;
+}
+.company-project {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px;
+  border: 1px solid var(--sand);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.company-project:hover {
+  border-color: var(--ink);
+}
+.company-project-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.company-project-head b {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.company-project-meta {
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.company-team {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 28px;
+}
+.company-team-none {
+  font-size: 12px;
+  color: var(--muted);
+}
+/* the org chart: a tree drawn with lines between boxes */
+.org-wrap {
+  overflow-x: auto;
+  padding: 6px 0 12px;
+}
+.org,
+.org ul {
+  display: flex;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.org {
+  min-width: max-content;
+  margin: 0 auto;
+}
+.org ul {
+  position: relative;
+  padding-top: 22px;
+}
+.org li {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 22px 8px 0;
+}
+.org > li {
+  padding-top: 0;
+}
+/* the line down from a parent, and the lines across and down to each child */
+.org ul::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  height: 22px;
+  border-left: 2px solid var(--sand-strong);
+}
+.org ul > li::before,
+.org ul > li::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  width: 50%;
+  height: 22px;
+  border-top: 2px solid var(--sand-strong);
+}
+.org ul > li::before {
+  right: 50%;
+}
+.org ul > li::after {
+  left: 50%;
+  border-left: 2px solid var(--sand-strong);
+}
+.org ul > li:first-child::before,
+.org ul > li:last-child::after {
+  border-top: 0;
+}
+.org ul > li:only-child::after {
+  border-top: 0;
+}
+.org ul > li:first-child::after {
+  border-top-left-radius: 8px;
+}
+.org ul > li:last-child::before {
+  border-right: 2px solid var(--sand-strong);
+  border-top-right-radius: 8px;
+}
+.org ul > li:last-child:not(:only-child)::after {
+  border-left: 0;
+}
+.org-node {
+  position: relative;
+  z-index: 1;
+  width: 156px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 10px 8px;
+  border: 1px solid var(--sand);
+  border-radius: 14px;
+  background: var(--surface);
+  text-align: center;
+  cursor: grab;
+}
+.org-node.you {
+  cursor: default;
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+  padding: 12px 10px;
+}
+.org-node.drop {
+  border-color: var(--orange);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--orange) 30%, transparent);
+}
+.org-you {
+  font-weight: 700;
+  font-size: 15px;
+}
+.org-node.you .org-tagline {
+  color: inherit;
+  opacity: 0.7;
+}
+.org-bot {
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--role, #e8590c) 14%, var(--paper));
+  margin-bottom: 4px;
+}
+.org-name {
+  font-weight: 650;
+  font-size: 13.5px;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.org-tagline {
+  font-size: 11.5px;
+  color: var(--muted);
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.org-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 12px;
+}
+.org-actions select {
+  max-width: 96px;
+  height: 24px;
+  border: 1px solid var(--sand);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--muted);
+  font: inherit;
+  font-size: 11.5px;
+}
+.org-tray {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 10px 12px;
+  border: 1px dashed var(--sand-strong);
+  border-radius: 12px;
+}
+.org-tray.drop {
+  border-color: var(--orange);
+}
+.org-tray-label {
+  font-size: 12.5px;
+  color: var(--muted);
+  margin-right: 4px;
+}
+.org-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px 3px 6px;
+  border: 1px solid var(--sand);
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 13px;
+  cursor: grab;
+}
+.org-chip .link {
+  font-size: 12px;
+}
+.org ul > li:only-child::after {
+  border-radius: 0;
+}

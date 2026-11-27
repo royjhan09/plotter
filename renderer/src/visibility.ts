@@ -86,6 +86,13 @@ export const VISIBILITY: VisibilityGroup[] = [
         tradeoff: `${MOVED} The public stand-in has no Roles page, and role chats show the plain sprout.`
       },
       {
+        name: 'Company page and org chart',
+        now: 'private',
+        advice: 'keep-private',
+        why: 'Your company’s name, its projects at a glance, and who reports to whom among your roles.',
+        tradeoff: `${MOVED} The public stand-in has no Company page, and roles are not told their place.`
+      },
+      {
         name: 'Design kit tools, versions and usage',
         now: 'private',
         advice: 'keep-private',

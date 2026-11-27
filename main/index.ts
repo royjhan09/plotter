@@ -7,6 +7,7 @@ import { getLibraryItem, listLibrary } from '@private/main/library'
 import { clearImageKey, imageKeyStatus, setImageKey, setImageOptions } from '@private/main/images'
 import { addNote, createProject, editNote, listProjects, removeNote, removeProject, renameProject, setProjectKit } from './projects'
 import { cleanDraft, listRoles, removeRole, saveRole } from '@private/main/roles'
+import { getCompany, placeRole, renameCompany } from '@private/main/company'
 import { addUseWhen, createKit, getKit, kitFolder, listKits, listUsage, removeComponent, removeKit, removeRule, restoreVersion, saveComponent, saveRule, setDefaultKit, updateKit, versionCode } from '@private/main/kits'
 import { draftRole, forgetModel, generateProjectBrief, generateSuggestion, generateTitle, primaryModel, ReplyError } from './openai'
 import { reply } from './assistant'
@@ -146,6 +147,9 @@ export const handlers: Record<string, (...args: never[]) => unknown> = {
     projectsChanged()
     return p
   },
+  'company:get': () => getCompany(),
+  'company:rename': (name: string) => renameCompany(String(name ?? '')),
+  'company:place': (roleId: string, reportsTo: string | null) => placeRole(String(roleId), reportsTo ? String(reportsTo) : null),
   'roles:list': () => listRoles(),
   'roles:save': (role: RoleDraft & { id?: string }) => saveRole({ ...role }),
   'roles:remove': (id: string) => removeRole(String(id)),
