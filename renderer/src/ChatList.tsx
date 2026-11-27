@@ -115,6 +115,18 @@ export function ChatList({ chats, activeIds, query, visible, onOpen, onUpdate, o
   const [dropOn, setDropOn] = useState<string | null>(null)
   const roles = useContext(RolesContext)
   const roleOf = (id: string | undefined): RoleEntity | undefined => (id ? roles.find((r) => r.id === id) : undefined)
+  /** A team chat's icon: its first members' bots, overlapping. */
+  const TeamIcon = ({ ids }: { ids: string[] }): React.JSX.Element => (
+    <span className="team-icon">
+      {ids
+        .map((id) => roleOf(id))
+        .filter((r): r is RoleEntity => !!r)
+        .slice(0, 3)
+        .map((r) => (
+          <RoleBot key={r.id} identity={r.identity} replies={r.replies} size={11} />
+        ))}
+    </span>
+  )
   const toggleProject = (id: string): void =>
     setExpanded((prev) => {
       const next = new Set(prev)
@@ -203,7 +215,7 @@ export function ChatList({ chats, activeIds, query, visible, onOpen, onUpdate, o
       }}
       title={c.kind === 'claude' ? 'Claude Code chat. Drag to the right side to open it beside another chat' : 'Drag to the right side to open it beside another chat'}
     >
-      <span className="chat-kind">{c.kind === 'claude' ? <ClaudeBuddy size={18} /> : roleOf(c.roleId) ? <RoleBot identity={roleOf(c.roleId)!.identity} replies={roleOf(c.roleId)!.replies} size={14} /> : <img src={icon} alt="" />}</span>
+      <span className="chat-kind">{c.kind === 'claude' ? <ClaudeBuddy size={18} /> : c.teamMembers?.length ? <TeamIcon ids={c.teamMembers} /> : roleOf(c.roleId) ? <RoleBot identity={roleOf(c.roleId)!.identity} replies={roleOf(c.roleId)!.replies} size={14} /> : <img src={icon} alt="" />}</span>
       {renaming === c.id ? (
         <RenameInput
           initial={c.title}

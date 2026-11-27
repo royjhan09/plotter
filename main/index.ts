@@ -9,6 +9,7 @@ import { addNote, createProject, editNote, listProjects, removeNote, removeProje
 import { cleanDraft, listRoles, removeRole, saveRole } from '@private/main/roles'
 import { getCompany, labelLine, linkRoles, placeRole, renameCompany, unlinkRoles } from '@private/main/company'
 import { addUseWhen, createKit, getKit, kitFolder, listKits, listUsage, removeComponent, removeKit, removeRule, restoreVersion, saveComponent, saveRule, setDefaultKit, updateKit, versionCode } from '@private/main/kits'
+import { nextSpeaker, suggestMembers } from './team'
 import { draftRole, forgetModel, generateProjectBrief, generateSuggestion, generateTitle, primaryModel, ReplyError } from './openai'
 import { reply } from './assistant'
 import { onPythonStatus, pythonStatus, PY_SCHEME } from './python'
@@ -21,7 +22,7 @@ import { showInExplorer } from './frontExplorer'
 import { pdfHandlers } from '@private/main/pdf'
 import { checkMarketTool, closeAllMarket, listMarket, removeMarketTool, saveMarketTool, setMarketConnected } from '@private/main/market'
 import { claudeCodeAvailable, makeProjectFolder, recentFolders, suggestProjectFolder, sendToClaude, settleStale, stopAllClaude, stopClaude } from '@private/main/claudeCode'
-import { USAGE_URL, type BesideChat, type Chat, type KitComponent, type KitPatch, type RoleDraft, type RoleLink, type KitRule, type LibraryRef, type ChatMetaPatch, type MarketToolInput, type ConnectorId, type Features, type ReplyEvent, type SendRequest } from '../shared/api'
+import { USAGE_URL, type BesideChat, type Chat, type KitComponent, type KitPatch, type RoleDraft, type RoleLink, type HistoryItem, type KitRule, type LibraryRef, type ChatMetaPatch, type MarketToolInput, type ConnectorId, type Features, type ReplyEvent, type SendRequest } from '../shared/api'
 
 app.setName('Plotter')
 // Interactive previews live on their own scheme/origin (see uiFrames.ts). Must be registered before ready.
@@ -147,6 +148,12 @@ export const handlers: Record<string, (...args: never[]) => unknown> = {
     projectsChanged()
     return p
   },
+  'team:next': async (chatId: string, history: HistoryItem[], turnsLeft: number) => {
+    const chat = getChat(String(chatId))
+    if (!chat?.team) return { speaker: null, done: 'This is not a team chat.' }
+    return nextSpeaker(chat, Array.isArray(history) ? history : [], Number(turnsLeft) || 0)
+  },
+  'team:suggest': (purpose: string) => suggestMembers(String(purpose ?? '')),
   'company:get': () => getCompany(),
   'company:rename': (name: string) => renameCompany(String(name ?? '')),
   'company:place': (roleId: string, reportsTo: string | null) => placeRole(String(roleId), reportsTo ? String(reportsTo) : null),

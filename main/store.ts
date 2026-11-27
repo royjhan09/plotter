@@ -82,7 +82,7 @@ export function listChats(): ChatSummary[] {
     if (!name.endsWith('.json')) continue
     try {
       const chat = JSON.parse(readFileSync(join(chatsDir(), name), 'utf8')) as Chat
-      out.push({ id: chat.id, title: chat.title, updatedAt: chat.updatedAt, pinned: !!chat.pinned, archived: !!chat.archived, kind: chat.kind ?? 'chatgpt', ...(chat.projectId ? { projectId: chat.projectId } : {}), ...(chat.roleId ? { roleId: chat.roleId } : {}) })
+      out.push({ id: chat.id, title: chat.title, updatedAt: chat.updatedAt, pinned: !!chat.pinned, archived: !!chat.archived, kind: chat.kind ?? 'chatgpt', ...(chat.projectId ? { projectId: chat.projectId } : {}), ...(chat.roleId ? { roleId: chat.roleId } : {}), ...(chat.team ? { teamMembers: chat.team.members } : {}) })
     } catch {
       // a broken file is skipped, not fatal
     }

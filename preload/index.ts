@@ -38,6 +38,10 @@ const api: PlotterApi = {
     list: () => ipcRenderer.invoke('library:list'),
     get: (ref) => ipcRenderer.invoke('library:get', ref)
   },
+  team: {
+    next: (chatId, history, turnsLeft) => ipcRenderer.invoke('team:next', chatId, history, turnsLeft),
+    suggest: (purpose) => ipcRenderer.invoke('team:suggest', purpose)
+  },
   company: {
     get: () => ipcRenderer.invoke('company:get'),
     rename: (name) => ipcRenderer.invoke('company:rename', name),

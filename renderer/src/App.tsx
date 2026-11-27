@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { AuthState, CanvasDoc, ChatKind, ChatMetaPatch, ChatSummary, HandOff, Model, Project, BesideChat, RoleEntity } from '../../shared/api'
+import type { AuthState, CanvasDoc, ChatKind, ChatMetaPatch, ChatSummary, HandOff, Model, Project, BesideChat, RoleEntity, TeamSetup } from '../../shared/api'
 import { useThemeSetting } from './theme'
 import { CanvasContext, CanvasPanel } from './Canvas'
 import { CustomizePanel, Settings, type Tab as SettingsTab } from './Settings'
@@ -94,11 +94,11 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
   const side = split ? focus : 'left'
   const setSideId = (s: 'left' | 'right', id: string | null): void => (s === 'left' ? setLeftId(id) : setRightId(id))
   // What a side's *new* chat is (a ChatGPT chat, or a Claude Code chat), and text to start its message box with.
-  type NewChat = { kind: ChatKind; seed?: string; from?: HandOff; projectId?: string; roleId?: string; n: number }
+  type NewChat = { kind: ChatKind; seed?: string; from?: HandOff; projectId?: string; roleId?: string; team?: TeamSetup; n: number }
   const [leftNew, setLeftNew] = useState<NewChat>({ kind: 'chatgpt', n: 0 })
   const [rightNew, setRightNew] = useState<NewChat>({ kind: 'chatgpt', n: 0 })
-  const setSideNew = (s: 'left' | 'right', kind: ChatKind, seed?: string, from?: HandOff, projectId?: string, roleId?: string): void =>
-    (s === 'left' ? setLeftNew : setRightNew)((prev) => ({ kind, seed, from, projectId, roleId, n: prev.n + 1 }))
+  const setSideNew = (s: 'left' | 'right', kind: ChatKind, seed?: string, from?: HandOff, projectId?: string, roleId?: string, team?: TeamSetup): void =>
+    (s === 'left' ? setLeftNew : setRightNew)((prev) => ({ kind, seed, from, projectId, roleId, team, n: prev.n + 1 }))
   // Which kind of chat each side shows (a side's new chat may have been switched from its own menu).
   const [paneKind, setPaneKind] = useState<Record<'left' | 'right', ChatKind>>({ left: 'chatgpt', right: 'chatgpt' })
   const onLeftKind = useCallback((k: ChatKind) => setPaneKind((p) => (p.left === k ? p : { ...p, left: k })), [])
@@ -320,6 +320,17 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
     setRolesOpen(false)
     setCompanyOpen(false)
     setProjectOpen(p.id)
+  }
+  /** A new team chat (roles working on one purpose together), on the focused side, its purpose typed in. */
+  const newTeamChat = (team: TeamSetup): void => {
+    setProjectOpen(null)
+    setSettingsOpen(false)
+    setMarketOpen(false)
+    setKitsOpen(false)
+    setRolesOpen(false)
+    setCompanyOpen(false)
+    setSideNew(side, 'chatgpt', team.purpose, undefined, undefined, undefined, team)
+    setSideId(side, null)
   }
   /** A new chat with a role, on the focused side. */
   const newRoleChat = (roleId: string): void => {
@@ -662,6 +673,11 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
             setProjectOpen(id)
           }}
           onStartChat={(id) => newRoleChat(id)}
+          onStartTeam={newTeamChat}
+          onOpenChat={(id) => {
+            setCompanyOpen(false)
+            openChat(id)
+          }}
           onOpenRoles={() => {
             setCompanyOpen(false)
             setRolesOpen(true)

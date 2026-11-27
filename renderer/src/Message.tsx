@@ -110,6 +110,12 @@ export function Message({
     <div className="msg assistant" data-msg-id={m.id}>
       {role ? <RoleBot identity={role.identity} replies={role.replies} size={30} working={typing} className="sprout" /> : <SproutBot size={30} working={typing} className="sprout" />}
       <div className="body">
+        {m.speaker && role && (
+          <div className="msg-speaker">
+            <b>{role.name}</b>
+            {m.speakerTo && <span> → {m.speakerTo === 'you' ? 'You' : m.speakerTo}</span>}
+          </div>
+        )}
         {m.thoughtMs !== undefined && m.thoughtMs >= 2000 && m.text && (
           <div className="thought">Thought for {Math.round(m.thoughtMs / 1000)}s</div>
         )}

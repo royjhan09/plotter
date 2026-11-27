@@ -7007,6 +7007,8 @@ body,
 .org-canvas {
   position: relative;
   margin: 0 auto;
+  /* its boxes and labels layer among themselves, never over a dialog */
+  isolation: isolate;
 }
 .org-lines {
   position: absolute;
@@ -7164,4 +7166,101 @@ body,
 }
 .org-relation-add input {
   width: 170px;
+}
+/* team chats: roles working together */
+.msg-speaker {
+  font-size: 13px;
+  margin-bottom: 2px;
+}
+.msg-speaker b {
+  font-weight: 700;
+}
+.msg-speaker span {
+  color: var(--muted);
+}
+.team-icon {
+  display: inline-flex;
+  align-items: flex-end;
+}
+.team-icon .role-bot + .role-bot {
+  margin-left: -6px;
+}
+.team-hello-bots {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.team-hello-bots span {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.team-hello-bots small {
+  font-size: 12px;
+  color: var(--muted);
+}
+.team-hello-note {
+  font-size: 13px;
+}
+.company-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.company-section-head h3 {
+  margin: 0;
+}
+.team-dialog {
+  width: min(560px, 92vw);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.team-dialog h3 {
+  margin: 0;
+}
+.team-dialog-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.team-pick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.team-pick button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 12px 3px 6px;
+  border: 1px solid var(--sand);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.team-pick button.on {
+  border-color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--ink);
+}
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.team-status {
+  margin: 4px 0 18px 44px;
+  padding: 8px 12px;
+  border-left: 3px solid var(--sand-strong);
+  font-size: 13px;
+  color: var(--muted);
+}
+.team-status.working {
+  border-left-color: var(--orange);
 }

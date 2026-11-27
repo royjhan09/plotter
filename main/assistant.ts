@@ -7,11 +7,12 @@ import { kitBrief, kitFor } from '@private/main/kits'
 import { KIT_GUIDE, kitToolSpecs, runKitTool } from '@private/main/kitOps'
 import { bumpRole, getRole } from '@private/main/roles'
 import { getCompany, roleTeam } from '@private/main/company'
+import { memberLine } from './team'
 import { ROLE_TOOL_INFO, type Kit, type RoleEntity, type RoleTool } from '../shared/api'
 import { pythonTool } from './python'
 import { connectorTools } from './connectors'
 import { marketTools } from './marketChat'
-import type { Attachment, BesideChat, SendRequest } from '../shared/api'
+import type { Attachment, BesideChat, Chat, SendRequest } from '../shared/api'
 
 /**
  * Builds one reply from the user's settings: which tools the model may use (web search, memory, Python,
@@ -272,6 +273,30 @@ function teamLine(r: RoleEntity): string {
     .join(' ')
 }
 
+/** A member's part in a team chat: the purpose, the others, who to speak to, and what to do now. */
+function TEAM_PROMPT(r: RoleEntity, chat: Chat, req: SendRequest): string {
+  const others = (chat.team?.members ?? []).filter((id) => id !== r.id).map((id) => getRole(id)).filter((x): x is RoleEntity => !!x)
+  return [
+    `This is a team chat at ${getCompany().name}. Its purpose: ${chat.team?.purpose ?? chat.title}`,
+    others.length ? `The other members:\n${others.map(memberLine).join('\n')}` : '',
+    `You speak only as ${r.name}, in your own message: never write another member's lines or pretend to be them.`,
+    req.speakTo && req.speakTo !== 'you' ? `Now speak to ${req.speakTo}, by name.` : 'Now speak to the user.',
+    req.teamNote ? `What is needed from you now: ${req.teamNote}` : '',
+    'Do your part of the work for real (the actual text, design, code, numbers or review, not a plan to do it). Keep the talk around it short. End by saying plainly what you hand to whom, or what you need and from whom.'
+  ]
+    .filter(Boolean)
+    .join('\n')
+}
+
+/** A team chat's history as one member sees it: its own replies as its own, everyone else's as messages to it. */
+function teamHistory(history: SendRequest['history'], me: string): SendRequest['history'] {
+  return history.map((h) => {
+    if (h.role === 'assistant' && h.speaker === me) return h
+    const who = h.role === 'user' ? 'The user' : (getRole(h.speaker)?.name ?? 'A member')
+    return { ...h, role: 'user' as const, text: `[${who}]\n${h.text.replace(/\[\[tool:[^\]]+\]\]/g, '').trim()}` }
+  })
+}
+
 /** A role's job, said to ChatGPT before everything else. */
 const ROLE_PROMPT = (r: RoleEntity): string =>
   [
@@ -290,12 +315,14 @@ export async function reply(req: SendRequest, handlers: ConversationHandlers, si
   const f = readFeatures()
   const chat = getChat(req.chatId)
   // a role decides which tools its chats get (the user's own picks for one message still count)
-  const role = getRole(chat?.roleId)
+  const role = getRole(req.asRole ?? chat?.roleId)
   const can = (t: RoleTool, otherwise: boolean): boolean => (role ? role.tools.includes(t) : otherwise)
   const webSearch = can('web', f.webSearch) || !!req.research || !!req.modes?.search
   const tools: LocalTool[] = []
   const parts = [INSTRUCTIONS]
   if (role) parts.push(ROLE_PROMPT(role))
+  const team = req.asRole && role && chat?.team ? TEAM_PROMPT(role, chat, req) : ''
+  if (team) parts.push(team)
   if (webSearch) parts.push(WEB_INSTRUCTIONS)
   if (can('memory', f.memory)) {
     parts.push(MEMORY_INSTRUCTIONS(listMemories()))
@@ -349,7 +376,8 @@ export async function reply(req: SendRequest, handlers: ConversationHandlers, si
       model: req.model,
       effort: req.research ? 'high' : req.effort,
       instructions: parts.join('\n\n'),
-      history: req.history,
+      // in a team chat, the other members' messages are theirs, not this member's own
+      history: team ? teamHistory(req.history, role!.id) : req.history,
       webSearch,
       tools,
       verbosity: req.research ? 'high' : 'medium'

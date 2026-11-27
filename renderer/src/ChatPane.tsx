@@ -1,5 +1,5 @@
 import { useCallback, useContext, useEffect, useRef, useState } from 'react'
-import { ROLE_TOOL_INFO, type Attachment, type Chat, type ChatKind, type ChatMessage, type BesideChat, type ClaudeChatConfig, type HandOff, type MessageModes, type Model, type Project, type ReplyEvent } from '../../shared/api'
+import { ROLE_TOOL_INFO, type Attachment, type Chat, type ChatKind, type ChatMessage, type BesideChat, type ClaudeChatConfig, type HandOff, type MessageModes, type Model, type Project, type ReplyEvent, type RoleEntity, type TeamSetup } from '../../shared/api'
 import { Composer, EffortMenu } from './Composer'
 import { VoiceMode } from './VoiceMode'
 import { toAttachment } from './attachments'
@@ -12,7 +12,7 @@ import { useClaudeTheme, type Theme } from './theme'
 import { ClaudeBuddy, folderName } from './ClaudeBuddy'
 import { SproutBot } from './SproutBot'
 import { RoleBot } from '@private/renderer/RoleBot'
-import { useRole } from './roles'
+import { RolesContext, useRole } from './roles'
 import { CLAUDE_CODE, FolderPicker, sendClaudeTurn, startClaudeChat } from '@private/renderer/ClaudeCode'
 import icon from '../../assets/sprout.svg'
 
@@ -77,7 +77,7 @@ export interface ChatPaneProps {
   /** "Send to Claude Code" from a reply or the + menu: starts a Claude Code chat (opened beside this one). */
   onSendToClaude: (task: string, from?: HandOff, projectId?: string) => void
   /** What this side's new chat is, text to start it with and a reply handed to it; a new n means "start a new chat now". */
-  newChat: { kind: ChatKind; seed?: string; from?: HandOff; projectId?: string; roleId?: string; n: number }
+  newChat: { kind: ChatKind; seed?: string; from?: HandOff; projectId?: string; roleId?: string; team?: TeamSetup; n: number }
   /** The chat open on the other side (side by side), so this chat can send something to it. */
   beside?: BesideChat
   /** Something the chat beside sent here; a new n means "it just arrived": this chat answers it right away. */
@@ -135,6 +135,13 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
   const [newProject, setNewProject] = useState<string | undefined>(p.newChat.projectId)
   // the role a new ChatGPT chat will talk as (picked on the Roles page)
   const [newRole, setNewRole] = useState<string | undefined>(p.newChat.roleId)
+  // a new team chat: its purpose and members (picked on the Company page)
+  const [newTeam, setNewTeam] = useState<TeamSetup | undefined>(p.newChat.team)
+  // a team at work: the roles take turns until the work is done; Stop ends the round
+  const [teamBusy, setTeamBusy] = useState(false)
+  const [teamDone, setTeamDone] = useState<string | null>(null)
+  const teamStop = useRef(false)
+  const roles = useContext(RolesContext)
   handOffRef.current = handOff
   // a project brief's suggested new folder (Create project), and whether it was made
   const [suggested, setSuggested] = useState<{ path: string; made: boolean } | null>(null)
@@ -237,6 +244,8 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
     setHandOff(p.newChat.from ?? null)
     setNewProject(p.newChat.projectId)
     setNewRole(p.newChat.kind === 'chatgpt' ? p.newChat.roleId : undefined)
+    setNewTeam(p.newChat.kind === 'chatgpt' ? p.newChat.team : undefined)
+    setTeamDone(null)
     if (p.newChat.from) setAttachments([])
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [p.newChat.n])
@@ -391,6 +400,8 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
     if (kind === 'claude') setCcNew(current?.cc ? { folder: current.cc.folder, mode: 'edit', effort: current.cc.effort } : null)
     setNewProject(current?.projectId) // a new chat from a project chat stays in the project
     setNewRole(undefined)
+    setNewTeam(undefined)
+    setTeamDone(null)
     setDraft('')
     onChatId(null)
   }
@@ -492,8 +503,24 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
     const user: ChatMessage = { id: newId(), role: 'user', text, at: now, ...(files.length ? { attachments: files } : {}), ...(asResearch ? { research: true } : {}), ...(incoming ? { from: incoming } : {}), ...(typed && toSide && p.beside ? { toSide: true } : {}), ...(picked ? { modes: picked } : {}) }
     const reply: ChatMessage = { id: newId(), role: 'assistant', text: '', at: now }
     const current = chatRef.current
-    const base: Chat = current ?? { id: newId(), title: incoming ? `From ${incoming.chat}`.slice(0, 60) : titleFrom(text, files), model: p.model.slug, messages: [], createdAt: now, updatedAt: now, ...(newProject ? { projectId: newProject } : {}), ...(newRole && !isClaude ? { roleId: newRole } : {}) }
+    const base: Chat = current ?? { id: newId(), title: incoming ? `From ${incoming.chat}`.slice(0, 60) : titleFrom(text, files), model: p.model.slug, messages: [], createdAt: now, updatedAt: now, ...(newProject ? { projectId: newProject } : {}), ...(newRole && !isClaude ? { roleId: newRole } : {}), ...(newTeam && !isClaude ? { team: newTeam, title: newTeam.purpose.slice(0, 60) } : {}) }
     const history = [...base.messages.filter((m) => !(m.role === 'assistant' && !m.text)), user]
+    if (base.team) {
+      // a team chat: the members take turns on it (runTeam), not one reply
+      const next: Chat = { ...base, model: p.model.slug, messages: history, updatedAt: now }
+      chatRef.current = next
+      setChat(next)
+      if (typed) {
+        setDraft('')
+        setAttachments([])
+        setModes({})
+      }
+      await api.chats.save(next)
+      if (!current) onChatId(next.id)
+      refreshList()
+      void runTeam()
+      return ''
+    }
     const next: Chat = { ...base, model: p.model.slug, messages: [...history, reply], updatedAt: now }
     chatRef.current = next
     setChat(next)
@@ -538,6 +565,49 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
     return finished
   }
 
+  /** A team at work: the facilitator picks who speaks next, that member replies as its role, until done (or Stop). */
+  const TEAM_TURNS = 8
+  const runTeam = async (): Promise<void> => {
+    if (!p.model) return
+    teamStop.current = false
+    setTeamBusy(true)
+    setTeamDone(null)
+    try {
+      for (let turn = 0; turn < TEAM_TURNS && !teamStop.current; turn++) {
+        const cur = chatRef.current
+        if (!cur?.team) break
+        const hist = cur.messages
+          .filter((m) => m.role === 'user' || m.text)
+          .map((m) => ({ role: m.role, text: withHandOff(m), ...(m.attachments ? { attachments: m.attachments } : {}), ...(m.speaker ? { speaker: m.speaker } : {}) }))
+        setActivity('Deciding who speaks next…')
+        const t = await api.team.next(cur.id, hist, TEAM_TURNS - turn)
+        setActivity(null)
+        if (teamStop.current) break
+        if (!t.speaker) {
+          setTeamDone(t.done ?? 'The team is done for now.')
+          break
+        }
+        const now = Date.now()
+        const reply: ChatMessage = { id: newId(), role: 'assistant', text: '', at: now, speaker: t.speaker, ...(t.to ? { speakerTo: t.to } : {}) }
+        const next: Chat = { ...cur, messages: [...cur.messages, reply], updatedAt: now }
+        chatRef.current = next
+        setChat(next)
+        const requestId = newId()
+        pendingRef.current = { requestId, chatId: next.id }
+        setPending(pendingRef.current)
+        const finished = new Promise<string>((resolve, reject) => waiters.current.set(requestId, { resolve, reject }))
+        await api.reply.send({ requestId, chatId: next.id, model: p.model.slug, effort: p.effort, history: hist, asRole: t.speaker, ...(t.to ? { speakTo: t.to } : {}), ...(t.note ? { teamNote: t.note } : {}) })
+        await finished
+      }
+      if (teamStop.current) setTeamDone('Stopped. Send a message to carry on.')
+    } catch (e) {
+      setTeamDone(cleanError(e))
+    } finally {
+      setActivity(null)
+      setTeamBusy(false)
+    }
+  }
+
   // Something the chat beside sent here: answer it right away (or keep it in the box if this chat is busy).
   const deliverRef = useRef<(from: HandOff) => void>(() => undefined)
   deliverRef.current = (from: HandOff): void => {
@@ -566,6 +636,7 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
   const ask = useCallback((text: string) => sendRef.current(text), [])
 
   const stop = (): void => {
+    teamStop.current = true
     if (isClaude && chat) return void api.claudeCode.stop(chat.id)
     if (pending) void api.reply.stop(pending.requestId)
   }
@@ -599,6 +670,8 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
   const messages = chat?.messages ?? []
   const projectOf = p.projects.find((x) => x.id === (chat ? chat.projectId : newProject))
   const role = useRole(isClaude ? undefined : chat ? chat.roleId : newRole)
+  const team = isClaude ? undefined : chat ? chat.team : newTeam
+  const roleById = (id: string | undefined): RoleEntity | undefined => (id ? roles.find((r) => r.id === id) : undefined)
   const lastReply = messages.reduce((at, m, i) => (m.role === 'assistant' && m.text && !m.cc ? i : at), -1)
   return (
     <main
@@ -671,8 +744,23 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
       <div className="scroller" ref={scroller}>
         {messages.length === 0 ? (
           <div className="hello">
-            {isClaude ? <ClaudeBuddy size={84} /> : role ? <RoleBot identity={role.identity} replies={role.replies} size={72} className="hello-bot" /> : <SproutBot size={72} className="hello-bot" />}
-            <h2>{isClaude ? 'What shall we build?' : role ? role.name : 'What shall we grow today?'}</h2>
+            {team ? (
+              <div className="team-hello-bots">
+                {team.members.map((id) => roleById(id)).filter((r): r is RoleEntity => !!r).map((r) => (
+                  <span key={r.id} title={r.name}>
+                    <RoleBot identity={r.identity} replies={r.replies} size={46} className="hello-bot" />
+                    <small>{r.name}</small>
+                  </span>
+                ))}
+              </div>
+            ) : isClaude ? <ClaudeBuddy size={84} /> : role ? <RoleBot identity={role.identity} replies={role.replies} size={72} className="hello-bot" /> : <SproutBot size={72} className="hello-bot" />}
+            <h2>{isClaude ? 'What shall we build?' : team ? 'Team chat' : role ? role.name : 'What shall we grow today?'}</h2>
+            {team && (
+              <div className="role-hello">
+                <p>{team.purpose}</p>
+                <p className="team-hello-note">Send a task: the members talk it through and hand work to each other until it is done, or they need you.</p>
+              </div>
+            )}
             {role && (
               <div className="role-hello">
                 {role.tagline && <p>{role.tagline}</p>}
@@ -727,7 +815,7 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
                 activity={activity}
                 onProject={isClaude || !CLAUDE_CODE || i !== lastReply ? undefined : () => void createProject()}
                 projectBusy={briefBusy}
-                role={role}
+                role={m.speaker ? roleById(m.speaker) : role}
                 side={
                   p.beside && p.sendBeside && m.role === 'assistant'
                     ? {
@@ -739,6 +827,8 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
                 }
               />
             ))}
+            {team && teamBusy && !pending && <div className="team-status working">Deciding who speaks next…</div>}
+            {team && !teamBusy && teamDone && <div className="team-status">{teamDone}</div>}
           </div>
         )}
       </div>
@@ -758,7 +848,7 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
           attachments={attachments}
           setAttachments={setAttachments}
           leadSlot={isClaude ? <span className="lead-gap" /> : undefined}
-          pending={isClaude ? ccBusy : !!pending}
+          pending={isClaude ? ccBusy : !!pending || teamBusy}
           ready={isClaude ? true : !!p.model}
           placeholder={
             toSide && p.beside
@@ -776,7 +866,9 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
               : handOff
                 ? 'Say what to do with it (optional), then send'
                 : p.model
-                ? `Ask ${role ? role.name : 'Plotter'} anything`
+                ? team
+                  ? 'Message the team'
+                  : `Ask ${role ? role.name : 'Plotter'} anything`
                 : p.modelError
                   ? 'Plotter could not load its model'
                   : 'Loading…'

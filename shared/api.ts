@@ -56,6 +56,9 @@ export interface ChatMessage {
   toSide?: boolean
   /** What the user picked in the + menu for this message (shown as chips on it). */
   modes?: MessageModes
+  /** In a team chat: the role that wrote this reply, and who it was speaking to (a member's name, or "you"). */
+  speaker?: string
+  speakerTo?: string
   at: number
 }
 
@@ -103,6 +106,26 @@ export interface Chat {
   projectId?: string
   /** The role it talks as (a ChatGPT chat with a job, its own tools and its own look). */
   roleId?: string
+  /** A team chat: several roles working on one purpose, talking to each other to get it done. */
+  team?: TeamSetup
+}
+
+/** What a team chat is for, and which roles are in it. */
+export interface TeamSetup {
+  purpose: string
+  members: string[]
+}
+
+/** Who speaks next in a team chat (from the facilitator), or that the team is done for now. */
+export interface TeamTurn {
+  /** The member's role id, or null when the work is done or needs the user. */
+  speaker: string | null
+  /** Who they speak to: a member's name, or "you". */
+  to?: string
+  /** What they should do now, in a line. */
+  note?: string
+  /** When done: why it stopped (finished, or a question for the user). */
+  done?: string
 }
 
 /** Settings › Images: which image model, and how good by default. */
@@ -502,6 +525,8 @@ export interface ChatSummary {
   kind?: ChatKind
   projectId?: string
   roleId?: string
+  /** A team chat's members (role ids). */
+  teamMembers?: string[]
 }
 
 export interface Account {
@@ -541,6 +566,8 @@ export interface HistoryItem {
   role: Role
   text: string
   attachments?: Attachment[]
+  /** In a team chat: which role wrote this reply (its id). */
+  speaker?: string
 }
 
 export interface CanvasDoc {
@@ -567,6 +594,10 @@ export interface SendRequest {
   toSide?: boolean
   /** Picked in the + menu for this message: make a picture, search the web, use these tools. */
   modes?: MessageModes
+  /** In a team chat: the member who writes this reply, who it speaks to, and what the facilitator asked of it. */
+  asRole?: string
+  speakTo?: string
+  teamNote?: string
 }
 
 /** Settings → Features. */
@@ -646,6 +677,12 @@ export interface PlotterApi {
     list: () => Promise<LibraryItem[]>
     /** One of them, ready to attach. */
     get: (ref: LibraryRef) => Promise<Attachment>
+  }
+  team: {
+    /** Who speaks next in a team chat (ChatGPT as facilitator), given the conversation so far. */
+    next: (chatId: string, history: HistoryItem[], turnsLeft: number) => Promise<TeamTurn>
+    /** ChatGPT picks the roles a purpose needs (role ids). */
+    suggest: (purpose: string) => Promise<string[]>
   }
   company: {
     get: () => Promise<Company>

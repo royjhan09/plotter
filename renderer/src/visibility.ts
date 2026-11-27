@@ -157,6 +157,13 @@ export const VISIBILITY: VisibilityGroup[] = [
         tradeoff: 'Shows that roles exist, not what yours say (they stay on this PC).'
       },
       {
+        name: 'Team chats',
+        now: 'public',
+        advice: 'must-public',
+        why: 'ChatGPT picks who speaks next and each member replies as its role (main/team.ts, main/assistant.ts).',
+        tradeoff: 'Shows how team chats take turns, not what your roles say.'
+      },
+      {
         name: 'Your design kit in ChatGPT replies',
         now: 'public',
         advice: 'must-public',

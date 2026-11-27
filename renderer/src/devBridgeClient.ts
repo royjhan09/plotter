@@ -87,6 +87,10 @@ export function installDevBridge(): void {
       list: () => call('library:list'),
       get: (ref) => call('library:get', ref)
     },
+    team: {
+      next: (chatId, history, turnsLeft) => call('team:next', chatId, history, turnsLeft),
+      suggest: (purpose) => call('team:suggest', purpose)
+    },
     company: {
       get: () => call('company:get'),
       rename: (name) => call('company:rename', name),
