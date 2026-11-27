@@ -35,6 +35,19 @@ function canvasContext(req: SendRequest): string {
   return `The canvas is open (the user may have edited it). Current content of "${c.title}"${c.lang ? ` (${c.lang})` : ''}:\n<<<CANVAS\n${c.text.slice(0, 60000)}\nCANVAS>>>\nIf the user asks for changes to it, reply with the complete updated document in a canvas block with the same title.`
 }
 
+/** The memories sent with each message: the newest ones, up to a size cap (the list grows; the cap keeps every message cheap). */
+const MEMORY_CAP = 2500
+function recentMemories(): { id: string; text: string }[] {
+  const out: { id: string; text: string }[] = []
+  let used = 0
+  for (const m of [...listMemories()].reverse()) {
+    if (used + m.text.length > MEMORY_CAP) break
+    out.unshift(m)
+    used += m.text.length + 12
+  }
+  return out
+}
+
 function memoryTools(): LocalTool[] {
   return [
     {
@@ -325,71 +338,140 @@ const ROLE_PROMPT = (r: RoleEntity): string =>
     .filter(Boolean)
     .join('\n')
 
-export async function reply(req: SendRequest, handlers: ConversationHandlers, signal: AbortSignal): Promise<void> {
+/** A capability loaded on demand: one line always, its guide and tools only once a reply opens it. */
+interface Capability {
+  name: string
+  brief: string
+  guide: string
+  tools: LocalTool[]
+}
+
+const CAPABILITIES_PROMPT = (caps: Capability[]): string =>
+  `More of Plotter is available when needed. Open one with open_capability (once per reply, before you need it):
+${caps.map((c) => `- ${c.name}: ${c.brief}.`).join('\n')}`
+
+/** Opens a capability: returns its guide, and its tools become callable for the rest of the reply. */
+function openCapability(caps: Capability[]): LocalTool {
+  return {
+    name: 'open_capability',
+    description: `Load one of these for the rest of this reply: its instructions and its tools. ${caps.map((c) => c.name).join(', ')}.`,
+    parameters: { type: 'object', properties: { name: { type: 'string', enum: caps.map((c) => c.name) } }, required: ['name'] },
+    label: (args) => (args['name'] === 'design_kit' ? 'Opening your design kit…' : args['name'] === 'connected_apps' ? 'Opening your connected apps…' : 'Opening your tools…'),
+    run: async (args) => {
+      const c = caps.find((x) => x.name === args['name'])
+      if (!c) return { output: JSON.stringify({ error: `Open one of: ${caps.map((x) => x.name).join(', ')}` }) }
+      return { output: `${c.guide}\n\nIts tools are now available: ${c.tools.map((t) => t.name).join(', ')}.`, addTools: c.tools }
+    }
+  }
+}
+
+/** One labelled piece of a reply's set-up: an instruction text or a tool (so its cost can be measured). */
+export interface SetupPart {
+  name: string
+  text: string
+}
+
+/**
+ * Everything a ChatGPT reply is set up with: the instruction parts and the tools, each labelled. reply() sends
+ * them; the dev server reports their sizes (debug:setup), so what every message carries can be measured.
+ */
+export async function buildSetup(req: SendRequest): Promise<{ parts: SetupPart[]; tools: (LocalTool & { pack: string })[]; webSearch: boolean; role?: RoleEntity; team: string; chat?: Chat }> {
   const f = readFeatures()
   const chat = getChat(req.chatId)
   // a role decides which tools its chats get (the user's own picks for one message still count)
   const role = getRole(req.asRole ?? chat?.roleId)
   const can = (t: RoleTool, otherwise: boolean): boolean => (role ? role.tools.includes(t) : otherwise)
   const webSearch = can('web', f.webSearch) || !!req.research || !!req.modes?.search
-  const tools: LocalTool[] = []
-  const parts = [INSTRUCTIONS]
-  if (role) parts.push(ROLE_PROMPT(role))
+  const tools: (LocalTool & { pack: string })[] = []
+  const parts: SetupPart[] = []
+  const add = (name: string, text: string): void => void (text && parts.push({ name, text }))
+  const use = (pack: string, list: LocalTool[]): void => void tools.push(...list.map((t) => ({ ...t, pack })))
+  add('base', INSTRUCTIONS)
+  if (role) add('role', ROLE_PROMPT(role))
   const team = req.asRole && role && chat?.team ? TEAM_PROMPT(role, chat, req) : ''
-  if (team) parts.push(team)
-  if (webSearch) parts.push(WEB_INSTRUCTIONS)
+  add('team', team)
+  if (webSearch) add('web', WEB_INSTRUCTIONS)
   if (can('memory', f.memory)) {
-    parts.push(MEMORY_INSTRUCTIONS(listMemories()))
-    tools.push(...memoryTools())
+    add('memory', MEMORY_INSTRUCTIONS(recentMemories()))
+    use('memory', memoryTools())
   }
   if (can('python', f.python)) {
-    parts.push(PYTHON_INSTRUCTIONS)
-    tools.push(pythonTool(() => chatFiles(req)))
+    add('python', PYTHON_INSTRUCTIONS)
+    use('python', [pythonTool(() => chatFiles(req))])
   }
+  // large or only-sometimes-needed capabilities are not sent with every message: the model sees one line about
+  // each and opens it (open_capability) the first time a reply needs it
+  const lazy: Capability[] = []
   const connected = can('connectors', true) ? await connectorTools() : { tools: [], instructions: '' }
-  if (connected.tools.length) {
-    parts.push(connected.instructions)
-    tools.push(...connected.tools)
-  }
+  if (connected.tools.length)
+    lazy.push({
+      name: 'connected_apps',
+      brief: `the user's connected apps (${connected.tools.map((t) => t.name).join(', ')}): open it when they ask about their own email, schedule, files or notes`,
+      guide: connected.instructions,
+      tools: connected.tools
+    })
   const market = can('market', true) || req.modes?.tools?.length ? await marketTools() : { tools: [], instructions: '' }
-  if (market.tools.length || market.instructions) {
-    if (market.instructions) parts.push(market.instructions)
-    tools.push(...market.tools)
-  }
+  if (market.tools.length && req.modes?.tools?.length) {
+    // tools the user picked for this message: there from the start
+    add('market', market.instructions)
+    use('market', market.tools)
+  } else if (market.tools.length)
+    lazy.push({
+      name: 'market_tools',
+      brief: `tools the user added from Plotter's market (${market.tools.map((t) => t.name).join(', ')}): open it when a request matches what one does`,
+      guide: market.instructions,
+      tools: market.tools
+    })
   const title = chat?.title || 'ChatGPT chat'
   const project = chat ? projectContext(chat) : null
   if (project && can('project', true)) {
-    parts.push(PROJECT_INSTRUCTIONS(project.text))
-    tools.push(...projectTools(project.project.id, title))
+    add('project', PROJECT_INSTRUCTIONS(project.text))
+    use('project', projectTools(project.project.id, title))
   }
   const kit = can('kit', true) ? kitFor(project?.project.kitId) : null
-  if (kit) {
-    parts.push(KIT_INSTRUCTIONS(kitBrief(kit)))
-    tools.push(...kitTools(kit, req.chatId, title))
+  if (kit)
+    lazy.push({
+      name: 'design_kit',
+      brief: `the user's design kit "${kit.name}" (${kit.rules.length} design rules, ${kit.components.length} reusable components): open it before you design or build anything visual (ui blocks, HTML or CSS, app screens, mockups, icons, logos), then follow its rules and reuse its components without being reminded`,
+      guide: KIT_INSTRUCTIONS(kitBrief(kit)),
+      tools: kitTools(kit, req.chatId, title)
+    })
+  if (lazy.length) {
+    add('capabilities', CAPABILITIES_PROMPT(lazy))
+    use('capabilities', [openCapability(lazy)])
   }
   if (req.beside) {
-    parts.push(SIDE_INSTRUCTIONS(req.beside))
+    add('side', SIDE_INSTRUCTIONS(req.beside))
     if (req.toSide)
-      parts.push(
+      add(
+        'side',
         `The user switched on "send to the ${sideName(req.beside)}" for their latest message: it is meant for that chat, not for you. Call side_chat_context, then send_to_side_chat once with a message that carries out what the user wrote: their words plus only the context from this chat that the other chat needs and does not have. Then reply to the user in one short line saying what you sent. Do not answer the message yourself.`
       )
-    tools.push(...sideTools(req.beside, title))
+    use('side', sideTools(req.beside, title))
   }
   const imageModel = IMAGES && imageKeyStatus().set
   if (can('pictures', true) || req.modes?.image) {
-    parts.push(IMAGE_INSTRUCTIONS(imageModel))
-    tools.push(...imageTools(imageModel))
+    add('pictures', IMAGE_INSTRUCTIONS(imageModel))
+    use('pictures', imageTools(imageModel))
   }
   const picked = modeInstructions(req, imageModel)
-  if (picked) parts.push(picked)
-  if (f.canvas || req.canvas) parts.push(CANVAS_INSTRUCTIONS)
-  if (req.canvas) parts.push(canvasContext(req))
-  if (req.research) parts.push(RESEARCH_INSTRUCTIONS)
+  add('picked', picked)
+  if (f.canvas || req.canvas) add('canvas', CANVAS_INSTRUCTIONS)
+  if (req.canvas) add('canvas-now', canvasContext(req))
+  if (req.research) add('research', RESEARCH_INSTRUCTIONS)
+  // shared, unchanging parts first (they are cached across messages and chats); this chat's and this turn's last
+  const ORDER = ['base', 'web', 'python', 'pictures', 'canvas', 'capabilities', 'research', 'role', 'memory', 'project', 'side', 'team', 'picked', 'canvas-now']
+  parts.sort((a, b) => ORDER.indexOf(a.name) - ORDER.indexOf(b.name))
+  return { parts, tools, webSearch, ...(role ? { role } : {}), team, ...(chat ? { chat } : {}) }
+}
+
+export async function reply(req: SendRequest, handlers: ConversationHandlers, signal: AbortSignal): Promise<void> {
+  const { parts, tools, webSearch, role, team, chat } = await buildSetup(req)
   await runConversation(
     {
       model: req.model,
       effort: req.research ? 'high' : req.effort,
-      instructions: parts.join('\n\n'),
+      instructions: parts.map((x) => x.text).join('\n\n'),
       // in a team chat, the other members' messages are theirs, not this member's own
       history: team ? teamHistory(req.history, role!.id, req) : req.history,
       ...(team ? { cacheKey: `team:${chat!.id}:${role!.id}` } : {}),

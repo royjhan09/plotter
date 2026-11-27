@@ -136,8 +136,11 @@ export interface LocalTool {
   parameters: Record<string, unknown>
   /** Shown while it runs, e.g. "Running Python…". */
   label: (args: Record<string, unknown>) => string
-  /** output goes back to the model; run (optional) is shown to the user. */
-  run: (args: Record<string, unknown>, signal: AbortSignal) => Promise<{ output: string; run?: Omit<ToolRun, 'id'> }>
+  /**
+   * output goes back to the model; run (optional) is shown to the user; addTools (optional) become available for the
+   * rest of this reply (a capability loaded on demand: see open_capability in assistant.ts).
+   */
+  run: (args: Record<string, unknown>, signal: AbortSignal) => Promise<{ output: string; run?: Omit<ToolRun, 'id'>; addTools?: LocalTool[] }>
 }
 
 type SearchAction = { type?: string; query?: string; url?: string; queries?: string[] }
@@ -366,6 +369,12 @@ export async function runConversation(
         try {
           const r = await tool.run(args, signal)
           result = r.output
+          // a capability opened mid-reply: its tools can be called from the next round on
+          for (const t of r.addTools ?? []) {
+            if (byName.has(t.name)) continue
+            byName.set(t.name, t)
+            tools.push({ type: 'function', name: t.name, description: t.description, parameters: t.parameters, strict: false })
+          }
           if (r.run) handlers.onToolRun({ id: `t${Date.now().toString(36)}${runSeq++}`, ...r.run })
         } catch (err) {
           if (signal.aborted) throw err

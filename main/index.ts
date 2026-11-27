@@ -12,7 +12,7 @@ import { addUseWhen, createKit, getKit, kitFolder, listKits, listUsage, removeCo
 import { nextSpeaker, suggestMembers } from './team'
 import { usageLog } from './openai'
 import { draftRole, forgetModel, generateProjectBrief, generateSuggestion, generateTitle, primaryModel, ReplyError } from './openai'
-import { reply } from './assistant'
+import { buildSetup, reply } from './assistant'
 import { onPythonStatus, pythonStatus, PY_SCHEME } from './python'
 import { connect as connectService, disconnect as disconnectService, listConnectors, setEnabled as setConnectorEnabled, setGoogleClient, setNotionToken } from './connectors'
 import { onSpeechStatus, speechStatus, transcribe, warmSpeech } from './speech'
@@ -157,6 +157,19 @@ export const handlers: Record<string, (...args: never[]) => unknown> = {
   'team:suggest': (purpose: string) => suggestMembers(String(purpose ?? '')),
   // dev measurements only (the browser-mode server): token use per ChatGPT call
   'debug:usage': () => (BROWSER_ONLY ? usageLog : []),
+  // dev measurements only: what a ChatGPT message in this chat is set up with, part by part (characters)
+  'debug:setup': async (chatId: string) => {
+    if (!BROWSER_ONLY) return null
+    const { parts, tools } = await buildSetup({ requestId: 'measure', chatId: String(chatId ?? ''), model: '', effort: '', history: [] })
+    const byPack = new Map<string, { tools: number; chars: number }>()
+    for (const t of tools) {
+      const b = byPack.get(t.pack) ?? { tools: 0, chars: 0 }
+      byPack.set(t.pack, { tools: b.tools + 1, chars: b.chars + JSON.stringify({ name: t.name, description: t.description, parameters: t.parameters }).length })
+    }
+    const text = new Map<string, number>()
+    for (const p of parts) text.set(p.name, (text.get(p.name) ?? 0) + p.text.length)
+    return { instructions: Object.fromEntries(text), tools: Object.fromEntries(byPack) }
+  },
   'debug:usageClear': () => {
     if (BROWSER_ONLY) usageLog.length = 0
   },
