@@ -1,5 +1,6 @@
 import { accessToken } from './auth'
-import type { Chat, HistoryItem, Model, ProjectBrief, ToolRun } from '../shared/api'
+import { ROLE_TOOL_INFO, type Chat, type HistoryItem, type Model, type ProjectBrief, type RoleDraft, type ToolRun } from '../shared/api'
+import { wardrobeBrief } from '@private/shared/costumes'
 
 /**
  * Calls to the Responses API with the ChatGPT-plan access token. Preview rules
@@ -442,4 +443,40 @@ export async function generateProjectBrief(chat: Chat): Promise<ProjectBrief> {
       .replace(/^-+|-+$/g, '')
       .slice(0, 40) || 'new-project'
   return { title: String(parsed.title ?? chat.title).trim() || chat.title, folder, brief }
+}
+
+const ROLE_INSTRUCTIONS = (): string => `You set up a "role": a ChatGPT assistant with one job, which the user will chat with. From its name and purpose, write what it needs as JSON only, no other text:
+{"tagline": "one short line saying what it is for (under 70 characters)", "purpose": "its main instructions, second person, 2-5 sentences: who it helps, with what, and how it works", "responsibilities": ["4-7 concrete things it is responsible for, each a short line starting with a verb"], "boundaries": "what it does not do, or hands back to the user (1-2 sentences)", "style": "how it talks (1 sentence)", "tools": [ids], "identity": {"color": hex, "hat": id, "eyes": id, "neck": id, "hand": id}}
+Keep the user's own words where they gave them. Tools, pick only those the job needs: ${Object.entries(ROLE_TOOL_INFO)
+  .map(([id, t]) => `${id} (${t.hint})`)
+  .join('; ')}.
+Its look is Plotter's sprout-bot (an orange square robot with a sprout on its head) dressed for the job. Pick a colour and one costume piece per slot that make the role recognisable at a glance; use "none" for a slot when nothing fits, and avoid dressing it in everything. Options:
+${wardrobeBrief()}`
+
+/** ChatGPT fills in a role from its name and purpose. */
+export async function draftRole(input: { name: string; purpose: string }): Promise<Partial<RoleDraft>> {
+  const name = input.name.trim()
+  const purpose = input.purpose.trim()
+  if (!name && !purpose) throw new Error('Give the role a name or say what it is for first.')
+  const model = await primaryModel()
+  const effort = model.efforts.find((e) => e.effort === 'low')?.effort ?? model.defaultEffort
+  let out = ''
+  await streamRound(
+    {
+      model: model.slug,
+      effort,
+      instructions: ROLE_INSTRUCTIONS(),
+      input: [toInput({ role: 'user', text: `Name: ${name || '(pick one)'}\nWhat it is for: ${purpose || '(work it out from the name)'}` })],
+      tools: [],
+      verbosity: 'medium'
+    },
+    { onDelta: (t) => (out += t), onActivity: () => undefined, onSource: () => undefined },
+    AbortSignal.timeout(120_000)
+  )
+  try {
+    const parsed = JSON.parse(out.slice(out.indexOf('{'), out.lastIndexOf('}') + 1)) as Partial<RoleDraft>
+    return { ...parsed, name: name || String(parsed.name ?? ''), purpose: String(parsed.purpose ?? '') || purpose }
+  } catch {
+    throw new Error('ChatGPT did not fill in the role. Try again.')
+  }
 }

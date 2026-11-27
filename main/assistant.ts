@@ -5,7 +5,8 @@ import { deliverToSide, projectsChanged } from './appEvents'
 import { generateWithKey, imageKeyStatus, IMAGES } from '@private/main/images'
 import { kitBrief, kitFor } from '@private/main/kits'
 import { KIT_GUIDE, kitToolSpecs, runKitTool } from '@private/main/kitOps'
-import type { Kit } from '../shared/api'
+import { bumpRole, getRole } from '@private/main/roles'
+import { ROLE_TOOL_INFO, type Kit, type RoleEntity, type RoleTool } from '../shared/api'
 import { pythonTool } from './python'
 import { connectorTools } from './connectors'
 import { marketTools } from './marketChat'
@@ -256,38 +257,55 @@ function modeInstructions(req: SendRequest, imageModel: boolean): string {
   return out.join('\n')
 }
 
+/** A role's job, said to ChatGPT before everything else. */
+const ROLE_PROMPT = (r: RoleEntity): string =>
+  [
+    `In this chat you are "${r.name}"${r.tagline ? `: ${r.tagline}` : ''}. This is your name and identity here: introduce yourself by it, not as Plotter or ChatGPT.`,
+    r.purpose,
+    r.responsibilities.length ? `You are responsible for:\n${r.responsibilities.map((x) => `- ${x}`).join('\n')}` : '',
+    r.boundaries ? `You do not: ${r.boundaries}` : '',
+    r.style ? `How you talk: ${r.style}` : '',
+    `Your tools: ${r.tools.length ? r.tools.map((t) => ROLE_TOOL_INFO[t].label).join(', ') : 'none (answer from what you know)'}. Stay in this role in every reply. When asked for something outside it, say so in a line and help as far as the role allows, or say who or what would be better placed.`
+  ]
+    .filter(Boolean)
+    .join('\n')
+
 export async function reply(req: SendRequest, handlers: ConversationHandlers, signal: AbortSignal): Promise<void> {
   const f = readFeatures()
-  const webSearch = f.webSearch || !!req.research || !!req.modes?.search
+  const chat = getChat(req.chatId)
+  // a role decides which tools its chats get (the user's own picks for one message still count)
+  const role = getRole(chat?.roleId)
+  const can = (t: RoleTool, otherwise: boolean): boolean => (role ? role.tools.includes(t) : otherwise)
+  const webSearch = can('web', f.webSearch) || !!req.research || !!req.modes?.search
   const tools: LocalTool[] = []
   const parts = [INSTRUCTIONS]
+  if (role) parts.push(ROLE_PROMPT(role))
   if (webSearch) parts.push(WEB_INSTRUCTIONS)
-  if (f.memory) {
+  if (can('memory', f.memory)) {
     parts.push(MEMORY_INSTRUCTIONS(listMemories()))
     tools.push(...memoryTools())
   }
-  if (f.python) {
+  if (can('python', f.python)) {
     parts.push(PYTHON_INSTRUCTIONS)
     tools.push(pythonTool(() => chatFiles(req)))
   }
-  const connected = await connectorTools()
+  const connected = can('connectors', true) ? await connectorTools() : { tools: [], instructions: '' }
   if (connected.tools.length) {
     parts.push(connected.instructions)
     tools.push(...connected.tools)
   }
-  const market = await marketTools()
+  const market = can('market', true) || req.modes?.tools?.length ? await marketTools() : { tools: [], instructions: '' }
   if (market.tools.length || market.instructions) {
     if (market.instructions) parts.push(market.instructions)
     tools.push(...market.tools)
   }
-  const chat = getChat(req.chatId)
   const title = chat?.title || 'ChatGPT chat'
   const project = chat ? projectContext(chat) : null
-  if (project) {
+  if (project && can('project', true)) {
     parts.push(PROJECT_INSTRUCTIONS(project.text))
     tools.push(...projectTools(project.project.id, title))
   }
-  const kit = kitFor(project?.project.kitId)
+  const kit = can('kit', true) ? kitFor(project?.project.kitId) : null
   if (kit) {
     parts.push(KIT_INSTRUCTIONS(kitBrief(kit)))
     tools.push(...kitTools(kit, req.chatId, title))
@@ -301,8 +319,10 @@ export async function reply(req: SendRequest, handlers: ConversationHandlers, si
     tools.push(...sideTools(req.beside, title))
   }
   const imageModel = IMAGES && imageKeyStatus().set
-  parts.push(IMAGE_INSTRUCTIONS(imageModel))
-  tools.push(...imageTools(imageModel))
+  if (can('pictures', true) || req.modes?.image) {
+    parts.push(IMAGE_INSTRUCTIONS(imageModel))
+    tools.push(...imageTools(imageModel))
+  }
   const picked = modeInstructions(req, imageModel)
   if (picked) parts.push(picked)
   if (f.canvas || req.canvas) parts.push(CANVAS_INSTRUCTIONS)
@@ -321,4 +341,5 @@ export async function reply(req: SendRequest, handlers: ConversationHandlers, si
     handlers,
     signal
   )
+  if (role) bumpRole(role.id)
 }

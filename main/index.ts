@@ -6,8 +6,9 @@ import { projectsChanged, setAppEmitter } from './appEvents'
 import { getLibraryItem, listLibrary } from '@private/main/library'
 import { clearImageKey, imageKeyStatus, setImageKey, setImageOptions } from '@private/main/images'
 import { addNote, createProject, editNote, listProjects, removeNote, removeProject, renameProject, setProjectKit } from './projects'
+import { cleanDraft, listRoles, removeRole, saveRole } from '@private/main/roles'
 import { addUseWhen, createKit, getKit, kitFolder, listKits, listUsage, removeComponent, removeKit, removeRule, restoreVersion, saveComponent, saveRule, setDefaultKit, updateKit, versionCode } from '@private/main/kits'
-import { forgetModel, generateProjectBrief, generateSuggestion, generateTitle, primaryModel, ReplyError } from './openai'
+import { draftRole, forgetModel, generateProjectBrief, generateSuggestion, generateTitle, primaryModel, ReplyError } from './openai'
 import { reply } from './assistant'
 import { onPythonStatus, pythonStatus, PY_SCHEME } from './python'
 import { connect as connectService, disconnect as disconnectService, listConnectors, setEnabled as setConnectorEnabled, setGoogleClient, setNotionToken } from './connectors'
@@ -19,7 +20,7 @@ import { showInExplorer } from './frontExplorer'
 import { pdfHandlers } from '@private/main/pdf'
 import { checkMarketTool, closeAllMarket, listMarket, removeMarketTool, saveMarketTool, setMarketConnected } from '@private/main/market'
 import { claudeCodeAvailable, makeProjectFolder, recentFolders, suggestProjectFolder, sendToClaude, settleStale, stopAllClaude, stopClaude } from '@private/main/claudeCode'
-import { USAGE_URL, type BesideChat, type Chat, type KitComponent, type KitPatch, type KitRule, type LibraryRef, type ChatMetaPatch, type MarketToolInput, type ConnectorId, type Features, type ReplyEvent, type SendRequest } from '../shared/api'
+import { USAGE_URL, type BesideChat, type Chat, type KitComponent, type KitPatch, type RoleDraft, type KitRule, type LibraryRef, type ChatMetaPatch, type MarketToolInput, type ConnectorId, type Features, type ReplyEvent, type SendRequest } from '../shared/api'
 
 app.setName('Plotter')
 // Interactive previews live on their own scheme/origin (see uiFrames.ts). Must be registered before ready.
@@ -145,6 +146,10 @@ export const handlers: Record<string, (...args: never[]) => unknown> = {
     projectsChanged()
     return p
   },
+  'roles:list': () => listRoles(),
+  'roles:save': (role: RoleDraft & { id?: string }) => saveRole({ ...role }),
+  'roles:remove': (id: string) => removeRole(String(id)),
+  'roles:draft': async (input: { name: string; purpose: string }) => cleanDraft(await draftRole({ name: String(input?.name ?? ''), purpose: String(input?.purpose ?? '') })),
   'projects:setKit': (id: string, kitId: string | null) => {
     const p = setProjectKit(String(id), kitId ? String(kitId) : null)
     projectsChanged()

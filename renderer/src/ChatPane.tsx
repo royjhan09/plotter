@@ -1,5 +1,5 @@
 import { useCallback, useContext, useEffect, useRef, useState } from 'react'
-import type { Attachment, Chat, ChatKind, ChatMessage, BesideChat, ClaudeChatConfig, HandOff, MessageModes, Model, Project, ReplyEvent } from '../../shared/api'
+import { ROLE_TOOL_INFO, type Attachment, type Chat, type ChatKind, type ChatMessage, type BesideChat, type ClaudeChatConfig, type HandOff, type MessageModes, type Model, type Project, type ReplyEvent } from '../../shared/api'
 import { Composer, EffortMenu } from './Composer'
 import { VoiceMode } from './VoiceMode'
 import { toAttachment } from './attachments'
@@ -11,6 +11,8 @@ import { RailIcon, ThemeButton } from './RailIcon'
 import { useClaudeTheme, type Theme } from './theme'
 import { ClaudeBuddy, folderName } from './ClaudeBuddy'
 import { SproutBot } from './SproutBot'
+import { RoleBot } from '@private/renderer/RoleBot'
+import { useRole } from './roles'
 import { CLAUDE_CODE, FolderPicker, sendClaudeTurn, startClaudeChat } from '@private/renderer/ClaudeCode'
 import icon from '../../assets/sprout.svg'
 
@@ -75,7 +77,7 @@ export interface ChatPaneProps {
   /** "Send to Claude Code" from a reply or the + menu: starts a Claude Code chat (opened beside this one). */
   onSendToClaude: (task: string, from?: HandOff, projectId?: string) => void
   /** What this side's new chat is, text to start it with and a reply handed to it; a new n means "start a new chat now". */
-  newChat: { kind: ChatKind; seed?: string; from?: HandOff; projectId?: string; n: number }
+  newChat: { kind: ChatKind; seed?: string; from?: HandOff; projectId?: string; roleId?: string; n: number }
   /** The chat open on the other side (side by side), so this chat can send something to it. */
   beside?: BesideChat
   /** Something the chat beside sent here; a new n means "it just arrived": this chat answers it right away. */
@@ -131,6 +133,8 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
   }, [p.beside])
   // the project a new chat starts in (its first message saves it there)
   const [newProject, setNewProject] = useState<string | undefined>(p.newChat.projectId)
+  // the role a new ChatGPT chat will talk as (picked on the Roles page)
+  const [newRole, setNewRole] = useState<string | undefined>(p.newChat.roleId)
   handOffRef.current = handOff
   // a project brief's suggested new folder (Create project), and whether it was made
   const [suggested, setSuggested] = useState<{ path: string; made: boolean } | null>(null)
@@ -232,6 +236,7 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
     setDraft(p.newChat.seed ?? '')
     setHandOff(p.newChat.from ?? null)
     setNewProject(p.newChat.projectId)
+    setNewRole(p.newChat.kind === 'chatgpt' ? p.newChat.roleId : undefined)
     if (p.newChat.from) setAttachments([])
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [p.newChat.n])
@@ -385,6 +390,7 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
     setNewKind(kind)
     if (kind === 'claude') setCcNew(current?.cc ? { folder: current.cc.folder, mode: 'edit', effort: current.cc.effort } : null)
     setNewProject(current?.projectId) // a new chat from a project chat stays in the project
+    setNewRole(undefined)
     setDraft('')
     onChatId(null)
   }
@@ -486,7 +492,7 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
     const user: ChatMessage = { id: newId(), role: 'user', text, at: now, ...(files.length ? { attachments: files } : {}), ...(asResearch ? { research: true } : {}), ...(incoming ? { from: incoming } : {}), ...(typed && toSide && p.beside ? { toSide: true } : {}), ...(picked ? { modes: picked } : {}) }
     const reply: ChatMessage = { id: newId(), role: 'assistant', text: '', at: now }
     const current = chatRef.current
-    const base: Chat = current ?? { id: newId(), title: incoming ? `From ${incoming.chat}`.slice(0, 60) : titleFrom(text, files), model: p.model.slug, messages: [], createdAt: now, updatedAt: now, ...(newProject ? { projectId: newProject } : {}) }
+    const base: Chat = current ?? { id: newId(), title: incoming ? `From ${incoming.chat}`.slice(0, 60) : titleFrom(text, files), model: p.model.slug, messages: [], createdAt: now, updatedAt: now, ...(newProject ? { projectId: newProject } : {}), ...(newRole && !isClaude ? { roleId: newRole } : {}) }
     const history = [...base.messages.filter((m) => !(m.role === 'assistant' && !m.text)), user]
     const next: Chat = { ...base, model: p.model.slug, messages: [...history, reply], updatedAt: now }
     chatRef.current = next
@@ -592,6 +598,7 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
 
   const messages = chat?.messages ?? []
   const projectOf = p.projects.find((x) => x.id === (chat ? chat.projectId : newProject))
+  const role = useRole(isClaude ? undefined : chat ? chat.roleId : newRole)
   const lastReply = messages.reduce((at, m, i) => (m.role === 'assistant' && m.text && !m.cc ? i : at), -1)
   return (
     <main
@@ -664,8 +671,21 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
       <div className="scroller" ref={scroller}>
         {messages.length === 0 ? (
           <div className="hello">
-            {isClaude ? <ClaudeBuddy size={84} /> : <SproutBot size={72} className="hello-bot" />}
-            <h2>{isClaude ? 'What shall we build?' : 'What shall we grow today?'}</h2>
+            {isClaude ? <ClaudeBuddy size={84} /> : role ? <RoleBot identity={role.identity} replies={role.replies} size={72} className="hello-bot" /> : <SproutBot size={72} className="hello-bot" />}
+            <h2>{isClaude ? 'What shall we build?' : role ? role.name : 'What shall we grow today?'}</h2>
+            {role && (
+              <div className="role-hello">
+                {role.tagline && <p>{role.tagline}</p>}
+                <div className="role-hello-tools">
+                  {role.tools.length ? role.tools.map((t) => <span key={t}>{ROLE_TOOL_INFO[t].label}</span>) : <span>No tools: it answers from what it knows</span>}
+                </div>
+                {!chat && (
+                  <button className="link" onClick={() => setNewRole(undefined)}>
+                    Talk to plain ChatGPT instead
+                  </button>
+                )}
+              </div>
+            )}
             {isClaude && !chat && (
               <p className="cc-hello-note">
                 {ccMissing ? (
@@ -707,6 +727,7 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
                 activity={activity}
                 onProject={isClaude || !CLAUDE_CODE || i !== lastReply ? undefined : () => void createProject()}
                 projectBusy={briefBusy}
+                role={role}
                 side={
                   p.beside && p.sendBeside && m.role === 'assistant'
                     ? {

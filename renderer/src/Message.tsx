@@ -1,10 +1,11 @@
 import { useRef, useState } from 'react'
-import type { ChatKind, ChatMessage, HandOff } from '../../shared/api'
+import type { ChatKind, ChatMessage, HandOff, RoleEntity } from '../../shared/api'
 import { Markdown } from './Markdown'
 import { badgeFor, sizeLabel } from './attachments'
 import { PictureViewer } from '@private/renderer/ImageViewer'
 import { ClaudeBuddy } from './ClaudeBuddy'
 import { SproutBot } from './SproutBot'
+import { RoleBot } from '@private/renderer/RoleBot'
 import { MenuIcon } from './PlusMenu'
 import { ClaudeTurn } from '@private/renderer/ClaudeCode'
 import icon from '../../assets/sprout.svg'
@@ -25,7 +26,8 @@ export function Message({
   chatId,
   onProject,
   projectBusy = false,
-  side
+  side,
+  role
 }: {
   m: ChatMessage
   typing: boolean
@@ -37,6 +39,8 @@ export function Message({
   projectBusy?: boolean
   /** In split view: sends this reply to the chat beside (which answers it). */
   side?: SideAction
+  /** The role this chat talks as: its own look replaces the plain sprout. */
+  role?: RoleEntity
 }): React.JSX.Element {
   if (m.role === 'user')
     return (
@@ -104,7 +108,7 @@ export function Message({
     )
   return (
     <div className="msg assistant" data-msg-id={m.id}>
-      <SproutBot size={30} working={typing} className="sprout" />
+      {role ? <RoleBot identity={role.identity} replies={role.replies} size={30} working={typing} className="sprout" /> : <SproutBot size={30} working={typing} className="sprout" />}
       <div className="body">
         {m.thoughtMs !== undefined && m.thoughtMs >= 2000 && m.text && (
           <div className="thought">Thought for {Math.round(m.thoughtMs / 1000)}s</div>

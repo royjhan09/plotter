@@ -27,6 +27,8 @@
     "renderer/src/**/*",
     "shared/**/*",
     "private/renderer/**/*",
-    "private-stub/renderer/**/*"
+    "private-stub/renderer/**/*",
+    "private/shared/**/*",
+    "private-stub/shared/**/*"
   ]
 }

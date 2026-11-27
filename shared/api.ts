@@ -101,6 +101,8 @@ export interface Chat {
   cc?: ClaudeChatConfig
   /** The project it belongs to (its chats share the project's memory). */
   projectId?: string
+  /** The role it talks as (a ChatGPT chat with a job, its own tools and its own look). */
+  roleId?: string
 }
 
 /** Settings › Images: which image model, and how good by default. */
@@ -272,6 +274,54 @@ export interface KitVariant {
   at?: number
 }
 
+/** The tools a role may use (each one switched on for its chats, the rest off). */
+export type RoleTool = 'web' | 'python' | 'memory' | 'pictures' | 'kit' | 'connectors' | 'market' | 'project'
+
+/** What each role tool gives its chats. */
+export const ROLE_TOOL_INFO: Record<RoleTool, { label: string; hint: string }> = {
+  web: { label: 'Web search', hint: 'Looks things up on the web and cites them.' },
+  python: { label: 'Python', hint: 'Runs code: maths, data, charts and the files you attach.' },
+  memory: { label: 'Memory', hint: 'Remembers lasting facts about you across chats.' },
+  pictures: { label: 'Pictures', hint: 'Draws pictures, and makes images with your key if you set one.' },
+  kit: { label: 'Design kit', hint: 'Uses and updates your design kit for anything visual.' },
+  connectors: { label: 'Connected apps', hint: 'Uses the apps you connected (mail, calendar, files…).' },
+  market: { label: 'Market tools', hint: 'Uses the tools you added from the Market.' },
+  project: { label: 'Project memory', hint: "Reads and adds to its project's shared memory." }
+}
+
+/** A role's look: the sprout-bot in a colour and a costume. */
+export interface RoleIdentity {
+  /** Body colour (hex). */
+  color: string
+  hat: string
+  eyes: string
+  neck: string
+  hand: string
+}
+
+/** A ChatGPT chat with a job: who it is, what it is responsible for, and which tools it gets. */
+export interface RoleEntity {
+  id: string
+  name: string
+  /** One line: what it is for, shown under its name. */
+  tagline: string
+  /** What it does and for whom (its main instructions). */
+  purpose: string
+  responsibilities: string[]
+  /** What it should not do, or hand back to you. */
+  boundaries?: string
+  /** How it talks. */
+  style?: string
+  tools: RoleTool[]
+  identity: RoleIdentity
+  /** Replies it has written (it grows with them). */
+  replies: number
+  createdAt: number
+  updatedAt: number
+}
+
+export type RoleDraft = Omit<RoleEntity, 'id' | 'replies' | 'createdAt' | 'updatedAt'>
+
 export interface KitSummary {
   id: string
   name: string
@@ -416,6 +466,7 @@ export interface ChatSummary {
   archived?: boolean
   kind?: ChatKind
   projectId?: string
+  roleId?: string
 }
 
 export interface Account {
@@ -560,6 +611,15 @@ export interface PlotterApi {
     list: () => Promise<LibraryItem[]>
     /** One of them, ready to attach. */
     get: (ref: LibraryRef) => Promise<Attachment>
+  }
+  roles: {
+    list: () => Promise<RoleEntity[]>
+    /** Adds a role, or updates the one with this id. */
+    save: (role: RoleDraft & { id?: string }) => Promise<RoleEntity>
+    remove: (id: string) => Promise<RoleEntity[]>
+    /** ChatGPT fills in a role from its name and purpose: responsibilities, tools, tone and its costume. */
+    draft: (input: { name: string; purpose: string }) => Promise<RoleDraft>
+    onChanged: (listener: () => void) => () => void
   }
   kits: {
     list: () => Promise<KitSummary[]>

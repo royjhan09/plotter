@@ -36,7 +36,8 @@ const listeners = {
   claudeCode: new Set<(u: ClaudeCodeUpdate) => void>(),
   side: new Set<(d: SideDelivery) => void>(),
   projects: new Set<() => void>(),
-  kits: new Set<(kitId: string) => void>()
+  kits: new Set<(kitId: string) => void>(),
+  roles: new Set<() => void>()
 }
 
 export function installDevBridge(): void {
@@ -47,6 +48,7 @@ export function installDevBridge(): void {
   events.addEventListener('claudeCode:update', (e) => listeners.claudeCode.forEach((l) => l(JSON.parse((e as MessageEvent).data))))
   events.addEventListener('side:deliver', (e) => listeners.side.forEach((l) => l(JSON.parse((e as MessageEvent).data))))
   events.addEventListener('projects:changed', () => listeners.projects.forEach((l) => l()))
+  events.addEventListener('roles:changed', () => listeners.roles.forEach((l) => l()))
   events.addEventListener('kits:changed', (e) => listeners.kits.forEach((l) => l(JSON.parse((e as MessageEvent).data).kitId)))
   events.addEventListener('speech:status', (e) => listeners.speech.forEach((l) => l(JSON.parse((e as MessageEvent).data))))
 
@@ -82,6 +84,16 @@ export function installDevBridge(): void {
     library: {
       list: () => call('library:list'),
       get: (ref) => call('library:get', ref)
+    },
+    roles: {
+      list: () => call('roles:list'),
+      save: (role) => call('roles:save', role),
+      remove: (id) => call('roles:remove', id),
+      draft: (input) => call('roles:draft', input),
+      onChanged: (l) => {
+        listeners.roles.add(l)
+        return () => listeners.roles.delete(l)
+      }
     },
     kits: {
       list: () => call('kits:list'),

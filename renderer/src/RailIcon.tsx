@@ -1,7 +1,7 @@
 import type { Theme } from './theme'
 
 /** The rail's and top bar's line icons. */
-export function RailIcon({ name }: { name: 'new' | 'chats' | 'home' | 'customize' | 'search' | 'settings' | 'pin' | 'unpin' | 'market' | 'kits' }): React.JSX.Element {
+export function RailIcon({ name }: { name: 'new' | 'chats' | 'home' | 'customize' | 'search' | 'settings' | 'pin' | 'unpin' | 'market' | 'kits' | 'roles' }): React.JSX.Element {
   const common = { viewBox: '0 0 24 24', width: 20, height: 20, fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const }
   if (name === 'new')
     return (
@@ -23,6 +23,16 @@ export function RailIcon({ name }: { name: 'new' | 'chats' | 'home' | 'customize
         <path d="M4 7h10M18 7h2M4 17h4M12 17h8" />
         <circle cx="16" cy="7" r="2" />
         <circle cx="10" cy="17" r="2" />
+      </svg>
+    )
+  if (name === 'roles')
+    return (
+      <svg {...common}>
+        <path d="M7.5 7.5h9" />
+        <path d="M9 7.5 10 3.5h4l1 4" />
+        <circle cx="12" cy="11.5" r="3" />
+        <path d="M5.5 20.5c.8-3.3 3.4-5 6.5-5s5.7 1.7 6.5 5" />
+        <path d="m12 15.5-1 2 1 2.5 1-2.5Z" />
       </svg>
     )
   if (name === 'market')

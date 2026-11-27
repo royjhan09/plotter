@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { AuthState, CanvasDoc, ChatKind, ChatMetaPatch, ChatSummary, HandOff, Model, Project, BesideChat } from '../../shared/api'
+import type { AuthState, CanvasDoc, ChatKind, ChatMetaPatch, ChatSummary, HandOff, Model, Project, BesideChat, RoleEntity } from '../../shared/api'
 import { useThemeSetting } from './theme'
 import { CanvasContext, CanvasPanel } from './Canvas'
 import { CustomizePanel, Settings, type Tab as SettingsTab } from './Settings'
@@ -12,6 +12,8 @@ import { ChatPane, announceRename, cleanError } from './ChatPane'
 import { RailIcon } from './RailIcon'
 import { MARKET, Market } from '@private/renderer/Market'
 import { KITS, Kits } from '@private/renderer/Kits'
+import { ROLES, Roles } from '@private/renderer/Roles'
+import { RolesContext } from './roles'
 import icon from '../../assets/sprout.svg'
 
 const api = window.plotter
@@ -91,11 +93,11 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
   const side = split ? focus : 'left'
   const setSideId = (s: 'left' | 'right', id: string | null): void => (s === 'left' ? setLeftId(id) : setRightId(id))
   // What a side's *new* chat is (a ChatGPT chat, or a Claude Code chat), and text to start its message box with.
-  type NewChat = { kind: ChatKind; seed?: string; from?: HandOff; projectId?: string; n: number }
+  type NewChat = { kind: ChatKind; seed?: string; from?: HandOff; projectId?: string; roleId?: string; n: number }
   const [leftNew, setLeftNew] = useState<NewChat>({ kind: 'chatgpt', n: 0 })
   const [rightNew, setRightNew] = useState<NewChat>({ kind: 'chatgpt', n: 0 })
-  const setSideNew = (s: 'left' | 'right', kind: ChatKind, seed?: string, from?: HandOff, projectId?: string): void =>
-    (s === 'left' ? setLeftNew : setRightNew)((prev) => ({ kind, seed, from, projectId, n: prev.n + 1 }))
+  const setSideNew = (s: 'left' | 'right', kind: ChatKind, seed?: string, from?: HandOff, projectId?: string, roleId?: string): void =>
+    (s === 'left' ? setLeftNew : setRightNew)((prev) => ({ kind, seed, from, projectId, roleId, n: prev.n + 1 }))
   // Which kind of chat each side shows (a side's new chat may have been switched from its own menu).
   const [paneKind, setPaneKind] = useState<Record<'left' | 'right', ChatKind>>({ left: 'chatgpt', right: 'chatgpt' })
   const onLeftKind = useCallback((k: ChatKind) => setPaneKind((p) => (p.left === k ? p : { ...p, left: k })), [])
@@ -161,6 +163,14 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [marketOpen, setMarketOpen] = useState(false)
   const [kitsOpen, setKitsOpen] = useState(false)
+  // Roles: ChatGPT chats with a job and their own look
+  const [rolesOpen, setRolesOpen] = useState(false)
+  const [roles, setRoles] = useState<RoleEntity[]>([])
+  useEffect(() => {
+    const load = (): void => void api.roles.list().then(setRoles, () => setRoles([]))
+    load()
+    return api.roles.onChanged(load)
+  }, [])
   // Projects: groups of chats with a shared memory; one project's page can be open instead of the chats.
   const [projects, setProjects] = useState<Project[]>([])
   const [projectOpen, setProjectOpen] = useState<string | null>(null)
@@ -172,6 +182,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
   const openSettings = (tab: SettingsTab): void => {
     setMarketOpen(false)
     setKitsOpen(false)
+    setRolesOpen(false)
     setProjectOpen(null)
     setSettingsTab(tab)
     setSettingsOpen(true)
@@ -218,6 +229,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
     setSettingsOpen(false)
     setMarketOpen(false)
     setKitsOpen(false)
+    setRolesOpen(false)
     setProjectOpen(null)
     if (where === 'right') setSplit(true)
     const other = where === 'left' ? rightId : leftId
@@ -234,6 +246,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
     setSettingsOpen(false)
     setMarketOpen(false)
     setKitsOpen(false)
+    setRolesOpen(false)
     setProjectOpen(null)
     setSideNew(side, 'chatgpt')
     setSideId(side, null)
@@ -244,6 +257,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
     setSettingsOpen(false)
     setMarketOpen(false)
     setKitsOpen(false)
+    setRolesOpen(false)
     setProjectOpen(null)
     const where: 'left' | 'right' = beside ? (side === 'left' ? 'right' : 'left') : side
     if (where === 'right') setSplit(true)
@@ -297,7 +311,18 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
     setSettingsOpen(false)
     setMarketOpen(false)
     setKitsOpen(false)
+    setRolesOpen(false)
     setProjectOpen(p.id)
+  }
+  /** A new chat with a role, on the focused side. */
+  const newRoleChat = (roleId: string): void => {
+    setProjectOpen(null)
+    setSettingsOpen(false)
+    setMarketOpen(false)
+    setKitsOpen(false)
+    setRolesOpen(false)
+    setSideNew(side, 'chatgpt', undefined, undefined, undefined, roleId)
+    setSideId(side, null)
   }
   /** A new chat of a kind inside a project, on the focused side. */
   const newChatInProject = (kind: ChatKind, projectId: string): void => {
@@ -305,6 +330,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
     setSettingsOpen(false)
     setMarketOpen(false)
     setKitsOpen(false)
+    setRolesOpen(false)
     setSideNew(side, kind, undefined, undefined, projectId)
     setSideId(side, null)
   }
@@ -354,6 +380,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
     setSettingsOpen(false)
     setMarketOpen(false)
     setKitsOpen(false)
+    setRolesOpen(false)
     if (where === 'right') setSplit(true)
     setProjectOpen(null)
     setSideNew(where, kind)
@@ -399,6 +426,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
   }
 
   return (
+    <RolesContext.Provider value={roles}>
     <CanvasContext.Provider value={canvasApi}>
     <div className={`shell ${canvas ? 'with-canvas' : ''} ${pinned ? 'pinned' : ''}`}>
       {/* The rail: always there. Hovering an icon slides its panel out (Chats, Customize); a docked panel stays. */}
@@ -436,10 +464,27 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
                 setSettingsOpen(false)
                 setPanel(null)
                 setKitsOpen(false)
+                setRolesOpen(false)
                 setMarketOpen(!marketOpen)
               }}
             >
               <RailIcon name="market" />
+            </button>
+          )}
+          {ROLES && (
+            <button
+              className={`rail-btn ${rolesOpen ? 'on' : ''}`}
+              title="Roles: ChatGPT with a job, its own tools and look"
+              onClick={() => {
+                setSettingsOpen(false)
+                setMarketOpen(false)
+                setKitsOpen(false)
+                setProjectOpen(null)
+                setPanel(null)
+                setRolesOpen(!rolesOpen)
+              }}
+            >
+              <RailIcon name="roles" />
             </button>
           )}
           {KITS && (
@@ -451,6 +496,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
                 setMarketOpen(false)
                 setProjectOpen(null)
                 setPanel(null)
+                setRolesOpen(false)
                 setKitsOpen(!kitsOpen)
               }}
             >
@@ -562,6 +608,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
                 setSettingsOpen(false)
                 setMarketOpen(false)
                 setKitsOpen(false)
+                setRolesOpen(false)
                 setProjectOpen(id)
                 if (!pinned) setPanel(null)
               }}
@@ -574,8 +621,9 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
 
       {marketOpen && !settingsOpen && <Market onClose={() => setMarketOpen(false)} />}
       {kitsOpen && !settingsOpen && !marketOpen && <Kits onClose={() => setKitsOpen(false)} />}
+      {rolesOpen && !settingsOpen && !marketOpen && !kitsOpen && <Roles onClose={() => setRolesOpen(false)} onStartChat={(id) => newRoleChat(id)} />}
 
-      {openProject && !settingsOpen && !marketOpen && !kitsOpen && (
+      {openProject && !settingsOpen && !marketOpen && !kitsOpen && !rolesOpen && (
         <ProjectPage
           project={openProject}
           chats={chats}
@@ -611,7 +659,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
 
       <div
         className={`panes ${split ? 'split' : ''}`}
-        hidden={settingsOpen || marketOpen || kitsOpen || !!openProject}
+        hidden={settingsOpen || marketOpen || kitsOpen || rolesOpen || !!openProject}
         onDragOver={onPanesDragOver}
         onDragLeave={(e) => {
           if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDropSide(null)
@@ -688,6 +736,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
       )}
     </div>
     </CanvasContext.Provider>
+    </RolesContext.Provider>
   )
 }
 

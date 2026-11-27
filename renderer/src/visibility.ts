@@ -79,6 +79,13 @@ export const VISIBILITY: VisibilityGroup[] = [
         tradeoff: MOVED
       },
       {
+        name: 'Roles and their looks',
+        now: 'private',
+        advice: 'keep-private',
+        why: 'The Roles page, where roles are kept, the sprout-bot’s costumes and how it grows with each role.',
+        tradeoff: `${MOVED} The public stand-in has no Roles page, and role chats show the plain sprout.`
+      },
+      {
         name: 'Design kit tools, versions and usage',
         now: 'private',
         advice: 'keep-private',
@@ -134,6 +141,13 @@ export const VISIBILITY: VisibilityGroup[] = [
         advice: 'must-public',
         why: 'They change what ChatGPT is asked to do for that message (main/assistant.ts).',
         tradeoff: 'Same as above.'
+      },
+      {
+        name: 'Roles in ChatGPT replies',
+        now: 'public',
+        advice: 'must-public',
+        why: 'How ChatGPT is told its role and given only that role’s tools, and how it fills in a new role (main/assistant.ts, main/openai.ts).',
+        tradeoff: 'Shows that roles exist, not what yours say (they stay on this PC).'
       },
       {
         name: 'Your design kit in ChatGPT replies',

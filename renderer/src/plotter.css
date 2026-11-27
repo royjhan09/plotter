@@ -6499,3 +6499,238 @@ body,
   font-weight: 600;
   color: var(--leaf-text);
 }
+/* roles: ChatGPT with a job and its own look */
+.roles-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 10px 0 20px;
+}
+.roles-head h2 {
+  margin: 0;
+  font-size: 28px;
+}
+.roles-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+  padding: 30px 0 10px;
+}
+.roles-empty p {
+  max-width: 460px;
+  color: var(--muted);
+  margin: 0 0 8px;
+}
+.roles-starters {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+  width: 100%;
+  max-width: 720px;
+}
+.roles-starter {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid var(--sand);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+.roles-starter:hover {
+  border-color: var(--ink);
+}
+.roles-starter span {
+  color: var(--muted);
+}
+.roles-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+}
+.role-card {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  grid-template-rows: 1fr auto;
+  border: 1px solid var(--sand);
+  border-radius: 16px;
+  background: var(--surface);
+  overflow: hidden;
+}
+.role-card-stage,
+.role-stage {
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--role, #e8590c) 12%, var(--paper));
+}
+.role-card-stage {
+  grid-row: 1 / 3;
+  padding: 10px 0;
+}
+.role-card-body {
+  padding: 12px 14px 4px;
+  min-width: 0;
+}
+.role-card-name {
+  font-weight: 700;
+  font-size: 15px;
+}
+.role-card-tagline {
+  font-size: 13px;
+  color: var(--ink);
+  margin-top: 2px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.role-card-meta {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 6px 0;
+}
+.role-tools,
+.role-hello-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.role-tools span,
+.role-hello-tools span {
+  font-size: 11.5px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--sand-strong);
+  color: var(--muted);
+}
+.role-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 8px 12px 12px;
+}
+/* the editor: the bot and its wardrobe on the left */
+.role-stage {
+  border-radius: 14px;
+  padding: 18px 0 10px;
+  gap: 6px;
+}
+.role-stage-note {
+  font-size: 12px;
+  color: var(--muted);
+}
+.role-look {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.role-look-row {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+}
+.role-look-label {
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.role-swatches,
+.role-parts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.role-swatches button {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid var(--surface);
+  box-shadow: 0 0 0 1px var(--sand-strong);
+  cursor: pointer;
+}
+.role-swatches button.on {
+  box-shadow: 0 0 0 2px var(--ink);
+}
+.role-parts button {
+  width: 46px;
+  height: 50px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--sand);
+  border-radius: 10px;
+  background: var(--surface);
+  cursor: pointer;
+  overflow: hidden;
+}
+.role-parts button:hover {
+  border-color: var(--sand-strong);
+}
+.role-parts button.on {
+  border-color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--ink);
+}
+.role-none {
+  font-size: 11px;
+  color: var(--muted);
+}
+.role-editor-side {
+  overflow-y: auto;
+}
+.role-fill {
+  align-self: flex-start;
+}
+.role-fill-note {
+  margin: -4px 0 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.role-tool-pick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.role-tool-pick button {
+  height: 28px;
+  padding: 0 11px;
+  border-radius: 999px;
+  border: 1px solid var(--sand);
+  background: var(--surface);
+  color: var(--muted);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.role-tool-pick button.on {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+/* a new role chat: who you are talking to */
+.role-hello {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-top: -6px;
+}
+.role-hello p {
+  margin: 0;
+  color: var(--muted);
+  max-width: 460px;
+  text-align: center;
+}
+.role-hello .link {
+  font-size: 12.5px;
+}
+.chat-kind .role-bot {
+  display: block;
+}

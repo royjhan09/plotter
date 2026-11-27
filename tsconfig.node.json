@@ -30,6 +30,8 @@
     "shared/**/*",
     "tests/**/*",
     "private/main/**/*",
-    "private-stub/main/**/*"
+    "private-stub/main/**/*",
+    "private/shared/**/*",
+    "private-stub/shared/**/*"
   ]
 }

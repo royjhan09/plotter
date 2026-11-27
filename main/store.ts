@@ -82,7 +82,7 @@ export function listChats(): ChatSummary[] {
     if (!name.endsWith('.json')) continue
     try {
       const chat = JSON.parse(readFileSync(join(chatsDir(), name), 'utf8')) as Chat
-      out.push({ id: chat.id, title: chat.title, updatedAt: chat.updatedAt, pinned: !!chat.pinned, archived: !!chat.archived, kind: chat.kind ?? 'chatgpt', ...(chat.projectId ? { projectId: chat.projectId } : {}) })
+      out.push({ id: chat.id, title: chat.title, updatedAt: chat.updatedAt, pinned: !!chat.pinned, archived: !!chat.archived, kind: chat.kind ?? 'chatgpt', ...(chat.projectId ? { projectId: chat.projectId } : {}), ...(chat.roleId ? { roleId: chat.roleId } : {}) })
     } catch {
       // a broken file is skipped, not fatal
     }
@@ -104,7 +104,7 @@ export function saveChat(chat: Chat): void {
   const before = getChat(chat.id)
   if (before) {
     // the project is changed through updateChatMeta too (a window holding an older copy must not undo a move)
-    chat = { ...chat, pinned: before.pinned, archived: before.archived, projectId: before.projectId }
+    chat = { ...chat, pinned: before.pinned, archived: before.archived, projectId: before.projectId, ...(chat.roleId ?? before.roleId ? { roleId: chat.roleId ?? before.roleId } : {}) }
     // A Claude Code chat's session id is written by the main process; keep it.
     // (A new folder starts a new session, so then it is not carried over.)
     if (before.cc?.sessionId && chat.cc && !chat.cc.sessionId && chat.cc.folder === before.cc.folder) chat = { ...chat, cc: { ...chat.cc, sessionId: before.cc.sessionId } }

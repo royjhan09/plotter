@@ -15,3 +15,6 @@ export const projectsChanged = (): void => emitter('projects:changed', {})
 
 /** Something was saved to a design kit (by a chat, Claude Code or you). */
 export const kitsChanged = (kitId: string): void => emitter('kits:changed', { kitId })
+
+/** A role was made, changed or grew. */
+export const rolesChanged = (): void => emitter('roles:changed', {})

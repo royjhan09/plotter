@@ -38,6 +38,17 @@ const api: PlotterApi = {
     list: () => ipcRenderer.invoke('library:list'),
     get: (ref) => ipcRenderer.invoke('library:get', ref)
   },
+  roles: {
+    list: () => ipcRenderer.invoke('roles:list'),
+    save: (role) => ipcRenderer.invoke('roles:save', role),
+    remove: (id) => ipcRenderer.invoke('roles:remove', id),
+    draft: (input) => ipcRenderer.invoke('roles:draft', input),
+    onChanged: (listener) => {
+      const handler = (): void => listener()
+      ipcRenderer.on('roles:changed', handler)
+      return () => ipcRenderer.removeListener('roles:changed', handler)
+    }
+  },
   kits: {
     list: () => ipcRenderer.invoke('kits:list'),
     get: (id) => ipcRenderer.invoke('kits:get', id),

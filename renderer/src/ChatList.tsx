@@ -1,5 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
-import type { ChatMetaPatch, ChatSummary, Project } from '../../shared/api'
+import { useContext, useEffect, useRef, useState } from 'react'
+import { RoleBot } from '@private/renderer/RoleBot'
+import { RolesContext } from './roles'
+import type { ChatMetaPatch, ChatSummary, Project, RoleEntity } from '../../shared/api'
 import { ProjectIcon } from './Projects'
 import { ClaudeBuddy } from './ClaudeBuddy'
 import icon from '../../assets/sprout.svg'
@@ -111,6 +113,8 @@ interface Props {
 export function ChatList({ chats, activeIds, query, visible, onOpen, onUpdate, onDelete, onPdf, onOpenBeside, onDragStart, onDragEnd, projects, openProjectId, onOpenProject, onNewProject, dragged }: Props): React.JSX.Element {
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set(JSON.parse(localStorage.getItem('plotter.openProjects') ?? '[]') as string[]))
   const [dropOn, setDropOn] = useState<string | null>(null)
+  const roles = useContext(RolesContext)
+  const roleOf = (id: string | undefined): RoleEntity | undefined => (id ? roles.find((r) => r.id === id) : undefined)
   const toggleProject = (id: string): void =>
     setExpanded((prev) => {
       const next = new Set(prev)
@@ -199,7 +203,7 @@ export function ChatList({ chats, activeIds, query, visible, onOpen, onUpdate, o
       }}
       title={c.kind === 'claude' ? 'Claude Code chat. Drag to the right side to open it beside another chat' : 'Drag to the right side to open it beside another chat'}
     >
-      <span className="chat-kind">{c.kind === 'claude' ? <ClaudeBuddy size={18} /> : <img src={icon} alt="" />}</span>
+      <span className="chat-kind">{c.kind === 'claude' ? <ClaudeBuddy size={18} /> : roleOf(c.roleId) ? <RoleBot identity={roleOf(c.roleId)!.identity} replies={roleOf(c.roleId)!.replies} size={14} /> : <img src={icon} alt="" />}</span>
       {renaming === c.id ? (
         <RenameInput
           initial={c.title}
