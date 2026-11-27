@@ -1,97 +1,72 @@
-/* Plotter's look, taken from its icon: cream, the orange seed-bot, two sprout greens.
-   The conversation and the message box are the exception: plain white and neutral greys,
-   because long reading on a tinted page is tiring (see "chat area" below). */
+/* Plotter's look: clean, high-contrast neutrals (white, near-black, crisp greys) with the icon's two
+   colours as the only accents: the seed-bot's orange and the sprout's green. No pastel tints. */
 :root {
-  --cream: #fff4e6;
+  --cream: #f4f4f5;
   --paper: #ffffff;
-  --sand: #f6e6d2;
-  --sand-strong: #ecd3b6;
-  --ink: #3b2a1a;
-  --muted: #8a7460;
+  --sand: #e4e4e7;
+  --sand-strong: #c9c9cf;
+  --ink: #111113;
+  --muted: #5c5c66;
   --orange: #e8590c;
-  --orange-soft: #ee8144;
-  --orange-tint: #fde3cf;
-  --leaf: #40c057;
-  --leaf-light: #69db7c;
-  --leaf-tint: #e3f7e6;
-  --bad: #c92a2a;
+  --orange-soft: #f0772f;
+  --orange-tint: #ececef;
+  --leaf: #2f9e44;
+  --leaf-light: #51cf66;
+  --leaf-tint: #ececef;
+  --bad: #d9302c;
   --radius: 16px;
-  --shadow: 0 1px 2px rgba(59, 42, 26, 0.06), 0 6px 20px rgba(59, 42, 26, 0.07);
-  --shadow-pop: 0 10px 30px rgba(59, 42, 26, 0.16);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 6px 20px rgba(0, 0, 0, 0.07);
+  --shadow-pop: 0 12px 32px rgba(0, 0, 0, 0.16);
   --surface: #ffffff;
-  --bubble: #fde3cf;
-  --focus: #ee8144;
-  --placeholder: #b39d88;
-  --leaf-text: #2f7d3a;
-  --code-bg: #1e1e1e;
-  --stripe: rgba(246, 230, 210, 0.35);
-  --overlay: rgba(59, 42, 26, 0.3);
+  --bubble: #f1f1f3;
+  --focus: #111113;
+  --placeholder: #8a8a94;
+  --leaf-text: #2b8a3e;
+  --code-bg: #18181b;
+  --stripe: rgba(0, 0, 0, 0.025);
+  --overlay: rgba(0, 0, 0, 0.4);
   color-scheme: light;
 }
 
-/* Dark: the same seed-bot colours on warm soil. */
+/* Dark: near-black neutrals, the same orange and green. */
 :root[data-theme='dark'] {
-  --cream: #221b15;
-  --paper: #1a1511;
-  --sand: #31281f;
-  --sand-strong: #45382c;
-  --ink: #f2e6d8;
-  --muted: #a8927c;
-  --orange: #f06a1d;
-  --orange-soft: #f4975f;
-  --orange-tint: #3d2718;
-  --leaf: #51cf66;
-  --leaf-light: #8ce99a;
-  --leaf-tint: #1d3122;
-  --bad: #ff8787;
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 6px 20px rgba(0, 0, 0, 0.3);
-  --shadow-pop: 0 12px 34px rgba(0, 0, 0, 0.5);
-  --surface: #262019;
-  --bubble: #3d2718;
-  --focus: #f4975f;
-  --placeholder: #7d6a58;
-  --leaf-text: #8ce99a;
-  --code-bg: #141414;
+  --cream: #2a2a2e;
+  --paper: #1e1e21;
+  --sand: #313136;
+  --sand-strong: #46464d;
+  --ink: #f2f2f3;
+  --muted: #a3a3ab;
+  --orange: #f76707;
+  --orange-soft: #ff8a3d;
+  --orange-tint: #34343a;
+  --leaf: #40c057;
+  --leaf-light: #69db7c;
+  --leaf-tint: #34343a;
+  --bad: #ff6b6b;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 6px 20px rgba(0, 0, 0, 0.35);
+  --shadow-pop: 0 12px 34px rgba(0, 0, 0, 0.55);
+  --surface: #26262a;
+  --bubble: #2f2f34;
+  --focus: #f2f2f3;
+  --placeholder: #77777f;
+  --leaf-text: #69db7c;
+  --code-bg: #0e0e10;
   --stripe: rgba(255, 255, 255, 0.03);
-  --overlay: rgba(0, 0, 0, 0.55);
+  --overlay: rgba(0, 0, 0, 0.6);
   color-scheme: dark;
 }
 
 /* The chat area (conversation + message box): neutral, like a reading surface. */
 .scroller,
 .composer-wrap {
-  --cream: #f9f9f9;
-  --paper: #ffffff;
-  --sand: #ececec;
-  --sand-strong: #d6d6d6;
-  --ink: #1f1f1f;
-  --muted: #6b6b6b;
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.05), 0 6px 20px rgba(0, 0, 0, 0.06);
-  --shadow-pop: 0 10px 30px rgba(0, 0, 0, 0.14);
-  --surface: #ffffff;
-  --bubble: #f4f4f4;
-  --focus: #b5b5b5;
-  --placeholder: #9b9b9b;
-  --stripe: rgba(0, 0, 0, 0.025);
+  --focus: #a1a1aa;
   background: var(--paper);
   color: var(--ink);
 }
 
 :root[data-theme='dark'] .scroller,
 :root[data-theme='dark'] .composer-wrap {
-  --cream: #2a2a2a;
-  --paper: #212121;
-  --sand: #2f2f2f;
-  --sand-strong: #424242;
-  --ink: #ececec;
-  --muted: #a3a3a3;
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 6px 20px rgba(0, 0, 0, 0.3);
-  --shadow-pop: 0 12px 34px rgba(0, 0, 0, 0.5);
-  --surface: #2a2a2a;
-  --bubble: #303030;
-  --focus: #5a5a5a;
-  --placeholder: #7a7a7a;
-  --stripe: rgba(255, 255, 255, 0.03);
+  --focus: #77777f;
 }
 
 * {
@@ -1843,10 +1818,11 @@ body,
   gap: 6px;
   font-size: 13px;
   font-weight: 600;
-  color: #1864ab;
-  background: #e7f1fc;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--sand-strong);
   border-radius: 999px;
-  padding: 3px 6px 3px 10px;
+  padding: 2px 6px 2px 9px;
 }
 .mode-chip button {
   border: 0;
@@ -3269,7 +3245,7 @@ body,
   background: #fff;
 }
 :root[data-theme='dark'] .settings-page .settings-body {
-  background: #212121;
+  background: var(--paper);
 }
 .settings-content {
   max-width: 720px;
@@ -4081,98 +4057,74 @@ body,
 /* ---------- a side's own light/dark (Claude Code chats: dark unless switched) ----------
    The same palettes as the app's (:root and dark), scoped to one side. */
 .pane.theme-dark {
-  --cream: #221b15;
-  --paper: #1a1511;
-  --sand: #31281f;
-  --sand-strong: #45382c;
-  --ink: #f2e6d8;
-  --muted: #a8927c;
-  --orange: #f06a1d;
-  --orange-soft: #f4975f;
-  --orange-tint: #3d2718;
-  --leaf: #51cf66;
-  --leaf-light: #8ce99a;
-  --leaf-tint: #1d3122;
-  --bad: #ff8787;
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 6px 20px rgba(0, 0, 0, 0.3);
-  --shadow-pop: 0 12px 34px rgba(0, 0, 0, 0.5);
-  --surface: #262019;
-  --bubble: #3d2718;
-  --focus: #f4975f;
-  --placeholder: #7d6a58;
-  --leaf-text: #8ce99a;
-  --code-bg: #141414;
+  --cream: #2a2a2e;
+  --paper: #1e1e21;
+  --sand: #313136;
+  --sand-strong: #46464d;
+  --ink: #f2f2f3;
+  --muted: #a3a3ab;
+  --orange: #f76707;
+  --orange-soft: #ff8a3d;
+  --orange-tint: #34343a;
+  --leaf: #40c057;
+  --leaf-light: #69db7c;
+  --leaf-tint: #34343a;
+  --bad: #ff6b6b;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 6px 20px rgba(0, 0, 0, 0.35);
+  --shadow-pop: 0 12px 34px rgba(0, 0, 0, 0.55);
+  --surface: #26262a;
+  --bubble: #2f2f34;
+  --focus: #f2f2f3;
+  --placeholder: #77777f;
+  --leaf-text: #69db7c;
+  --code-bg: #0e0e10;
   --stripe: rgba(255, 255, 255, 0.03);
-  --overlay: rgba(0, 0, 0, 0.55);
+  --overlay: rgba(0, 0, 0, 0.6);
   color-scheme: dark;
   background: var(--paper);
   color: var(--ink);
 }
 .pane.theme-dark .scroller,
 .pane.theme-dark .composer-wrap {
-  --cream: #2a2a2a;
-  --paper: #212121;
-  --sand: #2f2f2f;
-  --sand-strong: #424242;
-  --ink: #ececec;
-  --muted: #a3a3a3;
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 6px 20px rgba(0, 0, 0, 0.3);
-  --shadow-pop: 0 12px 34px rgba(0, 0, 0, 0.5);
-  --surface: #2a2a2a;
-  --bubble: #303030;
-  --focus: #5a5a5a;
-  --placeholder: #7a7a7a;
-  --stripe: rgba(255, 255, 255, 0.03);
+  --focus: #77777f;
 }
 .pane.theme-light {
-  --cream: #fff4e6;
+  --cream: #f4f4f5;
   --paper: #ffffff;
-  --sand: #f6e6d2;
-  --sand-strong: #ecd3b6;
-  --ink: #3b2a1a;
-  --muted: #8a7460;
+  --sand: #e4e4e7;
+  --sand-strong: #c9c9cf;
+  --ink: #111113;
+  --muted: #5c5c66;
   --orange: #e8590c;
-  --orange-soft: #ee8144;
-  --orange-tint: #fde3cf;
-  --leaf: #40c057;
-  --leaf-light: #69db7c;
-  --leaf-tint: #e3f7e6;
-  --bad: #c92a2a;
-  --shadow: 0 1px 2px rgba(59, 42, 26, 0.06), 0 6px 20px rgba(59, 42, 26, 0.07);
-  --shadow-pop: 0 10px 30px rgba(59, 42, 26, 0.16);
+  --orange-soft: #f0772f;
+  --orange-tint: #ececef;
+  --leaf: #2f9e44;
+  --leaf-light: #51cf66;
+  --leaf-tint: #ececef;
+  --bad: #d9302c;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 6px 20px rgba(0, 0, 0, 0.07);
+  --shadow-pop: 0 12px 32px rgba(0, 0, 0, 0.16);
   --surface: #ffffff;
-  --bubble: #fde3cf;
-  --focus: #ee8144;
-  --placeholder: #b39d88;
-  --leaf-text: #2f7d3a;
-  --code-bg: #1e1e1e;
-  --stripe: rgba(246, 230, 210, 0.35);
-  --overlay: rgba(59, 42, 26, 0.3);
+  --bubble: #f1f1f3;
+  --focus: #111113;
+  --placeholder: #8a8a94;
+  --leaf-text: #2b8a3e;
+  --code-bg: #18181b;
+  --stripe: rgba(0, 0, 0, 0.025);
+  --overlay: rgba(0, 0, 0, 0.4);
   color-scheme: light;
   background: var(--paper);
   color: var(--ink);
 }
 .pane.theme-light .scroller,
 .pane.theme-light .composer-wrap {
-  --cream: #f9f9f9;
-  --paper: #ffffff;
-  --sand: #ececec;
-  --sand-strong: #d6d6d6;
-  --ink: #1f1f1f;
-  --muted: #6b6b6b;
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.05), 0 6px 20px rgba(0, 0, 0, 0.06);
-  --shadow-pop: 0 10px 30px rgba(0, 0, 0, 0.14);
-  --surface: #ffffff;
-  --bubble: #f4f4f4;
-  --focus: #b5b5b5;
-  --placeholder: #9b9b9b;
-  --stripe: rgba(0, 0, 0, 0.025);
+  --focus: #a1a1aa;
 }
 .pane .topbar .theme-btn {
   flex: none;
 }
 .pane.theme-dark .topbar {
-  border-bottom-color: #31281f;
+  border-bottom-color: var(--sand);
 }
 
 /* the pencil's "which chat?" menu */
@@ -4243,10 +4195,10 @@ body,
 }
 /* the whole side is the chat area's colour, so no band shows beside the message box */
 .pane.theme-dark {
-  background: #212121;
+  background: var(--paper);
 }
 .pane.theme-dark .topbar {
-  background: #212121;
+  background: var(--paper);
 }
 .pane.theme-light {
   background: #fff;
@@ -4378,7 +4330,7 @@ body,
   place-items: center;
   font-size: 22px;
   font-weight: 700;
-  color: #3b2a1a;
+  color: var(--ink);
 }
 .tool-card-name {
   flex: 1;
@@ -5506,7 +5458,7 @@ body,
   gap: 5px;
   font-size: 12.5px;
   font-weight: 600;
-  color: #1864ab;
+  color: var(--ink);
 }
 .msg-mode svg {
   width: 15px;
@@ -5657,4 +5609,81 @@ body,
 }
 .modal-back.library-back {
   z-index: 1000;
+}
+
+/* ---------- the sprout-bot's animation ----------
+   On the welcome screen it now and then glances down at your message box and blinks; on a reply that is
+   being written it looks down, as if writing, and the sprout sways. (CSS px on SVG parts = drawing units.) */
+.sprout-bot .sprout-bot-eyes,
+.sprout-bot .sprout-bot-eyes rect,
+.sprout-bot .sprout-bot-sprout {
+  transform-box: fill-box;
+  transition: transform 0.35s ease;
+}
+.sprout-bot .sprout-bot-eyes rect {
+  transform-origin: center;
+}
+.sprout-bot .sprout-bot-sprout {
+  transform-origin: 50% 100%;
+}
+.hello-bot {
+  display: block;
+  margin: 0 auto;
+}
+.hello-bot .sprout-bot-eyes {
+  animation: bot-glance 9s ease-in-out infinite;
+}
+.hello-bot .sprout-bot-eyes rect {
+  animation: bot-blink 9s ease-in-out infinite;
+}
+@keyframes bot-glance {
+  0%,
+  52%,
+  80%,
+  100% {
+    transform: translateY(0);
+  }
+  58%,
+  74% {
+    transform: translateY(19px);
+  }
+}
+@keyframes bot-blink {
+  0%,
+  28%,
+  31%,
+  88%,
+  91%,
+  100% {
+    transform: scaleY(1);
+  }
+  29.5%,
+  89.5% {
+    transform: scaleY(0.12);
+  }
+}
+.sprout-bot.working .sprout-bot-eyes {
+  transform: translateY(19px);
+}
+.sprout-bot.working .sprout-bot-eyes rect {
+  animation: bot-blink 3.2s ease-in-out infinite;
+}
+.sprout-bot.working .sprout-bot-sprout {
+  animation: bot-sway 1.6s ease-in-out infinite;
+}
+@keyframes bot-sway {
+  0%,
+  100% {
+    transform: rotate(-4deg);
+  }
+  50% {
+    transform: rotate(4deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sprout-bot .sprout-bot-eyes,
+  .sprout-bot .sprout-bot-eyes rect,
+  .sprout-bot .sprout-bot-sprout {
+    animation: none !important;
+  }
 }

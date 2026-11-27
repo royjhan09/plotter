@@ -4,9 +4,10 @@ import { Markdown } from './Markdown'
 import { badgeFor, sizeLabel } from './attachments'
 import { PictureViewer } from '@private/renderer/ImageViewer'
 import { ClaudeBuddy } from './ClaudeBuddy'
+import { SproutBot } from './SproutBot'
 import { MenuIcon } from './PlusMenu'
 import { ClaudeTurn } from '@private/renderer/ClaudeCode'
-import icon from '../../assets/icon.png'
+import icon from '../../assets/sprout.svg'
 
 function siteName(url: string): string {
   try {
@@ -103,7 +104,7 @@ export function Message({
     )
   return (
     <div className="msg assistant" data-msg-id={m.id}>
-      <img src={icon} alt="" className="sprout" />
+      <SproutBot size={30} working={typing} className="sprout" />
       <div className="body">
         {m.thoughtMs !== undefined && m.thoughtMs >= 2000 && m.text && (
           <div className="thought">Thought for {Math.round(m.thoughtMs / 1000)}s</div>

@@ -11,7 +11,7 @@ import { CLAUDE_CODE } from '@private/renderer/ClaudeCode'
 import { ChatPane, announceRename, cleanError } from './ChatPane'
 import { RailIcon } from './RailIcon'
 import { MARKET, Market } from '@private/renderer/Market'
-import icon from '../../assets/icon.png'
+import icon from '../../assets/sprout.svg'
 
 const api = window.plotter
 const EFFORT_KEY = 'plotter.effort'

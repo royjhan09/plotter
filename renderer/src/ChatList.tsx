@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { ChatMetaPatch, ChatSummary, Project } from '../../shared/api'
 import { ProjectIcon } from './Projects'
 import { ClaudeBuddy } from './ClaudeBuddy'
-import icon from '../../assets/icon.png'
+import icon from '../../assets/sprout.svg'
 
 /** Small line icons for the chat rows and their ⋯ menu. */
 function Icon({ name }: { name: 'pin' | 'unpin' | 'more' | 'rename' | 'pdf' | 'archive' | 'unarchive' | 'trash' | 'chevron' | 'split' }): React.JSX.Element {

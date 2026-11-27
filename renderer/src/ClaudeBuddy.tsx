@@ -29,7 +29,7 @@ const FUZZ = (() => {
 export function ClaudeBuddy({ size = 28, working = false, tile = true }: { size?: number; working?: boolean; tile?: boolean }): React.JSX.Element {
   return (
     <svg className={`buddy ${working ? 'working' : ''}`} viewBox="0 0 24 24" width={size} height={size} aria-hidden="true">
-      {tile && <rect x="0" y="0" width="24" height="24" rx="6" fill="#ece6ff" />}
+      {tile && <rect x="0" y="0" width="24" height="24" rx="6" fill="#ffffff" stroke="#d4d4d8" strokeWidth="0.6" />}
       <g transform="translate(12 13.2) scale(0.74) translate(-12 -12.8)">
         <g className="buddy-body">
           <path d={FUZZ} fill="#1f1c29" />

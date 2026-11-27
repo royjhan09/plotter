@@ -10,8 +10,9 @@ import { ProjectIcon } from './Projects'
 import { RailIcon, ThemeButton } from './RailIcon'
 import { useClaudeTheme, type Theme } from './theme'
 import { ClaudeBuddy, folderName } from './ClaudeBuddy'
+import { SproutBot } from './SproutBot'
 import { CLAUDE_CODE, FolderPicker, sendClaudeTurn, startClaudeChat } from '@private/renderer/ClaudeCode'
-import icon from '../../assets/icon.png'
+import icon from '../../assets/sprout.svg'
 
 const api = window.plotter
 const newId = (): string => crypto.randomUUID().replace(/-/g, '')
@@ -663,7 +664,7 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
       <div className="scroller" ref={scroller}>
         {messages.length === 0 ? (
           <div className="hello">
-            {isClaude ? <ClaudeBuddy size={84} /> : <img src={icon} alt="" />}
+            {isClaude ? <ClaudeBuddy size={84} /> : <SproutBot size={72} className="hello-bot" />}
             <h2>{isClaude ? 'What shall we build?' : 'What shall we grow today?'}</h2>
             {isClaude && !chat && (
               <p className="cc-hello-note">

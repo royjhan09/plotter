@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { PROJECT_MEMORY_LIMIT, type ChatKind, type ChatSummary, type Project } from '../../shared/api'
 import { ClaudeBuddy } from './ClaudeBuddy'
 import { CLAUDE_CODE } from '@private/renderer/ClaudeCode'
-import icon from '../../assets/icon.png'
+import icon from '../../assets/sprout.svg'
 
 const api = window.plotter
 

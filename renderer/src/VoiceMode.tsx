@@ -1,7 +1,7 @@
 ﻿import { useEffect, useRef, useState } from 'react'
 import { speak, speakable, startRecording, type Recording } from './audio'
 import { speechStatusText, useSpeechStatus } from './Composer'
-import icon from '../../assets/icon.png'
+import icon from '../../assets/sprout.svg'
 
 const api = window.plotter
 
