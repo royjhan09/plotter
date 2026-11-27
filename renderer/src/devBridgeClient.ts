@@ -35,7 +35,8 @@ const listeners = {
   python: new Set<(s: PythonStatus) => void>(),
   claudeCode: new Set<(u: ClaudeCodeUpdate) => void>(),
   side: new Set<(d: SideDelivery) => void>(),
-  projects: new Set<() => void>()
+  projects: new Set<() => void>(),
+  kits: new Set<(kitId: string) => void>()
 }
 
 export function installDevBridge(): void {
@@ -46,6 +47,7 @@ export function installDevBridge(): void {
   events.addEventListener('claudeCode:update', (e) => listeners.claudeCode.forEach((l) => l(JSON.parse((e as MessageEvent).data))))
   events.addEventListener('side:deliver', (e) => listeners.side.forEach((l) => l(JSON.parse((e as MessageEvent).data))))
   events.addEventListener('projects:changed', () => listeners.projects.forEach((l) => l()))
+  events.addEventListener('kits:changed', (e) => listeners.kits.forEach((l) => l(JSON.parse((e as MessageEvent).data).kitId)))
   events.addEventListener('speech:status', (e) => listeners.speech.forEach((l) => l(JSON.parse((e as MessageEvent).data))))
 
   const api: PlotterApi = {
@@ -92,7 +94,15 @@ export function installDevBridge(): void {
       removeRule: (id, ruleId) => call('kits:removeRule', id, ruleId),
       saveComponent: (id, c) => call('kits:saveComponent', id, c),
       removeComponent: (id, cid) => call('kits:removeComponent', id, cid),
-      openFolder: (id) => call('kits:openFolder', id)
+      openFolder: (id) => call('kits:openFolder', id),
+      usage: (id) => call('kits:usage', id),
+      versionCode: (id, cid, v) => call('kits:versionCode', id, cid, v),
+      restoreVersion: (id, cid, v) => call('kits:restoreVersion', id, cid, v),
+      addUseWhen: (id, cid, situation) => call('kits:addUseWhen', id, cid, situation),
+      onChanged: (l) => {
+        listeners.kits.add(l)
+        return () => listeners.kits.delete(l)
+      }
     },
     onSideDelivery: (l) => {
       listeners.side.add(l)

@@ -6,7 +6,7 @@ import { projectsChanged, setAppEmitter } from './appEvents'
 import { getLibraryItem, listLibrary } from '@private/main/library'
 import { clearImageKey, imageKeyStatus, setImageKey, setImageOptions } from '@private/main/images'
 import { addNote, createProject, editNote, listProjects, removeNote, removeProject, renameProject, setProjectKit } from './projects'
-import { createKit, getKit, kitFolder, listKits, removeComponent, removeKit, removeRule, saveComponent, saveRule, setDefaultKit, updateKit } from '@private/main/kits'
+import { addUseWhen, createKit, getKit, kitFolder, listKits, listUsage, removeComponent, removeKit, removeRule, restoreVersion, saveComponent, saveRule, setDefaultKit, updateKit, versionCode } from '@private/main/kits'
 import { forgetModel, generateProjectBrief, generateSuggestion, generateTitle, primaryModel, ReplyError } from './openai'
 import { reply } from './assistant'
 import { onPythonStatus, pythonStatus, PY_SCHEME } from './python'
@@ -161,6 +161,10 @@ export const handlers: Record<string, (...args: never[]) => unknown> = {
   'kits:saveComponent': (id: string, c: Partial<KitComponent> & { name: string; code: string }) =>
     saveComponent(String(id), { ...c, name: String(c?.name ?? ''), code: String(c?.code ?? '') }),
   'kits:removeComponent': (id: string, cid: string) => removeComponent(String(id), String(cid)),
+  'kits:usage': (id: string) => listUsage(String(id)),
+  'kits:versionCode': (id: string, cid: string, v: number) => versionCode(String(id), String(cid), Number(v)),
+  'kits:restoreVersion': (id: string, cid: string, v: number) => restoreVersion(String(id), String(cid), Number(v)),
+  'kits:addUseWhen': (id: string, cid: string, situation: string) => addUseWhen(String(id), String(cid), String(situation ?? '')),
   'kits:openFolder': async (id: string) => {
     const folder = kitFolder(String(id))
     if (BROWSER_ONLY) return showInExplorer(folder)

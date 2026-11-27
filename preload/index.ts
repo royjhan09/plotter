@@ -49,7 +49,16 @@ const api: PlotterApi = {
     removeRule: (id, ruleId) => ipcRenderer.invoke('kits:removeRule', id, ruleId),
     saveComponent: (id, c) => ipcRenderer.invoke('kits:saveComponent', id, c),
     removeComponent: (id, cid) => ipcRenderer.invoke('kits:removeComponent', id, cid),
-    openFolder: (id) => ipcRenderer.invoke('kits:openFolder', id)
+    openFolder: (id) => ipcRenderer.invoke('kits:openFolder', id),
+    usage: (id) => ipcRenderer.invoke('kits:usage', id),
+    versionCode: (id, cid, v) => ipcRenderer.invoke('kits:versionCode', id, cid, v),
+    restoreVersion: (id, cid, v) => ipcRenderer.invoke('kits:restoreVersion', id, cid, v),
+    addUseWhen: (id, cid, situation) => ipcRenderer.invoke('kits:addUseWhen', id, cid, situation),
+    onChanged: (listener) => {
+      const handler = (_e: IpcRendererEvent, p: { kitId: string }): void => listener(p.kitId)
+      ipcRenderer.on('kits:changed', handler)
+      return () => ipcRenderer.removeListener('kits:changed', handler)
+    }
   },
   onSideDelivery: (listener) => {
     const handler = (_e: IpcRendererEvent, d: SideDelivery): void => listener(d)

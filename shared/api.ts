@@ -212,6 +212,50 @@ export interface KitComponent {
   /** Who saved it last (you, a chat's title, Claude Code). */
   by?: string
   updatedAt: number
+  /** The current version (1 when first saved); each code change makes a new one, kept in history. */
+  version?: number
+  /** Every saved version, oldest first (its code is read with kits.versionCode). */
+  history?: KitVersion[]
+  /** Same situation, different design: the name of the component this is an alternative to. */
+  alternativeOf?: string
+}
+
+/** One saved version of a component's code. */
+export interface KitVersion {
+  version: number
+  at: number
+  by: string
+  /** What changed and why. */
+  note?: string
+}
+
+/**
+ * How a component was used:
+ * as-is: the code as it is; variant: one of its variants (or new CSS values); adapted: changed a little for this place;
+ * other-use: used for a situation its "use when" does not describe.
+ */
+export type KitUseHow = 'as-is' | 'variant' | 'adapted' | 'other-use'
+
+/** One use of a kit component, by a chat, somewhere. */
+export interface KitUse {
+  id: string
+  componentId: string
+  /** Its name when used. */
+  component: string
+  version: number
+  at: number
+  /** ChatGPT or Claude Code. */
+  by: string
+  chatId?: string
+  chatTitle?: string
+  /** Where it went: a file in the project, a page, "a reply". */
+  where?: string
+  /** The project folder (Claude Code). */
+  folder?: string
+  how: KitUseHow
+  variant?: string
+  /** What was changed, or (other-use) the situation it was used for. */
+  note?: string
 }
 
 export type KitLevel = 'element' | 'pattern' | 'feature'
@@ -220,6 +264,12 @@ export type KitLevel = 'element' | 'pattern' | 'feature'
 export interface KitVariant {
   name: string
   vars: Record<string, string>
+  /** A variant whose code differs a little (not only its CSS values). */
+  code?: string
+  /** What is different and when to pick it. */
+  note?: string
+  by?: string
+  at?: number
 }
 
 export interface KitSummary {
@@ -525,6 +575,16 @@ export interface PlotterApi {
     removeComponent: (id: string, componentId: string) => Promise<Kit>
     /** Opens the kit's folder (its files, which Claude Code reads and saves to). */
     openFolder: (id: string) => Promise<void>
+    /** Every recorded use of the kit's components (newest first). */
+    usage: (id: string) => Promise<KitUse[]>
+    /** The code of one saved version of a component. */
+    versionCode: (id: string, componentId: string, version: number) => Promise<string>
+    /** Makes an old version the current one (as a new version). */
+    restoreVersion: (id: string, componentId: string, version: number) => Promise<Kit>
+    /** Adds a situation to a component's "use when" (from an other-use). */
+    addUseWhen: (id: string, componentId: string, situation: string) => Promise<Kit>
+    /** Something saved to a kit (a chat or Claude Code): the kit's id. */
+    onChanged: (listener: (kitId: string) => void) => () => void
   }
   /** A chat sent something to the chat beside it. */
   onSideDelivery: (listener: (d: SideDelivery) => void) => () => void

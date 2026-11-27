@@ -78,6 +78,13 @@ export const VISIBILITY: VisibilityGroup[] = [
         why: 'The kits page, where kits are kept, and how Claude Code gets your kit folder.',
         tradeoff: MOVED
       },
+      {
+        name: 'Design kit tools, versions and usage',
+        now: 'private',
+        advice: 'keep-private',
+        why: 'The kit tools both chats use (catalog, record a use, save as an update, variant or alternative), every component’s version history, the log of where each piece was used, and the local link Claude Code calls them through.',
+        tradeoff: MOVED
+      },
       { name: 'Import from library', now: 'private', advice: 'keep-private', why: 'Gathers the files and pictures from your chats to attach again.', tradeoff: MOVED },
       { name: 'PDF export and preview', now: 'private', advice: 'keep-private', why: 'Prints a chat on this PC.', tradeoff: MOVED },
       { name: 'Picture viewer and drawing on pictures', now: 'private', advice: 'keep-private', why: 'Runs on this PC.', tradeoff: `${MOVED} The public stand-in still shows a picture full size, without the zoom or drawing.` }
@@ -132,7 +139,7 @@ export const VISIBILITY: VisibilityGroup[] = [
         name: 'Your design kit in ChatGPT replies',
         now: 'public',
         advice: 'must-public',
-        why: 'How ChatGPT is told your rules and components, and its tools to fetch and save them (main/assistant.ts).',
+        why: 'How ChatGPT is told your rules and components, and how it is handed the kit tools (main/assistant.ts). The tools themselves are private.',
         tradeoff: 'Shows that a kit is used, not what is in yours (that stays on this PC).'
       },
       {

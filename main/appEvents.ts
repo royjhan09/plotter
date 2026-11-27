@@ -12,3 +12,6 @@ export const deliverToSide = (d: SideDelivery): void => emitter('side:deliver', 
 
 /** A project's chats or shared memory changed. */
 export const projectsChanged = (): void => emitter('projects:changed', {})
+
+/** Something was saved to a design kit (by a chat, Claude Code or you). */
+export const kitsChanged = (kitId: string): void => emitter('kits:changed', { kitId })
