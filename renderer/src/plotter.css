@@ -6200,3 +6200,9 @@ body,
   color: var(--muted);
   margin: 0 0 8px;
 }
+.kit-more {
+  text-align: center;
+  font-size: 13px;
+  color: var(--muted);
+  padding: 10px 0 30px;
+}
