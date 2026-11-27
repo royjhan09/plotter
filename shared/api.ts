@@ -181,6 +181,8 @@ export interface Kit {
   tokens: Record<string, string>
   rules: KitRule[]
   components: KitComponent[]
+  /** Sets of components added once from Plotter itself (so they are not added again after you delete them). */
+  imported?: string[]
   createdAt: number
   updatedAt: number
 }
@@ -198,6 +200,10 @@ export interface KitComponent {
   category: string
   /** The situation it is for: how one is chosen over another, and whether a new one is needed. */
   useWhen: string
+  /** element: one piece (a button). pattern: made of elements (a sidebar). feature: a piece that behaves (drag to split). */
+  level?: KitLevel
+  /** The kit components it is built from, by name (so they are reused, not redrawn). */
+  uses?: string[]
   /** Self-contained HTML (with a <style>); adjustable values are CSS variables: var(--name, default). */
   code: string
   /** What was changed and why (so the same edit is never asked for twice). */
@@ -207,6 +213,8 @@ export interface KitComponent {
   by?: string
   updatedAt: number
 }
+
+export type KitLevel = 'element' | 'pattern' | 'feature'
 
 /** Named values for a component's variables (a red close button, a small one…). */
 export interface KitVariant {

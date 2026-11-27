@@ -4,7 +4,7 @@ import { addNote, chatDigest, projectContext, removeNote } from './projects'
 import { deliverToSide, projectsChanged } from './appEvents'
 import { generateWithKey, imageKeyStatus, IMAGES } from '@private/main/images'
 import { kitBrief, kitFor, saveComponent, saveRule } from '@private/main/kits'
-import type { Kit } from '../shared/api'
+import type { Kit, KitLevel } from '../shared/api'
 import { pythonTool } from './python'
 import { connectorTools } from './connectors'
 import { marketTools } from './marketChat'
@@ -222,7 +222,7 @@ function chatFiles(req: SendRequest): Attachment[] {
 }
 
 const KIT_INSTRUCTIONS = (brief: string): string => `${brief}
-Whenever you design or build anything visual (ui blocks, HTML, CSS, app code, mockups, icons), follow the kit's rules without being reminded, and reuse its components: call kit_component to get one's code and use it as it is, changing only its CSS variables for a variation. Pick the component whose "use when" fits the situation; make a new one only when none fits, then save it with kit_save_component, describing its situation in use_when. When the user asks for a change to a kit component (e.g. a smaller X), make it and save it to the kit too, with a short note, so every app gets it. When the user states a lasting design preference, add it with kit_add_rule. Do not mention the kit in replies that have nothing to do with design.`
+Whenever you design or build anything visual (ui blocks, HTML, CSS, app code, mockups, icons), follow the kit's rules without being reminded, and reuse its components: call kit_component to get one's code and use it as it is, changing only its CSS variables for a variation. Components come at three levels: elements (one piece), patterns (made of elements) and features (pieces that behave); build bigger pieces from the kit's smaller ones. Pick the component whose "use when" fits the situation; make a new one only when none fits, then save it with kit_save_component, describing its situation in use_when. When the user asks for a change to a kit component (e.g. a smaller X), make it and save it to the kit too, with a short note, so every app gets it. When the user states a lasting design preference, add it with kit_add_rule. Do not mention the kit in replies that have nothing to do with design.`
 
 function kitTools(kit: Kit, chatTitle: string): LocalTool[] {
   return [
@@ -251,14 +251,16 @@ function kitTools(kit: Kit, chatTitle: string): LocalTool[] {
           category: { type: 'string', description: 'Buttons, Inputs, Icons, Layout, Cards, Navigation…' },
           use_when: { type: 'string', description: 'The situation it is for, so the right one is picked next time.' },
           code: { type: 'string', description: 'Self-contained HTML with a <style>; make adjustable values CSS variables with defaults: var(--name, default).' },
-          notes: { type: 'string', description: 'What changed and why, if this updates one.' }
+          notes: { type: 'string', description: 'What changed and why, if this updates one.' },
+          level: { type: 'string', enum: ['element', 'pattern', 'feature'], description: 'element: one piece; pattern: made of other components; feature: a piece that behaves.' },
+          uses: { type: 'array', items: { type: 'string' }, description: 'Names of the kit components it is built from.' }
         },
         required: ['name', 'use_when', 'code']
       },
       label: () => 'Saving to the design kit…',
       run: async (args) => {
         try {
-          saveComponent(kit.id, { name: String(args['name'] ?? ''), category: args['category'] as string | undefined, useWhen: String(args['use_when'] ?? ''), code: String(args['code'] ?? ''), notes: args['notes'] as string | undefined }, chatTitle)
+          saveComponent(kit.id, { name: String(args['name'] ?? ''), category: args['category'] as string | undefined, useWhen: String(args['use_when'] ?? ''), code: String(args['code'] ?? ''), notes: args['notes'] as string | undefined, level: args['level'] as KitLevel | undefined, uses: Array.isArray(args['uses']) ? (args['uses'] as unknown[]).map(String) : undefined }, chatTitle)
           return { output: JSON.stringify({ saved: true }), run: { kind: 'kit', title: 'Saved to your design kit', output: String(args['name'] ?? '') } }
         } catch (e) {
           return { output: JSON.stringify({ error: e instanceof Error ? e.message : String(e) }) }

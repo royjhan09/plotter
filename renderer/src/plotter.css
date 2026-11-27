@@ -6117,3 +6117,81 @@ body,
 .kit-spacer {
   flex: 1;
 }
+/* design kits: levels and built-from */
+.kit-levels {
+  display: flex;
+  gap: 6px;
+  margin: -6px 0 18px;
+}
+.kit-levels button,
+.kit-level-pick button {
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--sand);
+  background: var(--surface);
+  color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.kit-levels button.on,
+.kit-level-pick button.on {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+.kit-level-pick {
+  display: flex;
+  gap: 6px;
+}
+.kit-card-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.kit-level {
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 6px;
+  border-radius: 5px;
+  border: 1px solid var(--sand-strong);
+  color: var(--muted);
+}
+.kit-level.pattern {
+  color: var(--ink);
+  border-color: var(--ink);
+}
+.kit-level.feature {
+  color: var(--orange);
+  border-color: var(--orange);
+}
+.kit-uses {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.kit-use {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 2px 1px 8px;
+  border: 1px solid var(--sand);
+  border-radius: 999px;
+  font-size: 13px;
+}
+.kit-use .link {
+  color: var(--ink);
+  font-size: 13px;
+}
+.kit-use-add {
+  font: inherit;
+  font-size: 12.5px;
+  padding: 2px 6px;
+  border: 1px dashed var(--sand-strong);
+  border-radius: 999px;
+  background: none;
+  color: var(--muted);
+}
