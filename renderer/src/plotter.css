@@ -6318,3 +6318,60 @@ body,
     flex-wrap: wrap;
   }
 }
+/* design identity: ink sidebar. The rail and the chat list are near-black in both themes,
+   the content stays light; the tokens are re-pointed inside them so every piece follows */
+.rail,
+.sidebar {
+  --cream: #111113;
+  --paper: #111113;
+  --surface: #222226;
+  --bubble: #26262b;
+  --sand: #2b2b30;
+  --sand-strong: #3d3d44;
+  --ink: #f2f2f3;
+  --muted: #9a9aa3;
+  --placeholder: #74747d;
+  --focus: #f2f2f3;
+  --orange-tint: rgba(247, 103, 7, 0.2);
+  --leaf-tint: rgba(64, 192, 87, 0.18);
+  --leaf-text: #69db7c;
+  --orange: #f76707;
+  --bad: #ff6b6b;
+  --stripe: rgba(255, 255, 255, 0.03);
+  --shadow-pop: 0 12px 34px rgba(0, 0, 0, 0.55);
+  color: var(--ink);
+  color-scheme: dark;
+}
+.sidebar {
+  --cream: #1a1a1d;
+  --paper: #1a1a1d;
+}
+.rail {
+  border-right-color: #111113;
+}
+.sidebar,
+.shell.pinned .sidebar {
+  border-color: #1a1a1d;
+}
+:root[data-theme='dark'] .rail {
+  --cream: #0b0b0d;
+  --paper: #0b0b0d;
+  border-right-color: #26262b;
+}
+:root[data-theme='dark'] .sidebar {
+  --cream: #141417;
+  --paper: #141417;
+  border-color: #26262b;
+}
+/* the open chat: a solid orange row */
+.sidebar .chat-item.active {
+  background: #d9480f;
+  box-shadow: none;
+  color: #ffffff;
+  --muted: rgba(255, 255, 255, 0.78);
+  --ink: #ffffff;
+}
+.rail-btn.on {
+  background: #d9480f;
+  color: #ffffff;
+}
