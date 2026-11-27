@@ -274,28 +274,41 @@ function teamLine(r: RoleEntity): string {
 }
 
 /** A member's part in a team chat: the purpose, the others, who to speak to, and what to do now. */
-function TEAM_PROMPT(r: RoleEntity, chat: Chat, req: SendRequest): string {
+function TEAM_PROMPT(r: RoleEntity, chat: Chat, _req: SendRequest): string {
   const others = (chat.team?.members ?? []).filter((id) => id !== r.id).map((id) => getRole(id)).filter((x): x is RoleEntity => !!x)
   return [
     `This is a team chat at ${getCompany().name}. Its purpose: ${chat.team?.purpose ?? chat.title}`,
     others.length ? `The other members:\n${others.map(memberLine).join('\n')}` : '',
     `You speak only as ${r.name}, in your own message: never write another member's lines or pretend to be them.`,
     'Write it like a message in a group chat: no greeting, and do not start with your own name or "X here" (the chat already shows who is talking, and who you are speaking to).',
-    req.speakTo && req.speakTo !== 'you' ? `Now speak to ${req.speakTo}, by name.` : 'Now speak to the user.',
-    req.teamNote ? `What is needed from you now: ${req.teamNote}` : '',
-    'Do your part of the work for real (the actual text, design, code, numbers or review, not a plan to do it). Keep the talk around it short. End by saying plainly what you hand to whom, or what you need and from whom.'
+    'Do your part of the work for real (the actual text, design, code, numbers or review, not a plan to do it). Keep the talk around it short. End by saying plainly what you hand to whom, or what you need and from whom.',
+    'Post a whole code block or document only when it is new, or when you are asked for the complete final version. For a fix or a review, show just what changes (the changed lines, or a short list), not everything again.',
+    "Ask others only for what their tools let them do (each member's tools are listed). A check nobody here can run (in a real browser, on a phone, with a screen reader) is for the user: say so once and do not pass it around."
   ]
     .filter(Boolean)
     .join('\n')
+  // what changes every turn (who to speak to, what is needed now) goes last in the input, not here, so the
+  // instructions and the earlier conversation stay the same from turn to turn and can be cached
 }
 
-/** A team chat's history as one member sees it: its own replies as its own, everyone else's as messages to it. */
-function teamHistory(history: SendRequest['history'], me: string): SendRequest['history'] {
-  return history.map((h) => {
-    if (h.role === 'assistant' && h.speaker === me) return h
-    const who = h.role === 'user' ? 'The user' : (getRole(h.speaker)?.name ?? 'A member')
-    return { ...h, role: 'user' as const, text: `[${who}]\n${h.text.replace(/\[\[tool:[^\]]+\]\]/g, '').trim()}` }
+/**
+ * A team chat's history as one member sees it: its own replies as its own, everyone else's as messages to it,
+ * older code left out (only the latest version is kept), and this turn's ask from the facilitator last.
+ */
+function teamHistory(history: SendRequest['history'], me: string, req: SendRequest): SendRequest['history'] {
+  const FENCE = /```[\s\S]*?(```|$)/g
+  let latestCode = -1
+  history.forEach((h, i) => {
+    if (h.text.includes('```')) latestCode = i
   })
+  const items = history.map((h, i) => {
+    const text = i < latestCode ? h.text.replace(FENCE, '[code left out: an earlier version; the latest is further down]') : h.text
+    if (h.role === 'assistant' && h.speaker === me) return { ...h, text }
+    const who = h.role === 'user' ? 'The user' : (getRole(h.speaker)?.name ?? 'A member')
+    return { ...h, role: 'user' as const, text: `[${who}]\n${text.replace(/\[\[tool:[^\]]+\]\]/g, '').trim()}` }
+  })
+  const to = req.speakTo && req.speakTo !== 'you' ? `Speak to ${req.speakTo}, by name.` : 'Speak to the user.'
+  return [...items, { role: 'user', text: `[Facilitator] Your turn. ${to}${req.teamNote ? ` What is needed from you now: ${req.teamNote}` : ''}` }]
 }
 
 /** A role's job, said to ChatGPT before everything else. */
@@ -378,7 +391,8 @@ export async function reply(req: SendRequest, handlers: ConversationHandlers, si
       effort: req.research ? 'high' : req.effort,
       instructions: parts.join('\n\n'),
       // in a team chat, the other members' messages are theirs, not this member's own
-      history: team ? teamHistory(req.history, role!.id) : req.history,
+      history: team ? teamHistory(req.history, role!.id, req) : req.history,
+      ...(team ? { cacheKey: `team:${chat!.id}:${role!.id}` } : {}),
       webSearch,
       tools,
       verbosity: req.research ? 'high' : 'medium',

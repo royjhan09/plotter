@@ -178,6 +178,8 @@ interface RoundRequest {
   verbosity: 'low' | 'medium' | 'high'
   /** What the call is for, in the usage log (dev measurements). */
   tag?: string
+  /** Groups calls that share a long prefix (a team member's turns), so the server can reuse its cache. */
+  cacheKey?: string
 }
 
 /** Token use per call (dev: the browser-mode server keeps the last calls, to measure what features cost). */
@@ -210,6 +212,7 @@ export async function streamRound(req: RoundRequest, handlers: StreamHandlers, s
       text: { verbosity: req.verbosity },
       // Reasoning is handed back between tool rounds (store:false keeps nothing on OpenAI's side).
       include: ['reasoning.encrypted_content'],
+      ...(req.cacheKey ? { prompt_cache_key: req.cacheKey } : {}),
       store: false,
       stream: true
     }),
@@ -328,7 +331,7 @@ const MAX_TOOL_ROUNDS = 12
  * results to the input and stream again → … until it answers without calling a tool (or MAX_TOOL_ROUNDS).
  */
 export async function runConversation(
-  opts: { model: string; effort: string; instructions: string; history: HistoryItem[]; webSearch: boolean; tools: LocalTool[]; verbosity?: 'low' | 'medium' | 'high'; tag?: string },
+  opts: { model: string; effort: string; instructions: string; history: HistoryItem[]; webSearch: boolean; tools: LocalTool[]; verbosity?: 'low' | 'medium' | 'high'; tag?: string; cacheKey?: string },
   handlers: ConversationHandlers,
   signal: AbortSignal
 ): Promise<void> {
@@ -341,7 +344,7 @@ export async function runConversation(
   let runSeq = 0
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
     const { output } = await streamRound(
-      { model: opts.model, effort: opts.effort, instructions: opts.instructions, input, tools, verbosity: opts.verbosity ?? 'medium', ...(opts.tag ? { tag: opts.tag } : {}) },
+      { model: opts.model, effort: opts.effort, instructions: opts.instructions, input, tools, verbosity: opts.verbosity ?? 'medium', ...(opts.tag ? { tag: opts.tag } : {}), ...(opts.cacheKey ? { cacheKey: opts.cacheKey } : {}) },
       handlers,
       signal
     )

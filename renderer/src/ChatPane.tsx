@@ -173,7 +173,8 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
   // A greyed-out guess at the next message (Tab fills it in), asked for when a reply finishes here.
   const [suggestion, setSuggestion] = useState('')
   const wasBusy = useRef(false)
-  const busyNow = !!pending || ccBusy
+  // a team round counts as busy from start to end (no suggestion between members' turns)
+  const busyNow = !!pending || ccBusy || teamBusy
   useEffect(() => {
     const msgs = chat?.messages ?? []
     const last = msgs[msgs.length - 1]
@@ -375,7 +376,8 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
         setPending(null)
         void api.chats.save(done).then(refreshList)
         const users = done.messages.filter((m) => m.role === 'user')
-        if (users.length === 1 && last.text && !done.titled) void nameChat(done.id, users[0]!.text, last.text)
+        // a team chat is named once, after its first round (not after every member's turn)
+        if (users.length === 1 && last.text && !done.titled && !done.team) void nameChat(done.id, users[0]!.text, last.text)
         const w = waiters.current.get(ev.requestId)
         waiters.current.delete(ev.requestId)
         if (w) {
@@ -605,6 +607,10 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
     } finally {
       setActivity(null)
       setTeamBusy(false)
+      const done = chatRef.current
+      const users = done?.messages.filter((m) => m.role === 'user') ?? []
+      const lastText = [...(done?.messages ?? [])].reverse().find((m) => m.role === 'assistant' && m.text)?.text
+      if (done && !done.titled && users.length === 1 && lastText) void nameChat(done.id, users[0]!.text, lastText)
     }
   }
 
