@@ -27,7 +27,8 @@ export function Message({
   onProject,
   projectBusy = false,
   side,
-  role
+  role,
+  teamFirst
 }: {
   m: ChatMessage
   typing: boolean
@@ -41,6 +42,8 @@ export function Message({
   side?: SideAction
   /** The role this chat talks as: its own look replaces the plain sprout. */
   role?: RoleEntity
+  /** In a team chat: whether this message starts a run by its speaker (shows the avatar and name). */
+  teamFirst?: boolean
 }): React.JSX.Element {
   if (m.role === 'user')
     return (
@@ -107,6 +110,9 @@ export function Message({
       </div>
     )
   return (
+    m.speaker && role ? (
+      <TeamMessage m={m} role={role} typing={typing} activity={activity} first={teamFirst !== false} />
+    ) : (
     <div className="msg assistant" data-msg-id={m.id}>
       {role ? <RoleBot identity={role.identity} replies={role.replies} size={30} working={typing} className="sprout" /> : <SproutBot size={30} working={typing} className="sprout" />}
       <div className="body">
@@ -154,6 +160,46 @@ export function Message({
                 {projectBusy ? 'Preparing the project…' : 'Create project'}
               </button>
             )}
+          </div>
+        )}
+      </div>
+    </div>
+    )
+  )
+}
+
+const clock = (t: number): string => new Date(t).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+
+/** A team member's message, messenger style: its bot and name on the first of a run, a bubble in its colour, @who it is for. */
+function TeamMessage({ m, role, typing, activity, first }: { m: ChatMessage; role: RoleEntity; typing: boolean; activity?: string | null; first: boolean }): React.JSX.Element {
+  return (
+    <div className={`msg assistant team-msg ${first ? 'first' : ''}`} data-msg-id={m.id} style={{ ['--role' as string]: role.identity.color }}>
+      <div className="team-avatar">{first && <RoleBot identity={role.identity} replies={role.replies} size={30} working={typing} />}</div>
+      <div className="team-col">
+        {first && (
+          <div className="team-name">
+            <b>{role.name}</b>
+            {typing && !m.text ? <span className="team-typing">is typing…</span> : <time>{clock(m.at)}</time>}
+          </div>
+        )}
+        <div className="team-bubble">
+          {m.speakerTo && m.speakerTo !== 'you' && <span className="team-mention">@{m.speakerTo}</span>}
+          {typing && activity && <div className="activity">{activity}</div>}
+          {m.text ? (
+            <Markdown text={m.text} streaming={typing} runs={m.toolRuns} />
+          ) : typing && !activity ? (
+            <span className="dots">
+              <i />
+              <i />
+              <i />
+            </span>
+          ) : null}
+          {m.error && m.error !== 'Stopped.' && <div className="error">{m.error}</div>}
+          {m.error === 'Stopped.' && <div className="stopped">Stopped</div>}
+        </div>
+        {!typing && m.sources && m.sources.length > 0 && (
+          <div className="msg-actions">
+            <Sources sources={m.sources} />
           </div>
         )}
       </div>

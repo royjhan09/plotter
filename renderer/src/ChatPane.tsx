@@ -721,6 +721,20 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
           )}
         </div>
         <span className="chat-heading">{chat?.title ?? ''}</span>
+        {team && (
+          <span className="team-head" title={team.members.map((id) => roleById(id)?.name).filter(Boolean).join(', ')}>
+            <span className="team-icon">
+              {team.members
+                .map((id) => roleById(id))
+                .filter((r): r is RoleEntity => !!r)
+                .slice(0, 4)
+                .map((r) => (
+                  <RoleBot key={r.id} identity={r.identity} replies={r.replies} size={14} />
+                ))}
+            </span>
+            {team.members.length} members
+          </span>
+        )}
         {projectOf && (
           <button className="project-chip" title={`Open the project “${projectOf.name}”`} onClick={() => p.onOpenProject(projectOf.id)}>
             <ProjectIcon />
@@ -799,7 +813,7 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
             )}
           </div>
         ) : (
-          <div className="thread">
+          <div className={`thread ${team ? 'team-thread' : ''}`}>
             <div className="print-head">
               <div className="print-title">{chat?.title || 'Plotter chat'}</div>
               <div className="print-meta">
@@ -813,9 +827,10 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
                 chatId={chat?.id}
                 typing={!!pending && i === messages.length - 1 && m.role === 'assistant'}
                 activity={activity}
-                onProject={isClaude || !CLAUDE_CODE || i !== lastReply ? undefined : () => void createProject()}
+                onProject={isClaude || team || !CLAUDE_CODE || i !== lastReply ? undefined : () => void createProject()}
                 projectBusy={briefBusy}
                 role={m.speaker ? roleById(m.speaker) : role}
+                teamFirst={!m.speaker || messages[i - 1]?.speaker !== m.speaker}
                 side={
                   p.beside && p.sendBeside && m.role === 'assistant'
                     ? {

@@ -280,6 +280,7 @@ function TEAM_PROMPT(r: RoleEntity, chat: Chat, req: SendRequest): string {
     `This is a team chat at ${getCompany().name}. Its purpose: ${chat.team?.purpose ?? chat.title}`,
     others.length ? `The other members:\n${others.map(memberLine).join('\n')}` : '',
     `You speak only as ${r.name}, in your own message: never write another member's lines or pretend to be them.`,
+    'Write it like a message in a group chat: no greeting, and do not start with your own name or "X here" (the chat already shows who is talking, and who you are speaking to).',
     req.speakTo && req.speakTo !== 'you' ? `Now speak to ${req.speakTo}, by name.` : 'Now speak to the user.',
     req.teamNote ? `What is needed from you now: ${req.teamNote}` : '',
     'Do your part of the work for real (the actual text, design, code, numbers or review, not a plan to do it). Keep the talk around it short. End by saying plainly what you hand to whom, or what you need and from whom.'
