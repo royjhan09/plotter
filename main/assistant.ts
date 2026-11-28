@@ -241,13 +241,32 @@ function chatFiles(req: SendRequest): Attachment[] {
 const KIT_INSTRUCTIONS = (brief: string): string => `${brief}
 Whenever you design or build anything visual (ui blocks, HTML, CSS, app code, mockups, icons), follow the kit's rules without being reminded and reuse its components, changing only their CSS variables for a variation. Components come at three levels: elements (one piece), patterns (made of elements) and features (pieces that behave).
 ${KIT_GUIDE}
-For where, name the place (e.g. "ui block: pricing page", "reply"). Do not mention the kit in replies that have nothing to do with design.`
+For where, name the place (e.g. "ui block: pricing page", "reply"). Do not mention the kit in replies that have nothing to do with design.
+In this chat there is no kit_record_use call: instead, when you used kit components, end your reply with a block Plotter reads and hides (it records the uses), as the very last thing, after everything else:
+\`\`\`kit-uses
+[{"name": "<component>", "how": "as-is | variant | adapted | other-use", "where": "<place>", "variant": "<if one>", "note": "<adapted: what changed; other-use: the situation>"}]
+\`\`\``
+
+/** The uses a reply lists in its kit-uses block (the JSON array), or none. */
+export function kitUsesIn(text: string): Record<string, unknown>[] {
+  const m = /```[ \t]*kit-uses[ \t]*\n([\s\S]*?)(```|$)/i.exec(text)
+  if (!m) return []
+  try {
+    const list = JSON.parse(m[1]!.trim()) as unknown
+    return Array.isArray(list) ? (list.filter((x) => x && typeof x === 'object') as Record<string, unknown>[]) : []
+  } catch {
+    return []
+  }
+}
 
 /** The design-kit tools (private kitOps), the same ones Claude Code gets. */
-function kitTools(kit: Kit, chatId: string, chatTitle: string, afterReply: ((text: string) => void)[]): LocalTool[] {
+function kitTools(kit: Kit, chatId: string, chatTitle: string, afterReply: ((text: string) => { title: string; output: string } | void)[]): LocalTool[] {
   // recording and saving need no answer back: called together with the written reply, they end it (no extra round)
   const FINAL = ['kit_record_use', 'kit_save_component', 'kit_add_rule']
-  return kitToolSpecs().map((t) => ({
+  // uses are recorded from the reply's kit-uses block (no call, so no round), not with kit_record_use
+  return kitToolSpecs()
+    .filter((t) => t.name !== 'kit_record_use')
+    .map((t) => ({
     name: t.name,
     description: t.description,
     parameters: t.parameters,
@@ -389,7 +408,7 @@ export interface SetupPart {
  * Everything a ChatGPT reply is set up with: the instruction parts and the tools, each labelled. reply() sends
  * them; the dev server reports their sizes (debug:setup), so what every message carries can be measured.
  */
-export async function buildSetup(req: SendRequest): Promise<{ parts: SetupPart[]; tools: (LocalTool & { pack: string })[]; webSearch: boolean; afterReply: ((text: string) => void)[]; role?: RoleEntity; team: string; chat?: Chat }> {
+export async function buildSetup(req: SendRequest): Promise<{ parts: SetupPart[]; tools: (LocalTool & { pack: string })[]; webSearch: boolean; afterReply: ((text: string) => { title: string; output: string } | void)[]; role?: RoleEntity; team: string; chat?: Chat }> {
   const f = readFeatures()
   const chat = getChat(req.chatId)
   // a role decides which tools its chats get (the user's own picks for one message still count)
@@ -399,7 +418,7 @@ export async function buildSetup(req: SendRequest): Promise<{ parts: SetupPart[]
   const tools: (LocalTool & { pack: string })[] = []
   const parts: SetupPart[] = []
   // things to do once the reply is finished, with its text (e.g. a kit component saved from the reply's ui block)
-  const afterReply: ((text: string) => void)[] = []
+  const afterReply: ((text: string) => { title: string; output: string } | void)[] = []
   const add = (name: string, text: string): void => void (text && parts.push({ name, text }))
   const use = (pack: string, list: LocalTool[]): void => void tools.push(...list.map((t) => ({ ...t, pack })))
   add('base', INSTRUCTIONS)
@@ -453,6 +472,13 @@ export async function buildSetup(req: SendRequest): Promise<{ parts: SetupPart[]
       tools: kitTools(kit, req.chatId, title, afterReply),
       prefetch: (names) => runKitTool(kit.id, 'kit_component', { names }, { by: 'ChatGPT', chatId: req.chatId, chatTitle: title }).output
     })
+  // the kit pieces a reply used, from its kit-uses block, recorded once the reply is finished
+  if (kit)
+    afterReply.push((text) => {
+      const uses = kitUsesIn(text)
+      if (!uses.length) return
+      return runKitTool(kit.id, 'kit_record_use', { uses }, { by: 'ChatGPT', chatId: req.chatId, chatTitle: title }).card
+    })
   if (lazy.length) {
     add('capabilities', CAPABILITIES_PROMPT(lazy))
     use('capabilities', [openCapability(lazy)])
@@ -503,7 +529,8 @@ export async function reply(req: SendRequest, handlers: ConversationHandlers, si
   )
   for (const job of afterReply) {
     try {
-      job(text)
+      const card = job(text)
+      if (card) handlers.onToolRun({ id: `t${Date.now().toString(36)}k`, kind: 'kit', title: card.title, output: card.output })
     } catch {
       // a save after the reply must not turn a finished reply into an error
     }

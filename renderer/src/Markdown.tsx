@@ -117,6 +117,13 @@ function splitPieces(text: string): Piece[] {
       pieces.push({ kind: 'tool', id: tool[1]! })
       continue
     }
+    // the kit-uses note at the end of a reply is for Plotter (it records the uses), never shown, even mid-stream
+    if (/^```[ \t]*kit-uses[ \t]*$/i.test(lines[i]!.trimEnd())) {
+      let j = i + 1
+      while (j < lines.length && !/^```[ \t]*$/.test(lines[j]!.trimEnd())) j++
+      i = j
+      continue
+    }
     const open = /^```[ \t]*(chart|mermaid|ui|canvas(?::[\w+#.-]+)?)[ \t]*$/i.exec(lines[i]!.trimEnd())
     if (!open) {
       buf.push(lines[i]!)
