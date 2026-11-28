@@ -85,12 +85,6 @@ export function ProjectPage({
     <div className="market-page project-page">
       <div className="market-inner project-inner">
       <header className="market-head">
-        <button className="settings-back" onClick={onClose} title="Back to the chat (Esc)">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M15 5 8 12l7 7" />
-          </svg>
-          Back to chat
-        </button>
         <div className="project-title-row">
           <span className="project-page-icon">
             <ProjectIcon size={24} />

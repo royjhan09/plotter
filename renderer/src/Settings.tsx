@@ -157,10 +157,6 @@ export function Settings(props: SettingsProps): React.JSX.Element {
   return (
     <div className="settings-page">
       <nav className="settings-nav">
-        <button className="settings-back" onClick={onClose} title="Back to the chat (Esc)">
-          <NavIcon tab="back" />
-          Back to chat
-        </button>
         <div className="settings-heading">Settings</div>
         <input className="settings-search" placeholder="Search settings" value={search} onChange={(e) => setSearch(e.target.value)} />
         {NAV.map((g) => {

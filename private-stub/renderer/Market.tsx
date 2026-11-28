@@ -5,9 +5,6 @@ export function Market({ onClose }: { onClose: () => void; onTryInChat?: (text: 
   return (
     <div className="market-page">
       <div className="market-inner">
-        <button className="settings-back" onClick={onClose}>
-          Back to chat
-        </button>
         <h2>Market</h2>
         <p className="market-lead">The Market is not part of this build.</p>
       </div>
