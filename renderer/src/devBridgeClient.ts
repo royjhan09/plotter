@@ -269,6 +269,7 @@ export function installDevBridge(): void {
       remove: (id) => call('skills:remove', id),
       upload: (input) => call('skills:upload', input),
       download: (id) => call('skills:download', id),
+      check: (draft) => call('skills:check', draft),
       onChanged: (l) => {
         listeners.skills.add(l)
         return () => listeners.skills.delete(l)

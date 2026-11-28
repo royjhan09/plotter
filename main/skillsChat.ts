@@ -1,6 +1,6 @@
 import type { PluginInfo, SkillInfo } from '../shared/api'
 import type { LocalTool } from './openai'
-import { enabledSkills, getSkill, readSkillFile, recordSkillUse, saveSkill } from '@private/main/skills'
+import { enabledSkills, getSkill, readSkillFile, recordSkillUse, saveSkill, skillCheck } from '@private/main/skills'
 import { listPlugins, savePlugin } from '@private/main/plugins'
 import { listMarket } from '@private/main/market'
 
@@ -42,7 +42,9 @@ function saveSkillTool(): LocalTool {
           { name: String(args['name'] ?? ''), description: String(args['description'] ?? ''), body: String(args['instructions'] ?? ''), files: Array.isArray(args['files']) ? (args['files'] as { path: string; content: string }[]) : [] },
           'chat'
         )
-        return { output: JSON.stringify({ saved: s.name, files: s.files }), run: { kind: 'skill', title: 'Saved a skill to your Market', output: s.name } }
+        // the check on what was saved: common mistakes to fix (save again under the same name)
+        const warnings = skillCheck({ name: String(args['name'] ?? ''), description: String(args['description'] ?? ''), body: String(args['instructions'] ?? '') }, s.files)
+        return { output: JSON.stringify({ saved: s.name, files: s.files, ...(warnings.length ? { check: warnings } : {}) }), run: { kind: 'skill', title: 'Saved a skill to your Market', output: s.name } }
       } catch (e) {
         return { output: JSON.stringify({ error: e instanceof Error ? e.message : String(e) }) }
       }

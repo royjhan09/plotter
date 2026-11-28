@@ -29,7 +29,7 @@ import { pdfHandlers } from '@private/main/pdf'
 import { addIdea, readLab, removeIdea, setLabCapture, updateIdea } from '@private/main/lab'
 import { estimateLab, settleLab, startLab, stopLab } from './labRun'
 import { checkMarketTool, closeAllMarket, listMarket, removeMarketTool, saveMarketTool, setMarketApproval, setMarketConnected, signInTool, signOutTool } from '@private/main/market'
-import { getSkill, listSkills, readSkillFile, removeSkill, saveSkill, setSkillEnabled, uploadSkills, downloadSkill } from '@private/main/skills'
+import { getSkill, listSkills, readSkillFile, removeSkill, saveSkill, setSkillEnabled, uploadSkills, downloadSkill, skillCheck } from '@private/main/skills'
 import { addFromCatalog, addPopular, catalog, listPlugins, popular, popularIcons, editPlugin, removePlugin, serverDetails, serverSkill, savePlugin, setPluginIcon, uploadPlugin } from '@private/main/plugins'
 import { answerApproval, builtinApprovals, setBuiltinApproval } from '@private/main/approvals'
 import { claudeCodeAvailable, makeProjectFolder, recentFolders, suggestProjectFolder, sendMember, sendToClaude, forgetGroup, settleStale, stopAllClaude, stopClaude } from '@private/main/claudeCode'
@@ -415,6 +415,7 @@ export const handlers: Record<string, (...args: never[]) => unknown> = {
   'skills:save': (draft: SkillDraft) => (saveSkill(draft, draft?.id ? undefined : 'you'), listSkills()),
   'skills:setEnabled': (id: string, on: boolean) => setSkillEnabled(String(id), !!on),
   'skills:remove': (id: string) => removeSkill(String(id)),
+  'skills:check': (draft: SkillDraft) => skillCheck(draft ?? { name: '', description: '' }, ['SKILL.md', ...(draft?.files ?? []).map((f) => String(f.path))]),
   'skills:download': (id: string) => downloadSkill(String(id)),
   'skills:upload': (input: { zip?: string; files?: { path: string; base64: string }[] }) => uploadSkills(input ?? {}),
   'plugins:list': () => listPlugins(),

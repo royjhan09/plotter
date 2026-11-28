@@ -1267,6 +1267,8 @@ export interface PlotterApi {
     remove: (id: string) => Promise<SkillInfo[]>
     /** Adds skills from files you picked (a folder, or a .zip as base64). Returns the skills added. */
     upload: (input: { zip?: string; files?: { path: string; base64: string }[] }) => Promise<SkillInfo[]>
+    /** Common mistakes in a draft (name, description, instructions, files), each a short note; none stops a save. */
+    check: (draft: SkillDraft) => Promise<string[]>
     /** The skill as a .zip (its folder, SKILL.md at the top), which ChatGPT and Claude also take: name and base64. */
     download: (id: string) => Promise<{ name: string; zip: string }>
     onChanged: (listener: () => void) => () => void
