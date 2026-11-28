@@ -9999,6 +9999,17 @@ a.pop-item {
 .mk2-file.on {
   background: var(--sand);
 }
+.mk2-files > div,
+.mk2-files .mk2-file {
+  width: 100%;
+}
+.mk2-file.folder {
+  color: var(--muted);
+  gap: 4px;
+}
+.mk2-file.folder svg:first-child {
+  flex: none;
+}
 .mk2-file-view {
   flex: 1;
   min-width: 0;

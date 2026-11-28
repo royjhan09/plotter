@@ -211,6 +211,7 @@ const api: PlotterApi = {
     setEnabled: (id, on) => ipcRenderer.invoke('skills:setEnabled', id, on),
     remove: (id) => ipcRenderer.invoke('skills:remove', id),
     upload: (input) => ipcRenderer.invoke('skills:upload', input),
+    download: (id) => ipcRenderer.invoke('skills:download', id),
     onChanged: (listener) => {
       const handler = (): void => listener()
       ipcRenderer.on('skills:changed', handler)

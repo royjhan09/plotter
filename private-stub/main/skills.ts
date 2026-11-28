@@ -19,6 +19,9 @@ export function saveSkill(_d: SkillDraft, _source?: SkillInfo['source'], _plugin
 export const setSkillEnabled = (_id: string, _on: boolean): SkillInfo[] => []
 export const removeSkill = (_id: string): SkillInfo[] => []
 export const recordSkillUse = (_id: string): void => undefined
+export const downloadSkill = (_id: string): { name: string; zip: string } => {
+  throw new Error('Skills are not part of this build.')
+}
 export function uploadSkills(_input: { zip?: string; files?: { path: string; base64: string }[] }): SkillInfo[] {
   throw new Error(OFF)
 }
