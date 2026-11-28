@@ -28,9 +28,9 @@ import { showInExplorer } from './frontExplorer'
 import { pdfHandlers } from '@private/main/pdf'
 import { addIdea, readLab, removeIdea, setLabCapture, updateIdea } from '@private/main/lab'
 import { estimateLab, settleLab, startLab, stopLab } from './labRun'
-import { checkMarketTool, closeAllMarket, listMarket, removeMarketTool, saveMarketTool, setMarketApproval, setMarketConnected } from '@private/main/market'
+import { checkMarketTool, closeAllMarket, listMarket, removeMarketTool, saveMarketTool, setMarketApproval, setMarketConnected, signInTool, signOutTool } from '@private/main/market'
 import { getSkill, listSkills, readSkillFile, removeSkill, saveSkill, setSkillEnabled, uploadSkills } from '@private/main/skills'
-import { addFromCatalog, catalog, listPlugins, removePlugin, savePlugin, uploadPlugin } from '@private/main/plugins'
+import { addFromCatalog, addPopular, catalog, listPlugins, popular, removePlugin, savePlugin, uploadPlugin } from '@private/main/plugins'
 import { answerApproval, builtinApprovals, setBuiltinApproval } from '@private/main/approvals'
 import { claudeCodeAvailable, makeProjectFolder, recentFolders, suggestProjectFolder, sendMember, sendToClaude, forgetGroup, settleStale, stopAllClaude, stopClaude } from '@private/main/claudeCode'
 import { USAGE_URL, type LabTest, type BesideChat, type Chat, type KitComponent, type KitPatch, type KitPieceOffer, type ToolApproval, type SkillDraft, type PluginInfo, type RoleDraft, type RoleLink, type HistoryItem, type RoleDeployment, type KitRule, type LibraryRef, type ChatMetaPatch, type MarketToolInput, type ConnectorId, type Features, type ReplyEvent, type SendRequest } from '../shared/api'
@@ -389,6 +389,10 @@ export const handlers: Record<string, (...args: never[]) => unknown> = {
   'market:setConnected': (id: string, on: boolean) => setMarketConnected(String(id), !!on),
   'market:check': (id: string) => checkMarketTool(String(id)),
   'market:setApproval': (id: string, level: ToolApproval) => setMarketApproval(String(id), level),
+  'market:signIn': (id: string) => signInTool(String(id)),
+  'market:signOut': (id: string) => signOutTool(String(id)),
+  'plugins:popular': () => popular(),
+  'plugins:addPopular': (id: string, key?: string) => addPopular(String(id), key ? String(key) : undefined),
   'skills:list': () => listSkills(),
   'skills:get': (id: string) => getSkill(String(id)),
   'skills:readFile': (id: string, path: string) => readSkillFile(String(id), String(path)),

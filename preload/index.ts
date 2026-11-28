@@ -188,7 +188,9 @@ const api: PlotterApi = {
     remove: (id) => ipcRenderer.invoke('market:remove', id),
     setConnected: (id, on) => ipcRenderer.invoke('market:setConnected', id, on),
     check: (id) => ipcRenderer.invoke('market:check', id),
-    setApproval: (id, level) => ipcRenderer.invoke('market:setApproval', id, level)
+    setApproval: (id, level) => ipcRenderer.invoke('market:setApproval', id, level),
+    signIn: (id) => ipcRenderer.invoke('market:signIn', id),
+    signOut: (id) => ipcRenderer.invoke('market:signOut', id)
   },
   skills: {
     list: () => ipcRenderer.invoke('skills:list'),
@@ -210,6 +212,8 @@ const api: PlotterApi = {
     remove: (id) => ipcRenderer.invoke('plugins:remove', id),
     upload: (input) => ipcRenderer.invoke('plugins:upload', input),
     catalog: () => ipcRenderer.invoke('plugins:catalog'),
+    popular: () => ipcRenderer.invoke('plugins:popular'),
+    addPopular: (id, key) => ipcRenderer.invoke('plugins:addPopular', id, key),
     addFromCatalog: (kind, id) => ipcRenderer.invoke('plugins:addFromCatalog', kind, id),
     builtinApproval: () => ipcRenderer.invoke('plugins:builtinApproval'),
     setBuiltinApproval: (id, level) => ipcRenderer.invoke('plugins:setBuiltinApproval', id, level),

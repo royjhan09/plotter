@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { ChatMetaPatch, ChatSummary, ConnectorStatus, Features, ImageKeyStatus, Memory, PythonStatus } from '../../shared/api'
+import type { ChatMetaPatch, ChatSummary, ConnectorStatus, Features, ImageKeyStatus, MarketTool, Memory, PythonStatus, ToolApproval } from '../../shared/api'
 import type { Theme } from './theme'
 import { ADVICE_LABEL, VISIBILITY } from './visibility'
 
@@ -111,7 +111,7 @@ const NAV: { group: string; items: { tab: Tab; label: string; words: string }[] 
       { tab: 'features', label: 'Features', words: 'web search python canvas tools' },
       { tab: 'images', label: 'Images', words: 'image picture photo generate draw openai api key gpt-image' },
       { tab: 'memory', label: 'Memory', words: 'remember forget memories' },
-      { tab: 'connectors', label: 'Connectors', words: 'google gmail calendar drive notion' }
+      { tab: 'connectors', label: 'Connections', words: 'connectors connections plugins google gmail calendar drive notion permissions sign in mcp' }
     ]
   },
   {
@@ -182,7 +182,7 @@ export function Settings(props: SettingsProps): React.JSX.Element {
           {tab === 'features' && <FeaturesTab />}
           {tab === 'images' && <ImagesTab onOpenMarket={props.onOpenMarket} />}
           {tab === 'memory' && <MemoryTab />}
-          {tab === 'connectors' && <ConnectorsTab />}
+          {tab === 'connectors' && <ConnectorsTab onOpenMarket={props.onOpenMarket} />}
           {tab === 'archived' && <ArchivedTab {...props} />}
           {tab === 'visibility' && <VisibilityTab />}
         </div>
@@ -419,19 +419,63 @@ function MemoryTab(): React.JSX.Element {
   )
 }
 
-function ConnectorsTab(): React.JSX.Element {
+const CONN_LEVELS: [ToolApproval, string, string][] = [
+  ['ask', 'Always ask', 'Ask before reading or changing anything'],
+  ['read', 'Allow read-only tools', 'Read without asking; ask before changes'],
+  ['low', 'Allow low-risk tools', 'Low-risk tools run without asking; destructive ones ask'],
+  ['all', 'Allow all tools', 'Never ask. Riskier']
+]
+const levelName = (l: ToolApproval | undefined): string => CONN_LEVELS.find((x) => x[0] === l)?.[1] ?? CONN_LEVELS[2]![1]
+
+const CONN_ICON = {
+  link: 'M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1',
+  api: 'M9 3v5M15 3v5M7 8h10v3a5 5 0 0 1-10 0zM12 16v5',
+  mcp: 'M4 5h16v6H4zM4 13h16v6H4zM8 8h.01M8 16h.01',
+  globe: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm-9 9h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3Z',
+  chevron: 'm9 6 6 6-6 6'
+} as const
+const ConnIcon = ({ name, size = 20 }: { name: keyof typeof CONN_ICON; size?: number }): React.JSX.Element => (
+  <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d={CONN_ICON[name]} />
+  </svg>
+)
+
+type ConnOpen = { kind: 'google' } | { kind: 'notion' } | { kind: 'browser' } | { kind: 'tool'; id: string } | null
+
+/**
+ * Connections, laid out like ChatGPT's Settings › Plugins: a default permission, then every connection (Google,
+ * Notion, the Market's tools, the browser) with its permission level; each opens to its account, permissions
+ * and switch. The Market is where new ones are found.
+ */
+function ConnectorsTab({ onOpenMarket }: { onOpenMarket?: () => void }): React.JSX.Element {
   const [list, setList] = useState<ConnectorStatus[] | null>(null)
+  const [tools, setTools] = useState<MarketTool[]>([])
+  const [levels, setLevels] = useState<Record<string, ToolApproval>>({})
+  const [q, setQ] = useState('')
+  const [open, setOpen] = useState<ConnOpen>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [gid, setGid] = useState('')
   const [gsecret, setGsecret] = useState('')
   const [ntoken, setNtoken] = useState('')
-  useEffect(() => void api.connectors.list().then(setList), [])
-  const act = async (key: string, f: () => Promise<ConnectorStatus[]>): Promise<void> => {
+  const load = (): void => {
+    void api.connectors.list().then(setList)
+    void api.market
+      .list()
+      .then(setTools)
+      .catch(() => setTools([]))
+    void api.plugins
+      .builtinApproval()
+      .then(setLevels)
+      .catch(() => setLevels({}))
+  }
+  useEffect(load, [])
+  const act = async <T,>(key: string, f: () => Promise<T>): Promise<void> => {
     setBusy(key)
     setError(null)
     try {
-      setList(await f())
+      await f()
+      load()
     } catch (e) {
       setError(errText(e))
     } finally {
@@ -441,21 +485,68 @@ function ConnectorsTab(): React.JSX.Element {
   if (!list) return <div className="muted">Loading…</div>
   const google = list.find((c) => c.id === 'google')!
   const notion = list.find((c) => c.id === 'notion')!
-  return (
-    <>
-      <h3>Connectors</h3>
-      <p className="settings-lead">Let Plotter read your own email, calendar, files and notes when you ask about them. Read-only: Plotter can search and read, never send, edit or delete. Sign-ins are stored encrypted on this PC.</p>
-      {error && <div className="settings-error">{error}</div>}
+  const needle = q.trim().toLowerCase()
+  const match = (...s: (string | undefined)[]): boolean => !needle || s.join(' ').toLowerCase().includes(needle)
+  const def = levels['default'] ?? 'low'
 
-      <div className="connector">
-        <div className="connector-head">
-          <div>
-            <div className="setting-name">Google</div>
-            <div className="setting-desc">{google.covers}</div>
-            {google.connected && <div className="setting-status">Connected{google.account ? ` as ${google.account}` : ''}</div>}
-          </div>
-          {google.connected && <Toggle on={google.enabled} label="Use Google in chats" onChange={(v) => void act('g-en', () => api.connectors.setEnabled('google', v))} />}
-        </div>
+  const status = (c: ConnectorStatus): string => (c.connected ? (c.enabled ? 'Connected' : 'Switched off') : c.configured ? 'Not connected' : 'Not set up')
+  const toolStatus = (t: MarketTool): string => (t.mcp?.auth === 'oauth' && !t.signedIn ? 'Not signed in' : !t.connected ? 'Switched off' : t.approval ? levelName(t.approval) : `${levelName(def)} (default)`)
+
+  const rowOf = (key: string, icon: keyof typeof CONN_ICON, name: string, desc: string, right: string, onOpen: () => void): React.JSX.Element => (
+    <button key={key} className="conn-row" onClick={onOpen}>
+      <span className="conn-icon">
+        <ConnIcon name={icon} />
+      </span>
+      <span className="conn-text">
+        <b>{name}</b>
+        <span>{desc}</span>
+      </span>
+      <span className="conn-state">{right}</span>
+      <ConnIcon name="chevron" size={16} />
+    </button>
+  )
+
+  const levelsPicker = (value: ToolApproval | undefined, onPick: (l: ToolApproval) => void): React.JSX.Element => (
+    <div className="conn-levels" role="radiogroup">
+      {CONN_LEVELS.map(([l, name, line]) => (
+        <label key={l} className={`conn-level ${value === l ? 'on' : ''}`}>
+          <input type="radio" name="conn-level" checked={value === l} onChange={() => onPick(l)} />
+          <span>
+            <b>{name}</b>
+            <span>{line}</span>
+          </span>
+        </label>
+      ))}
+    </div>
+  )
+
+  const detailHead = (icon: keyof typeof CONN_ICON, name: string, desc: string, actions?: React.ReactNode): React.JSX.Element => (
+    <>
+      <div className="conn-crumb">
+        <button className="link" onClick={() => (setOpen(null), setError(null))}>
+          Connections
+        </button>{' '}
+        › {name}
+      </div>
+      <div className="conn-detail-head">
+        <span className="conn-icon big">
+          <ConnIcon name={icon} size={24} />
+        </span>
+        <span className="conn-text">
+          <b>{name}</b>
+          <span>{desc}</span>
+        </span>
+        {actions}
+      </div>
+      {error && <div className="settings-error">{error}</div>}
+    </>
+  )
+
+  if (open?.kind === 'google')
+    return (
+      <div className="conn-detail">
+        {detailHead('link', 'Google', google.covers, google.connected ? <Toggle on={google.enabled} label="Use Google in chats" onChange={(v) => void act('g-en', () => api.connectors.setEnabled('google', v))} /> : undefined)}
+        <h4>Account</h4>
         {!google.configured ? (
           <div className="connector-setup">
             <ol className="steps">
@@ -476,34 +567,40 @@ function ConnectorsTab(): React.JSX.Element {
             </button>
           </div>
         ) : google.connected ? (
-          <button className="btn ghost" disabled={busy !== null} onClick={() => void act('g-off', () => api.connectors.disconnect('google'))}>
-            Disconnect
-          </button>
+          <div className="conn-account">
+            <span>Connected{google.account ? ` as ${google.account}` : ''}</span>
+            <button className="btn small" disabled={busy !== null} onClick={() => void act('g-off', () => api.connectors.disconnect('google'))}>
+              Disconnect
+            </button>
+          </div>
         ) : (
-          <div className="row-actions">
-            <button className="btn primary" disabled={busy !== null} onClick={() => void act('g-on', () => api.connectors.connect('google'))}>
+          <div className="conn-account">
+            <span>Not connected</span>
+            <button className="btn small primary" disabled={busy !== null} onClick={() => void act('g-on', () => api.connectors.connect('google'))}>
               {busy === 'g-on' ? 'Finish in your browser…' : 'Connect Google'}
             </button>
-            <button className="btn ghost" disabled={busy !== null} onClick={() => void act('g-reset', () => api.connectors.disconnect('google'))}>
+            <button className="btn small" disabled={busy !== null} onClick={() => void act('g-reset', () => api.connectors.disconnect('google'))}>
               Change client
             </button>
           </div>
         )}
+        <h4>Permissions</h4>
+        <p className="conn-note">Read-only: chats search and read, never send, edit or delete.</p>
       </div>
+    )
 
-      <div className="connector">
-        <div className="connector-head">
-          <div>
-            <div className="setting-name">Notion</div>
-            <div className="setting-desc">{notion.covers}</div>
-            {notion.connected && <div className="setting-status">Connected{notion.account ? ` to ${notion.account}` : ''}</div>}
-          </div>
-          {notion.connected && <Toggle on={notion.enabled} label="Use Notion in chats" onChange={(v) => void act('n-en', () => api.connectors.setEnabled('notion', v))} />}
-        </div>
+  if (open?.kind === 'notion')
+    return (
+      <div className="conn-detail">
+        {detailHead('link', 'Notion', notion.covers, notion.connected ? <Toggle on={notion.enabled} label="Use Notion in chats" onChange={(v) => void act('n-en', () => api.connectors.setEnabled('notion', v))} /> : undefined)}
+        <h4>Account</h4>
         {notion.connected ? (
-          <button className="btn ghost" disabled={busy !== null} onClick={() => void act('n-off', () => api.connectors.disconnect('notion'))}>
-            Disconnect
-          </button>
+          <div className="conn-account">
+            <span>Connected{notion.account ? ` to ${notion.account}` : ''}</span>
+            <button className="btn small" disabled={busy !== null} onClick={() => void act('n-off', () => api.connectors.disconnect('notion'))}>
+              Disconnect
+            </button>
+          </div>
         ) : (
           <div className="connector-setup">
             <ol className="steps">
@@ -520,7 +617,103 @@ function ConnectorsTab(): React.JSX.Element {
             </button>
           </div>
         )}
+        <h4>Permissions</h4>
+        <p className="conn-note">Read-only: chats search and read the pages you shared with the integration.</p>
       </div>
+    )
+
+  if (open?.kind === 'browser')
+    return (
+      <div className="conn-detail">
+        {detailHead('globe', 'Browser', 'Chats open, read and use pages in the pane beside the chat')}
+        <h4>Permissions</h4>
+        {levelsPicker(levels['browser'] ?? 'low', (l) => void act('b-lvl', () => api.plugins.setBuiltinApproval('browser', l)))}
+      </div>
+    )
+
+  const tool = open?.kind === 'tool' ? tools.find((t) => t.id === open.id) : undefined
+  if (tool)
+    return (
+      <div className="conn-detail">
+        {detailHead(
+          tool.kind === 'api' ? 'api' : 'mcp',
+          tool.name,
+          tool.description,
+          <>
+            <Toggle on={tool.connected} label={`Use ${tool.name} in chats`} onChange={(v) => void act('t-on', () => api.market.setConnected(tool.id, v))} />
+          </>
+        )}
+        <h4>Account</h4>
+        <div className="conn-account">
+          {tool.mcp?.auth === 'oauth' ? (
+            tool.signedIn ? (
+              <>
+                <span>Signed in</span>
+                <button className="btn small" disabled={busy !== null} onClick={() => void act('t-out', () => api.market.signOut(tool.id))}>
+                  Sign out
+                </button>
+              </>
+            ) : (
+              <>
+                <span>Not signed in</span>
+                <button className="btn small primary" disabled={busy !== null} onClick={() => void act('t-in', () => api.market.signIn(tool.id))}>
+                  {busy === 't-in' ? 'Finish in your browser…' : 'Sign in'}
+                </button>
+              </>
+            )
+          ) : tool.hasSecret ? (
+            <span>Key saved, encrypted on this PC (change it in the Market)</span>
+          ) : (
+            <span>{tool.kind === 'mcp' && tool.mcp?.transport === 'stdio' ? 'Runs on this PC' : 'No account needed'}</span>
+          )}
+        </div>
+        <h4>Permissions</h4>
+        {levelsPicker(tool.approval ?? def, (l) => void act('t-lvl', () => api.market.setApproval(tool.id, l)))}
+        <div className="conn-foot">
+          <button
+            className="btn small danger-text"
+            onClick={() => {
+              if (confirm(`Remove ${tool.name}?`)) void act('t-rm', () => api.market.remove(tool.id)).then(() => setOpen(null))
+            }}
+          >
+            Remove
+          </button>
+        </div>
+      </div>
+    )
+
+  const rows: React.JSX.Element[] = []
+  if (match('Google gmail calendar drive', google.covers)) rows.push(rowOf('google', 'link', 'Google', google.covers, status(google), () => setOpen({ kind: 'google' })))
+  if (match('Notion', notion.covers)) rows.push(rowOf('notion', 'link', 'Notion', notion.covers, status(notion), () => setOpen({ kind: 'notion' })))
+  for (const t of tools.filter((t) => match(t.name, t.description))) rows.push(rowOf(t.id, t.kind === 'api' ? 'api' : 'mcp', t.name, t.description, toolStatus(t), () => setOpen({ kind: 'tool', id: t.id })))
+  if (match('Browser web pages')) rows.push(rowOf('browser', 'globe', 'Browser', 'Chats open, read and use pages in the pane beside the chat', levelName(levels['browser'] ?? 'low'), () => setOpen({ kind: 'browser' })))
+
+  return (
+    <>
+      <div className="conn-head">
+        <h3>Connections</h3>
+        {onOpenMarket && (
+          <button className="btn" onClick={onOpenMarket}>
+            Browse the Market
+          </button>
+        )}
+      </div>
+      <input className="conn-search" placeholder="Search connections" value={q} onChange={(e) => setQ(e.target.value)} />
+      <div className="conn-default">
+        <span className="conn-text">
+          <b>Default permission</b>
+          <span>When chats must ask before using a connection</span>
+        </span>
+        <select value={def} onChange={(e) => void act('def', () => api.plugins.setBuiltinApproval('default', e.target.value as ToolApproval))}>
+          {CONN_LEVELS.map(([l, name]) => (
+            <option key={l} value={l}>
+              {name}
+            </option>
+          ))}
+        </select>
+      </div>
+      {error && <div className="settings-error">{error}</div>}
+      <div className="conn-list">{rows.length ? rows : <p className="muted">Nothing matches.</p>}</div>
     </>
   )
 }

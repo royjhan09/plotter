@@ -22,6 +22,12 @@ export const saveMarketTool = (_t: MarketToolInput): MarketTool[] => off()
 export const removeMarketTool = (_id: string): MarketTool[] => []
 export const setMarketConnected = (_id: string, _on: boolean): MarketTool[] => []
 export const setMarketApproval = (_id: string, _level: ToolApproval): MarketTool[] => []
+export async function signInTool(_id: string): Promise<MarketTool[]> {
+  return off()
+}
+export async function signOutTool(_id: string): Promise<MarketTool[]> {
+  return []
+}
 export async function checkMarketTool(_id: string): Promise<MarketCheck> {
   return { ok: false, error: 'The Market is not part of this build.' }
 }

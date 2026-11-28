@@ -626,7 +626,9 @@ export interface MarketTool {
   kind: 'api' | 'mcp'
   connected: boolean
   api?: { url: string; method: 'GET' | 'POST'; params: ApiParam[]; authHeader?: string }
-  mcp?: { transport: 'http' | 'stdio'; url?: string; command?: string; args?: string[] }
+  mcp?: { transport: 'http' | 'stdio'; url?: string; command?: string; args?: string[]; /** oauth: you sign in to the service's account (an online server) */ auth?: 'oauth' | 'key' | 'none' }
+  /** oauth servers: signed in (the account's tokens are stored, encrypted on this PC). */
+  signedIn?: boolean
   /** A secret (API key or token) is stored, encrypted on this PC; it is never sent back to the window. */
   hasSecret: boolean
   /** When a chat must ask you before using it (default: low-risk tools freely). */
@@ -691,6 +693,20 @@ export interface PluginInfo {
   source: 'you' | 'chat' | 'upload' | 'catalog'
   catalogId?: string
   addedAt: number
+}
+
+/** A popular service with an official MCP server, ready to add (sign in, or paste a key). */
+export interface PopularService {
+  id: string
+  name: string
+  description: string
+  category: string
+  /** oauth: sign in to your account; key: paste an API key or token; none: nothing needed. */
+  auth: 'oauth' | 'key' | 'none'
+  /** key services: what to paste and where to make it. */
+  keyLabel?: string
+  keyHelp?: string
+  added: boolean
 }
 
 /** Something in Plotter's own catalogue of skills and plugins. */
@@ -1137,6 +1153,9 @@ export interface PlotterApi {
     check: (id: string) => Promise<MarketCheck>
     /** When chats must ask before using it. */
     setApproval: (id: string, level: ToolApproval) => Promise<MarketTool[]>
+    /** Online MCP servers that use account sign-in: opens your browser to sign in; resolves when done. */
+    signIn: (id: string) => Promise<MarketTool[]>
+    signOut: (id: string) => Promise<MarketTool[]>
   }
   skills: {
     list: () => Promise<SkillInfo[]>
@@ -1158,6 +1177,10 @@ export interface PlotterApi {
     /** Adds a plugin from files you picked (a folder, or a .zip as base64): its skills, and its MCP servers (off until you check them). */
     upload: (input: { zip?: string; files?: { path: string; base64: string }[] }) => Promise<PluginInfo[]>
     catalog: () => Promise<CatalogEntry[]>
+    /** Popular services with official MCP servers. */
+    popular: () => Promise<PopularService[]>
+    /** Adds one as a plugin (its server as a tool); key services need the key. Returns the plugin's id. */
+    addPopular: (id: string, key?: string) => Promise<string>
     /** Adds a skill or plugin from Plotter's catalogue. */
     addFromCatalog: (kind: 'skill' | 'plugin', id: string) => Promise<void>
     /** Approval levels of Plotter's own tools (the browser). */

@@ -245,7 +245,9 @@ export function installDevBridge(): void {
       remove: (id) => call('market:remove', id),
       setConnected: (id, on) => call('market:setConnected', id, on),
       check: (id) => call('market:check', id),
-      setApproval: (id, level) => call('market:setApproval', id, level)
+      setApproval: (id, level) => call('market:setApproval', id, level),
+      signIn: (id) => call('market:signIn', id),
+      signOut: (id) => call('market:signOut', id)
     },
     skills: {
       list: () => call('skills:list'),
@@ -266,6 +268,8 @@ export function installDevBridge(): void {
       remove: (id) => call('plugins:remove', id),
       upload: (input) => call('plugins:upload', input),
       catalog: () => call('plugins:catalog'),
+      popular: () => call('plugins:popular'),
+      addPopular: (id, key) => call('plugins:addPopular', id, key),
       addFromCatalog: (kind, id) => call('plugins:addFromCatalog', kind, id),
       builtinApproval: () => call('plugins:builtinApproval'),
       setBuiltinApproval: (id, level) => call('plugins:setBuiltinApproval', id, level),

@@ -114,6 +114,13 @@ export const VISIBILITY: VisibilityGroup[] = [
         tradeoff: `${MOVED} The public stand-in has no skills, no plugins, and tools run without asking.`
       },
       {
+        name: 'Popular services and account sign-in',
+        now: 'private',
+        advice: 'keep-private',
+        why: 'Official MCP servers of popular services (Notion, Linear, Atlassian, GitHub, Stripe…) ready to add, and signing in to their accounts (OAuth) with tokens kept encrypted on this PC.',
+        tradeoff: `${MOVED} The public stand-in has no Popular list and no account sign-in.`
+      },
+      {
         name: 'Chats following skills',
         now: 'public',
         advice: 'must-public',

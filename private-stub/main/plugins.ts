@@ -1,4 +1,4 @@
-import type { CatalogEntry, PluginInfo } from '../../shared/api'
+import type { CatalogEntry, PluginInfo, PopularService } from '../../shared/api'
 
 /** Public stand-in for plugins (in Plotter's private folder): none in this build. */
 export const PLUGINS = false
@@ -14,5 +14,9 @@ export function uploadPlugin(_input: { zip?: string; files?: { path: string; bas
 }
 export const catalog = (): CatalogEntry[] => []
 export function addFromCatalog(_kind: 'skill' | 'plugin', _id: string): void {
+  throw new Error(OFF)
+}
+export const popular = (): PopularService[] => []
+export function addPopular(_id: string, _key?: string): string {
   throw new Error(OFF)
 }
