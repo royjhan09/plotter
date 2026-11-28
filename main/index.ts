@@ -7,7 +7,7 @@ import { getLibraryItem, listLibrary } from '@private/main/library'
 import { clearImageKey, imageKeyStatus, setImageKey, setImageOn, setImageOptions } from '@private/main/images'
 import { addNote, createProject, editNote, listProjects, removeNote, removeProject, removeProjectRole, renameProject, setProjectBrand, setProjectKit, setProjectRole } from './projects'
 import { addWishes, cleanDraft, getRole, grantWish, listRoles, removeRole, saveCombined, saveRole, setRetired } from '@private/main/roles'
-import { addIdeas, dismissIdea, linkRole, roleKit } from '@private/main/roleKit'
+import { addIdeas, adoptIdeas, dismissIdea, linkRole, roleKit } from '@private/main/roleKit'
 import { combineSuggestions, dismissCombo, getCompany, labelLine, linkRoles, mergeTradeoff, noteHandoff, placeRole, renameCompany, replaceInChart, setPrefer, unlinkRoles } from '@private/main/company'
 import { addPieceFromReply } from '@private/main/kitOps'
 import { BROWSER, captureUrl, capturePage, saveMarkup, setupBrowser } from '@private/main/browser'
@@ -289,7 +289,17 @@ export const handlers: Record<string, (...args: never[]) => unknown> = {
   'roles:combineSuggestions': () => combineSuggestions(listRoles()),
   'roles:dismissCombo': (a: string, b: string) => dismissCombo(String(a), String(b)),
   'company:setPrefer': (prefer: 'cost' | 'speed') => setPrefer(prefer === 'speed' ? 'speed' : 'cost'),
-  'roles:save': (role: RoleDraft & { id?: string }) => saveRole({ ...role }),
+  'roles:save': async (role: RoleDraft & { id?: string }) => {
+    const saved = saveRole({ ...role })
+    if (role.id) return saved
+    // a new role: the skills and tools its job needs, linked when you have them; the rest shown as good to have
+    if (saved.ideas?.length) return adoptIdeas(saved.id)
+    // made without a ChatGPT draft: one call names what it needs (in the background, so saving is not held up)
+    void suggestRoleKit(saved, { skills: [], tools: [] })
+      .then((ideas) => (addIdeas(saved.id, ideas), adoptIdeas(saved.id)))
+      .catch(() => undefined)
+    return saved
+  },
   'roles:remove': (id: string) => removeRole(String(id)),
   'roles:draft': async (input: { name: string; purpose: string }) => cleanDraft(await draftRole({ name: String(input?.name ?? ''), purpose: String(input?.purpose ?? '') })),
   'projects:setRole': (id: string, d: RoleDeployment) => {

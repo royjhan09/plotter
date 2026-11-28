@@ -1,5 +1,5 @@
 import { useContext, useEffect, useState } from 'react'
-import { PROJECT_MEMORY_LIMIT, ROLE_TOOL_INFO, type ChatKind, type ChatSummary, type KitSummary, type BrandSummary, type Project, type RecruitPick, type RoleDeployment, type RoleEntity, type RoleTool } from '../../shared/api'
+import { PROJECT_MEMORY_LIMIT, ROLE_TOOL_INFO, type ChatKind, type ChatSummary, type KitSummary, type BrandSummary, type Project, type RecruitPick, type RoleDeployment, type RoleEntity, type RoleKit, type RoleTool } from '../../shared/api'
 import { RoleBot } from '@private/renderer/RoleBot'
 import { ROLES } from '@private/renderer/Roles'
 import { RolesContext } from './roles'
@@ -315,7 +315,9 @@ function ProjectRoles({ project, onChat }: { project: Project; onChat?: (roleId:
       ) : (
         <div className="project-roles">
           {deployed.map(({ d, role }) => {
-            const options = [...new Set([...(role.toolOptions ?? []), ...role.tools])] as RoleTool[]
+            // a role with its own skills and tools picks those below, not the all-or-nothing switches
+            const own = !!(role.skillIds?.length || role.marketIds?.length)
+            const options = ([...new Set([...(role.toolOptions ?? []), ...role.tools])] as RoleTool[]).filter((t) => !own || (t !== 'skills' && t !== 'market'))
             const changed = d.tools.join() !== role.tools.join() || !!d.notes
             return (
               <div key={role.id} className={`project-role ${open === role.id ? 'open' : ''}`}>
@@ -325,7 +327,11 @@ function ProjectRoles({ project, onChat }: { project: Project; onChat?: (roleId:
                   </span>
                   <span className="project-role-name">
                     <b>{role.name}</b>
-                    <span>{role.engine === 'claude' ? 'Claude Code' : d.tools.length ? d.tools.map((t) => ROLE_TOOL_INFO[t].label).join(', ') : 'No tools'}{changed ? ' · adjusted for this project' : ''}</span>
+                    <span>
+                      {role.engine === 'claude' ? 'Claude Code' : d.tools.length ? d.tools.map((t) => ROLE_TOOL_INFO[t].label).join(', ') : 'No tools'}
+                      {role.skillIds?.length ? ` · ${d.skillIds ? d.skillIds.filter((x) => role.skillIds!.includes(x)).length : role.skillIds.length} of ${role.skillIds.length} skills` : ''}
+                      {changed || d.skillIds || d.marketIds ? ' · adjusted for this project' : ''}
+                    </span>
                   </span>
                   {onChat && (
                     <button className="btn small primary" onClick={() => onChat(role.id)}>
@@ -350,6 +356,7 @@ function ProjectRoles({ project, onChat }: { project: Project; onChat?: (roleId:
                         </div>
                       </div>
                     )}
+                    <ProjectRoleKit role={role} d={d} save={save} />
                     <label className="kit-field">
                       <span>In this project</span>
                       <textarea
@@ -370,6 +377,55 @@ function ProjectRoles({ project, onChat }: { project: Project; onChat?: (roleId:
         </div>
       )}
     </section>
+  )
+}
+
+/**
+ * A role's own skills and tools, as this project uses them: all of them unless the project (or the Recruiter) picked
+ * a part, so the role carries only what the work here needs. Hidden when the role has none.
+ */
+function ProjectRoleKit({ role, d, save }: { role: RoleEntity; d: RoleDeployment; save: (d: RoleDeployment) => void }): React.JSX.Element | null {
+  const [kit, setKit] = useState<RoleKit | null>(null)
+  useEffect(() => void api.roles.kit(role.id).then(setKit, () => setKit(null)), [role.id, role.updatedAt])
+  if (!kit || (!kit.skills.length && !kit.tools.length)) return null
+  const skillsOn = d.skillIds ?? kit.skills.map((s) => s.id)
+  const toolsOn = d.marketIds ?? kit.tools.map((t) => t.id)
+  // a plugin's tools go together: one switch per plugin (or per tool of its own)
+  const apps = [...new Map(kit.tools.map((t) => [t.plugin ?? t.name, kit.tools.filter((x) => (x.plugin ?? x.name) === (t.plugin ?? t.name)).map((x) => x.id)])).entries()]
+  const flip = (list: string[], ids: string[], on: boolean): string[] => (on ? list.filter((x) => !ids.includes(x)) : [...new Set([...list, ...ids])])
+  return (
+    <>
+      {kit.skills.length > 0 && (
+        <div className="kit-field">
+          <span>Skills here (from its own)</span>
+          <div className="role-tool-pick">
+            {kit.skills.map((s) => {
+              const on = skillsOn.includes(s.id)
+              return (
+                <button key={s.id} className={on ? 'on' : ''} title={s.description} onClick={() => save({ ...d, skillIds: flip(skillsOn, [s.id], on) })}>
+                  {s.name}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+      {apps.length > 0 && (
+        <div className="kit-field">
+          <span>Plugins and tools here (from its own)</span>
+          <div className="role-tool-pick">
+            {apps.map(([name, ids]) => {
+              const on = ids.every((x) => toolsOn.includes(x))
+              return (
+                <button key={name} className={on ? 'on' : ''} onClick={() => save({ ...d, marketIds: flip(toolsOn, ids, on) })}>
+                  {name}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </>
   )
 }
 

@@ -1,5 +1,5 @@
 import { accessToken } from './auth'
-import { ROLE_TOOL_INFO, type Chat, type HistoryItem, type Model, type ProjectBrief, type RoleDraft, type ToolRun } from '../shared/api'
+import { ROLE_TOOL_INFO, type Chat, type HistoryItem, type Model, type ProjectBrief, type RoleDraft, type RoleIdea, type ToolRun } from '../shared/api'
 import { wardrobeBrief } from '@private/shared/costumes'
 
 /**
@@ -519,7 +519,8 @@ export async function generateProjectBrief(chat: Chat): Promise<ProjectBrief> {
 }
 
 const ROLE_INSTRUCTIONS = (): string => `You set up a "role": a ChatGPT assistant with one job, which the user will chat with. From its name and purpose, write what it needs as JSON only, no other text:
-{"tagline": "one short line saying what it is for (under 70 characters)", "purpose": "its main instructions, second person, 2-5 sentences: who it helps, with what, and how it works", "responsibilities": ["4-7 concrete things it is responsible for, each a short line starting with a verb"], "boundaries": "what it does not do, or hands back to the user (1-2 sentences)", "style": "how it talks (1 sentence)", "engine": "chatgpt" or "claude", "tools": [ids], "toolOptions": [ids], "identity": {"color": hex, "hat": id, "eyes": id, "neck": id, "hand": id}}
+{"tagline": "one short line saying what it is for (under 70 characters)", "purpose": "its main instructions, second person, 2-5 sentences: who it helps, with what, and how it works", "responsibilities": ["4-7 concrete things it is responsible for, each a short line starting with a verb"], "boundaries": "what it does not do, or hands back to the user (1-2 sentences)", "style": "how it talks (1 sentence)", "engine": "chatgpt" or "claude", "tools": [ids], "toolOptions": [ids], "skills": [{"name": "lowercase-words-with-hyphens", "why": "one line", "covers": "what it should cover, one line"}], "apps": [{"name": "service", "why": "one line"}], "identity": {"color": hex, "hat": id, "eyes": id, "neck": id, "hand": id}}
+skills: 2-4 pieces of know-how a skilled professional in this job relies on (their steps, standards and checks for one kind of task), the most useful first. apps: 0-3 outside services the job usually works in (e.g. GitHub, Canva, Notion), only when it clearly does.
 engine: "claude" (Claude Code, which works in a project folder: reads and writes files, runs commands) for roles whose job is building software (programming, engineering, scripting, DevOps); "chatgpt" for everything else.
 tools: the ones it needs by default. toolOptions: every tool people in this job commonly use (a superset of tools), so each project can pick its own. For a claude role, tools and toolOptions can be empty.
 Keep the user's own words where they gave them. Tools, pick only those the job needs: ${Object.entries(ROLE_TOOL_INFO)
@@ -527,6 +528,16 @@ Keep the user's own words where they gave them. Tools, pick only those the job n
   .join('; ')}.
 Its look is Plotter's sprout-bot (an orange square robot with a sprout on its head) dressed for the job. Pick a colour and one costume piece per slot that make the role recognisable at a glance; use "none" for a slot when nothing fits, and avoid dressing it in everything. Options:
 ${wardrobeBrief()}`
+
+/** The skills and services a drafted role needs, as ideas to match to what the user has (or to add or make). */
+export function needsAsIdeas(j: Record<string, unknown>): RoleIdea[] {
+  const list = (k: string): Record<string, unknown>[] => (Array.isArray(j[k]) ? (j[k] as unknown[]).filter((x): x is Record<string, unknown> => !!x && typeof x === 'object') : [])
+  const now = Date.now()
+  return [
+    ...list('skills').slice(0, 4).map((x) => ({ kind: 'skill' as const, name: String(x['name'] ?? '').slice(0, 60), why: String(x['why'] ?? '').slice(0, 240), covers: String(x['covers'] ?? '').slice(0, 300), at: now })),
+    ...list('apps').slice(0, 3).map((x) => ({ kind: 'tool' as const, name: String(x['name'] ?? '').slice(0, 60), why: String(x['why'] ?? '').slice(0, 240), at: now }))
+  ].filter((x) => x.name.trim())
+}
 
 /** ChatGPT fills in a role from its name and purpose. */
 export async function draftRole(input: { name: string; purpose: string }): Promise<Partial<RoleDraft>> {
@@ -549,8 +560,10 @@ export async function draftRole(input: { name: string; purpose: string }): Promi
     AbortSignal.timeout(120_000)
   )
   try {
-    const parsed = JSON.parse(out.slice(out.indexOf('{'), out.lastIndexOf('}') + 1)) as Partial<RoleDraft>
-    return { ...parsed, name: name || String(parsed.name ?? ''), purpose: String(parsed.purpose ?? '') || purpose }
+    const parsed = JSON.parse(out.slice(out.indexOf('{'), out.lastIndexOf('}') + 1)) as Partial<RoleDraft> & Record<string, unknown>
+    // the skills and services the job needs come with the draft (no extra call), matched once the role is saved
+    const { skills: _s, apps: _a, ...role } = parsed
+    return { ...role, ideas: needsAsIdeas(parsed), name: name || String(parsed.name ?? ''), purpose: String(parsed.purpose ?? '') || purpose }
   } catch {
     throw new Error('ChatGPT did not fill in the role. Try again.')
   }
@@ -652,7 +665,8 @@ ${ROLE_INSTRUCTIONS().split('\n').slice(1).join('\n').replace('{"tagline"', '{"n
   )
   try {
     const j = JSON.parse(out.slice(out.indexOf('{'), out.lastIndexOf('}') + 1)) as { reply?: unknown; role?: Partial<RoleDraft> | null }
-    return { reply: String(j.reply ?? '').trim() || 'Here it is.', ...(j.role && typeof j.role === 'object' ? { role: j.role } : {}) }
+    const role = j.role && typeof j.role === 'object' ? (j.role as Partial<RoleDraft> & Record<string, unknown>) : undefined
+    return { reply: String(j.reply ?? '').trim() || 'Here it is.', ...(role ? { role: { ...role, ideas: needsAsIdeas(role) } } : {}) }
   } catch {
     return { reply: out.trim() || 'Sorry, say that again?' }
   }
@@ -663,7 +677,7 @@ export interface RecruitInput {
   project: string
   notes: string[]
   chats: string[]
-  roles: { name: string; engine: string; tagline: string; tools: string[]; toolOptions: string[] }[]
+  roles: { name: string; engine: string; tagline: string; tools: string[]; toolOptions: string[]; skills: string[]; apps: string[] }[]
 }
 
 /** The Recruiter's answer: a small team, each role reused or new, with this project's tools and skills. */
@@ -671,19 +685,19 @@ export async function recruitTeam(input: RecruitInput): Promise<{ summary: strin
   const j = await oneJson(
     `You are the Recruiter (HR) of the user's company in Plotter. From a project's name, notes and chats, suggest the team of "roles" (AI assistants with one job each) it needs. Keep it small: 1 to 4 roles, only the ones the work clearly needs; every role costs time and tokens.
 Reuse the user's existing roles where one fits (set "existing" to its exact name); suggest a new role only where none fits.
-For each role give the tools it should use in THIS project, picked from what its job usually uses, and 2-4 specific skills or know-how it needs for this project (short phrases). A role that builds software works in Claude Code (engine "claude": it works in a project folder; tools can be empty).
+For each role give the tools it should use in THIS project, picked from what its job usually uses. An existing role has its own skills and apps (listed with it): pick the ones this project needs in "use_skills" and "use_apps" (exact names from its lists; leave out what this project does not need, so it carries only what it uses). In "skills", name 0-3 specific skills or know-how it needs here that it does not have (short phrases). A role that builds software works in Claude Code (engine "claude": it works in a project folder; tools can be empty).
 Tool ids: ${Object.entries(ROLE_TOOL_INFO)
       .map(([id, t]) => `${id} (${t.hint})`)
       .join('; ')}.
 Answer with JSON only:
-{"summary": "one line on what the project needs", "roles": [{"existing": "<exact name of an existing role, or null>", "name": "...", "why": "one line: what it does in this project", "engine": "chatgpt" or "claude", "tools": [ids], "skills": ["..."], "new": null, or for a new role {"tagline": "...", "purpose": "2-4 sentences, second person", "responsibilities": ["..."], "toolOptions": [ids], "identity": {"color": hex, "hat": id, "eyes": id, "neck": id, "hand": id}}}]}
+{"summary": "one line on what the project needs", "roles": [{"existing": "<exact name of an existing role, or null>", "name": "...", "why": "one line: what it does in this project", "engine": "chatgpt" or "claude", "tools": [ids], "use_skills": ["..."], "use_apps": ["..."], "skills": ["..."], "new": null, or for a new role {"tagline": "...", "purpose": "2-4 sentences, second person", "responsibilities": ["..."], "toolOptions": [ids], "identity": {"color": hex, "hat": id, "eyes": id, "neck": id, "hand": id}}}]}
 Look options for a new role:
 ${wardrobeBrief()}`,
     `Project: ${input.project}
 ${input.notes.length ? `Its notes:\n${input.notes.map((n) => `- ${n}`).join('\n')}` : 'No notes yet.'}
 ${input.chats.length ? `Its chats so far: ${input.chats.join('; ')}` : 'No chats yet.'}
 The user's roles:
-${input.roles.length ? input.roles.map((r) => `- ${r.name} (${r.engine === 'claude' ? 'Claude Code' : 'ChatGPT'}): ${r.tagline}. Tools: ${r.tools.join(', ') || 'none'}; usual for the job: ${r.toolOptions.join(', ') || 'none'}`).join('\n') : '(none yet)'}`,
+${input.roles.length ? input.roles.map((r) => `- ${r.name} (${r.engine === 'claude' ? 'Claude Code' : 'ChatGPT'}): ${r.tagline}. Tools: ${r.tools.join(', ') || 'none'}; usual for the job: ${r.toolOptions.join(', ') || 'none'}; its skills: ${r.skills.join(', ') || 'none'}; its apps: ${r.apps.join(', ') || 'none'}`).join('\n') : '(none yet)'}`,
     'recruiter'
   )
   return { summary: String(j['summary'] ?? '').trim(), roles: Array.isArray(j['roles']) ? (j['roles'] as Record<string, unknown>[]).slice(0, 5) : [] }

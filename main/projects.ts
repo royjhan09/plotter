@@ -109,7 +109,17 @@ export function setProjectRole(id: string, d: RoleDeployment): Project {
   const list = listProjects()
   const p = list.find((x) => x.id === id)
   if (!p) throw new Error('No such project.')
-  const clean: RoleDeployment = { roleId: String(d.roleId), tools: Array.isArray(d.tools) ? d.tools.slice(0, 12) : [], ...(d.notes?.trim() ? { notes: d.notes.trim().slice(0, 800) } : {}) }
+  const ids = (v: unknown): string[] | undefined => (Array.isArray(v) ? [...new Set(v.map((x) => String(x)))].slice(0, 60) : undefined)
+  const skillIds = ids(d.skillIds)
+  const marketIds = ids(d.marketIds)
+  const clean: RoleDeployment = {
+    roleId: String(d.roleId),
+    tools: Array.isArray(d.tools) ? d.tools.slice(0, 12) : [],
+    // which of the role's own skills and tools it uses here (unset: all)
+    ...(skillIds ? { skillIds } : {}),
+    ...(marketIds ? { marketIds } : {}),
+    ...(d.notes?.trim() ? { notes: d.notes.trim().slice(0, 800) } : {})
+  }
   p.roles = [...(p.roles ?? []).filter((r) => r.roleId !== clean.roleId), clean]
   p.updatedAt = Date.now()
   write(list)

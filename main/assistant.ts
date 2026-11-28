@@ -495,7 +495,17 @@ export async function buildSetup(req: SendRequest, lab?: LabReply): Promise<{ pa
   // a generic role, as this project uses it: the tools the project picked, and what is different here
   const base = getRole(req.asRole ?? chat?.roleId)
   const dep = base ? roleInProject(chat?.projectId, base.id) : undefined
-  const role = base && dep ? { ...base, tools: dep.tools, purpose: dep.notes ? `${base.purpose}\nIn this project: ${dep.notes}` : base.purpose } : base
+  // in a project, the role uses the part of its own skills and tools the project picked (all of them if it picked none)
+  const role =
+    base && dep
+      ? {
+          ...base,
+          tools: dep.tools,
+          purpose: dep.notes ? `${base.purpose}\nIn this project: ${dep.notes}` : base.purpose,
+          ...(dep.skillIds ? { skillIds: dep.skillIds.filter((x) => base.skillIds?.includes(x)) } : {}),
+          ...(dep.marketIds ? { marketIds: dep.marketIds.filter((x) => base.marketIds?.includes(x)) } : {})
+        }
+      : base
   const can = (t: RoleTool, otherwise: boolean): boolean => (role ? role.tools.includes(t) : otherwise)
   const webSearch = can('web', f.webSearch) || !!req.research || !!req.modes?.search
   const tools: (LocalTool & { pack: string })[] = []

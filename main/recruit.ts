@@ -1,6 +1,7 @@
 import type { Project, RecruitPick, RoleDraft, RoleTool } from '../shared/api'
 import { ROLE_TOOL_INFO } from '../shared/api'
 import { ROLES, bumpRole, cleanDraft, listRoles, recruiter, saveRole } from '@private/main/roles'
+import { addIdeas, adoptIdeas, roleKit } from '@private/main/roleKit'
 import { listChats } from './store'
 import { getProject, setProjectRole, setRecruit } from './projects'
 import { projectsChanged } from './appEvents'
@@ -33,7 +34,11 @@ export async function runRecruit(projectId: string): Promise<Project | null> {
         .filter((c) => c.projectId === p.id)
         .map((c) => c.title)
         .slice(0, 12),
-      roles: roles.map((r) => ({ name: r.name, engine: r.engine ?? 'chatgpt', tagline: r.tagline, tools: r.tools, toolOptions: r.toolOptions ?? r.tools }))
+      // each role's own skills and apps, so it picks only the part this project needs
+      roles: roles.map((r) => {
+        const kit = roleKit(r.id)
+        return { name: r.name, engine: r.engine ?? 'chatgpt', tagline: r.tagline, tools: r.tools, toolOptions: r.toolOptions ?? r.tools, skills: kit.skills.map((s) => s.name).slice(0, 20), apps: kit.tools.map((t) => t.plugin ?? t.name).filter((x, i, a) => a.indexOf(x) === i).slice(0, 20) }
+      })
     })
     const picks: RecruitPick[] = out.roles.map((x) => {
       const existing = String(x['existing'] ?? '').trim().toLowerCase()
@@ -41,7 +46,14 @@ export async function runRecruit(projectId: string): Promise<Project | null> {
       const engine = x['engine'] === 'claude' ? 'claude' : 'chatgpt'
       const tools = (Array.isArray(x['tools']) ? (x['tools'] as unknown[]) : []).filter(isTool)
       const pick: RecruitPick = { name: mine?.name ?? String(x['name'] ?? '').trim(), why: String(x['why'] ?? '').trim(), engine: mine?.engine ?? engine, tools, skills: strs(x['skills'], 4) }
-      if (mine) return { ...pick, roleId: mine.id }
+      if (mine) {
+        // its own skills and tools that this project needs, by name back to id (an app is a plugin's or a tool's name)
+        const kit = roleKit(mine.id)
+        const names = (k: string): string[] => strs(x[k], 20).map((n) => n.toLowerCase())
+        const useSkills = kit.skills.filter((s) => names('use_skills').includes(s.name.toLowerCase())).map((s) => s.id)
+        const useTools = kit.tools.filter((t) => names('use_apps').includes((t.plugin ?? t.name).toLowerCase()) || names('use_apps').includes(t.name.toLowerCase())).map((t) => t.id)
+        return { ...pick, roleId: mine.id, ...(kit.skills.length ? { useSkills } : {}), ...(kit.tools.length ? { useTools } : {}) }
+      }
       const n = (x['new'] && typeof x['new'] === 'object' ? x['new'] : {}) as Record<string, unknown>
       const draft: RoleDraft = cleanDraft({
         name: pick.name,
@@ -77,7 +89,18 @@ export function hire(projectId: string, index: number): Project {
     if (!pick.draft) throw new Error('That suggestion has no role to create.')
     roleId = saveRole(pick.draft).id
   }
-  setProjectRole(projectId, { roleId, tools: pick.tools, ...(pick.skills.length ? { notes: `Skills needed here: ${pick.skills.join('; ')}.` } : {}) })
+  // the part of its own skills and tools this project needs; what it lacks becomes notes here and ideas for the role
+  setProjectRole(projectId, {
+    roleId,
+    tools: pick.tools,
+    ...(pick.useSkills ? { skillIds: pick.useSkills } : {}),
+    ...(pick.useTools ? { marketIds: pick.useTools } : {}),
+    ...(pick.skills.length ? { notes: `Skills needed here: ${pick.skills.join('; ')}.` } : {})
+  })
+  if (pick.skills.length) {
+    addIdeas(roleId, pick.skills.map((s) => ({ kind: 'skill' as const, name: s, why: `Needed in the project "${p.name}".` })))
+    adoptIdeas(roleId)
+  }
   const saved = setRecruit(projectId, (r) => (r ? { ...r, picks: r.picks.map((x, i) => (i === index ? { ...x, roleId, added: true } : x)) } : r))!
   projectsChanged()
   return saved

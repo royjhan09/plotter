@@ -8,4 +8,5 @@ export const roleKit = (_id: string): RoleKit => ({ skills: [], tools: [], good:
 export const linkRole = (_id: string, _kind: 'skill' | 'tool' | 'plugin', _ref: string, _on: boolean): RoleEntity => off()
 export const linkSkillToRole = (_roleName: string, _skillId: string): boolean => false
 export const addIdeas = (_id: string, _ideas: Omit<RoleIdea, 'at'>[]): RoleEntity => off()
+export const adoptIdeas = (_id: string): RoleEntity => off()
 export const dismissIdea = (_id: string, _name: string): RoleEntity => off()

@@ -257,8 +257,11 @@ export interface RecruitPick {
   engine: 'chatgpt' | 'claude'
   /** The tools it should use in this project (from what its job usually uses). */
   tools: RoleTool[]
-  /** Specific skills or know-how it needs for this project (become its notes in the project). */
+  /** Specific skills or know-how it needs for this project that it does not have (become its notes, and ideas for the role). */
   skills: string[]
+  /** Of the role's own skills and Market tools, the ones this project needs (by id). */
+  useSkills?: string[]
+  useTools?: string[]
   /** For a new role: what to create. */
   draft?: RoleDraft
   /** Added to the project. */
@@ -269,6 +272,9 @@ export interface RecruitPick {
 export interface RoleDeployment {
   roleId: string
   tools: RoleTool[]
+  /** Which of the role's own skills and Market tools it uses here (by id); unset: all of them. */
+  skillIds?: string[]
+  marketIds?: string[]
   /** What is different in this project (tone, audience, conventions…), added to the role's instructions here. */
   notes?: string
 }
