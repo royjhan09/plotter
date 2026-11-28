@@ -86,6 +86,13 @@ export const VISIBILITY: VisibilityGroup[] = [
         tradeoff: `${MOVED} The public stand-in has no Roles page, and role chats show the plain sprout.`
       },
       {
+        name: 'Role tool wishes and combining roles',
+        now: 'private',
+        advice: 'keep-private',
+        why: 'Where the tools a role wished for are kept, the Roles page buttons to give or dismiss them, combining two roles with its trade-off, and retired roles.',
+        tradeoff: `${MOVED} The public stand-in keeps no wishes and cannot combine roles.`
+      },
+      {
         name: 'Company page and org chart',
         now: 'private',
         advice: 'keep-private',
@@ -162,6 +169,13 @@ export const VISIBILITY: VisibilityGroup[] = [
         advice: 'must-public',
         why: 'ChatGPT picks who speaks next and each member replies as its role (main/team.ts, main/assistant.ts).',
         tradeoff: 'Shows how team chats take turns, not what your roles say.'
+      },
+      {
+        name: 'Roles reviewed and combined by ChatGPT',
+        now: 'public',
+        advice: 'must-public',
+        why: 'How a role says it lacked a tool, the "Suggest tools" review and the draft of a combined role are ChatGPT calls (main/assistant.ts, main/openai.ts).',
+        tradeoff: 'Shows how roles are reviewed and combined, not your roles themselves.'
       },
       {
         name: 'Your design kit in ChatGPT replies',

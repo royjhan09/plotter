@@ -339,10 +339,42 @@ export interface RoleEntity {
   identity: RoleIdentity
   /** Replies it has written (it grows with them). */
   replies: number
+  /** Tools it said would have helped while working (or a suggestion asked for), newest first. */
+  wishes?: RoleWish[]
+  /** What its replies cost, measured: tokens in and out over all replies (for the trade-off of combining). */
+  stats?: { replies: number; input: number; output: number }
+  /** The roles it was combined from (by name). */
+  mergedFrom?: string[]
+  /** Retired (combined into another role): hidden from the lists, its old chats keep its look. */
+  retired?: boolean
   createdAt: number
   updatedAt: number
 }
 
+/** A tool a role wished it had: one of Plotter's (it can be given) or an idea Plotter does not have yet. */
+export interface RoleWish {
+  tool: RoleTool | string
+  why: string
+  /** How often it came up. */
+  count: number
+  at: number
+  /** From its work in a chat, or from a "suggest tools" review. */
+  from: 'work' | 'review'
+}
+
+/** What combining two roles would change: measured or estimated per-message and per-task cost, and what is lost. */
+export interface RoleMergeTradeoff {
+  /** Set-up sent with each of its messages, in tokens: the two now, and the combined role. */
+  setupTokens: { a: number; b: number; merged: number }
+  /** Cost of one reply in tokens (input + output): measured from their replies where there are any. */
+  replyTokens: { a: number; b: number; measured: boolean }
+  /** A hand-off between them in a team chat (a member turn and a facilitator call) that the combined role saves. */
+  handoffTokens: number
+  responsibilities: number
+  tools: number
+  /** Plain warnings: an independent review lost, too broad, many tools… */
+  warnings: string[]
+}
 /** Your company: its name and who reports to whom (the roles' org chart, with you at the top). */
 export interface Company {
   name: string
@@ -702,6 +734,16 @@ export interface PlotterApi {
     remove: (id: string) => Promise<RoleEntity[]>
     /** ChatGPT fills in a role from its name and purpose: responsibilities, tools, tone and its costume. */
     draft: (input: { name: string; purpose: string }) => Promise<RoleDraft>
+    /** ChatGPT reviews which tools a role's job needs; the result lands in its wishes. */
+    suggestTools: (id: string) => Promise<RoleEntity>
+    /** Gives a role a tool it wished for (or dismisses the wish). */
+    grantWish: (id: string, tool: string, give: boolean) => Promise<RoleEntity>
+    /** ChatGPT drafts one role combining two, and what that would change. */
+    combineDraft: (a: string, b: string) => Promise<{ draft: RoleDraft; tradeoff: RoleMergeTradeoff }>
+    /** Saves the combined role; the two are retired (kept, hidden) and it takes their place on the chart. */
+    combine: (a: string, b: string, draft: RoleDraft) => Promise<RoleEntity>
+    /** Brings a retired role back. */
+    restore: (id: string) => Promise<RoleEntity>
     onChanged: (listener: () => void) => () => void
   }
   kits: {

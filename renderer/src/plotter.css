@@ -7390,3 +7390,149 @@ body,
   color: var(--muted);
   white-space: nowrap;
 }
+/* roles: tool wishes, retired roles, combining */
+.role-wants {
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--orange);
+}
+.roles-retired {
+  margin-top: 18px;
+}
+.roles-retired-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.role-wish-list {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+}
+.role-wish-list li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: baseline;
+  column-gap: 8px;
+  row-gap: 2px;
+  padding: 8px 0;
+  border-top: 1px solid var(--sand);
+  font-size: 13px;
+}
+.role-wish-why {
+  grid-column: 1 / -1;
+  color: var(--ink);
+}
+.role-wish-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.combine-dialog {
+  width: min(640px, 94vw);
+  max-height: 90vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.combine-dialog h3 {
+  margin: 0;
+}
+.combine-pick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.combine-pick select {
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--sand);
+  border-radius: 8px;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+}
+.combine-evolve {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 10px 0;
+  font-size: 20px;
+  color: var(--muted);
+}
+.combine-result {
+  display: grid;
+  place-items: center;
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--role, #e8590c) 14%, var(--paper));
+}
+.combine-result.empty {
+  border: 2px dashed var(--sand-strong);
+  background: none;
+}
+.combine-role {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.combine-role > span {
+  color: var(--muted);
+  font-size: 13px;
+}
+.combine-role ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+}
+.combine-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.combine-table th {
+  width: 34%;
+  text-align: left;
+  vertical-align: top;
+  font-weight: 600;
+  padding: 8px 10px 8px 0;
+  border-top: 1px solid var(--sand);
+}
+.combine-table td {
+  padding: 8px 0;
+  border-top: 1px solid var(--sand);
+}
+.combine-table small {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+}
+.combine-sum {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+.combine-warnings {
+  margin: 0;
+  padding: 10px 12px 10px 28px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--orange) 10%, var(--paper));
+  font-size: 13px;
+}
+.combine-note {
+  margin-right: auto;
+}
+.combine-dialog {
+  text-align: left;
+}
+.combine-dialog h3,
+.combine-evolve {
+  text-align: center;
+}

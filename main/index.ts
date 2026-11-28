@@ -6,12 +6,12 @@ import { projectsChanged, setAppEmitter } from './appEvents'
 import { getLibraryItem, listLibrary } from '@private/main/library'
 import { clearImageKey, imageKeyStatus, setImageKey, setImageOptions } from '@private/main/images'
 import { addNote, createProject, editNote, listProjects, removeNote, removeProject, renameProject, setProjectKit } from './projects'
-import { cleanDraft, listRoles, removeRole, saveRole } from '@private/main/roles'
-import { getCompany, labelLine, linkRoles, placeRole, renameCompany, unlinkRoles } from '@private/main/company'
+import { addWishes, cleanDraft, getRole, grantWish, listRoles, removeRole, saveCombined, saveRole, setRetired } from '@private/main/roles'
+import { getCompany, labelLine, linkRoles, mergeTradeoff, placeRole, renameCompany, replaceInChart, unlinkRoles } from '@private/main/company'
 import { addUseWhen, createKit, getKit, kitFolder, listKits, listUsage, removeComponent, removeKit, removeRule, restoreVersion, saveComponent, saveRule, setDefaultKit, updateKit, versionCode } from '@private/main/kits'
 import { nextSpeaker, suggestMembers } from './team'
 import { usageLog } from './openai'
-import { draftRole, forgetModel, generateProjectBrief, generateSuggestion, generateTitle, primaryModel, ReplyError } from './openai'
+import { draftCombinedRole, draftRole, forgetModel, suggestRoleTools, generateProjectBrief, generateSuggestion, generateTitle, primaryModel, ReplyError } from './openai'
 import { buildSetup, reply } from './assistant'
 import { onPythonStatus, pythonStatus, PY_SCHEME } from './python'
 import { connect as connectService, disconnect as disconnectService, listConnectors, setEnabled as setConnectorEnabled, setGoogleClient, setNotionToken } from './connectors'
@@ -180,6 +180,32 @@ export const handlers: Record<string, (...args: never[]) => unknown> = {
   'company:link': (link: Omit<RoleLink, 'id'>) => linkRoles(link ?? ({} as Omit<RoleLink, 'id'>)),
   'company:unlink': (id: string) => unlinkRoles(String(id)),
   'roles:list': () => listRoles(),
+  'roles:suggestTools': async (id: string) => {
+    const role = getRole(String(id))
+    if (!role) throw new Error('No such role.')
+    const tools = await suggestRoleTools(role, (role.wishes ?? []).filter((w) => w.from === 'work').map((w) => `${w.tool}: ${w.why}`))
+    return addWishes(role.id, tools, 'review') ?? role
+  },
+  'roles:grantWish': (id: string, tool: string, give: boolean) => grantWish(String(id), String(tool ?? ''), !!give),
+  'roles:combineDraft': async (a: string, b: string) => {
+    const ra = getRole(String(a))
+    const rb = getRole(String(b))
+    if (!ra || !rb || ra.id === rb.id) throw new Error('Pick two different roles.')
+    const draft = cleanDraft(await draftCombinedRole(ra, rb))
+    if (!draft.name) throw new Error('ChatGPT did not draft the combined role. Try again.')
+    return { draft, tradeoff: mergeTradeoff(ra, rb, draft) }
+  },
+  'roles:combine': (a: string, b: string, draft: RoleDraft) => {
+    const ra = getRole(String(a))
+    const rb = getRole(String(b))
+    if (!ra || !rb || ra.id === rb.id) throw new Error('Pick two different roles.')
+    const made = saveCombined(ra, rb, cleanDraft(draft))
+    setRetired(ra.id, true)
+    setRetired(rb.id, true)
+    replaceInChart(ra.id, rb.id, made.id)
+    return getRole(made.id) ?? made
+  },
+  'roles:restore': (id: string) => setRetired(String(id), false),
   'roles:save': (role: RoleDraft & { id?: string }) => saveRole({ ...role }),
   'roles:remove': (id: string) => removeRole(String(id)),
   'roles:draft': async (input: { name: string; purpose: string }) => cleanDraft(await draftRole({ name: String(input?.name ?? ''), purpose: String(input?.purpose ?? '') })),

@@ -108,6 +108,11 @@ export function installDevBridge(): void {
       save: (role) => call('roles:save', role),
       remove: (id) => call('roles:remove', id),
       draft: (input) => call('roles:draft', input),
+      suggestTools: (id) => call('roles:suggestTools', id),
+      grantWish: (id, tool, give) => call('roles:grantWish', id, tool, give),
+      combineDraft: (a, b) => call('roles:combineDraft', a, b),
+      combine: (a, b, draft) => call('roles:combine', a, b, draft),
+      restore: (id) => call('roles:restore', id),
       onChanged: (l) => {
         listeners.roles.add(l)
         return () => listeners.roles.delete(l)

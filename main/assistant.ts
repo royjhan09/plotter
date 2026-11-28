@@ -1,11 +1,11 @@
-import { INSTRUCTIONS, WEB_INSTRUCTIONS, runConversation, type ConversationHandlers, type LocalTool } from './openai'
+import { INSTRUCTIONS, WEB_INSTRUCTIONS, nextUsageSeq, runConversation, usageLog, type ConversationHandlers, type LocalTool } from './openai'
 import { addMemory, getChat, listMemories, readFeatures, removeMemory } from './store'
 import { addNote, chatDigest, projectContext, removeNote } from './projects'
 import { deliverToSide, projectsChanged } from './appEvents'
 import { generateWithKey, imageKeyStatus, IMAGES } from '@private/main/images'
 import { kitBrief, kitFor } from '@private/main/kits'
 import { KIT_GUIDE, kitToolSpecs, runKitTool } from '@private/main/kitOps'
-import { bumpRole, getRole } from '@private/main/roles'
+import { addWishes, bumpRole, getRole } from '@private/main/roles'
 import { getCompany, roleTeam } from '@private/main/company'
 import { memberLine } from './team'
 import { ROLE_TOOL_INFO, type Kit, type RoleEntity, type RoleTool } from '../shared/api'
@@ -355,10 +355,33 @@ const ROLE_PROMPT = (r: RoleEntity): string =>
     r.boundaries ? `You do not: ${r.boundaries}` : '',
     r.style ? `How you talk: ${r.style}` : '',
     teamLine(r),
-    `Your tools: ${r.tools.length ? r.tools.map((t) => ROLE_TOOL_INFO[t].label).join(', ') : 'none (answer from what you know)'}. Stay in this role in every reply. When asked for something outside it, say so in a line and help as far as the role allows, or say who or what would be better placed.`
+    `Your tools: ${r.tools.length ? r.tools.map((t) => ROLE_TOOL_INFO[t].label).join(', ') : 'none (answer from what you know)'}. Stay in this role in every reply. When asked for something outside it, say so in a line and help as far as the role allows, or say who or what would be better placed.`,
+    wishLine(r)
   ]
     .filter(Boolean)
     .join('\n')
+
+/** How a role says it lacked a tool: a note at the end of its reply that Plotter records (on the Roles page) and hides. */
+function wishLine(r: RoleEntity): string {
+  const missing = (Object.keys(ROLE_TOOL_INFO) as RoleTool[]).filter((t) => !r.tools.includes(t))
+  return `If a tool you do not have would clearly have made this reply better${missing.length ? ` (you do not have: ${missing.map((t) => `${t} = ${ROLE_TOOL_INFO[t].label}`).join(', ')})` : ''}, or one Plotter does not offer at all (e.g. testing in a real browser), end your reply with a block Plotter reads and hides, as the very last thing:
+\`\`\`role-wish
+[{"tool": "<the id above, or a short name for a tool Plotter does not have>", "why": "<one line: what it would have let you do here>"}]
+\`\`\`
+Only when it truly would have helped this reply, not by habit.`
+}
+
+/** The tools a reply says it wished for, from its role-wish block. */
+export function roleWishesIn(text: string): { tool: string; why: string }[] {
+  const m = /```[ \t]*role-wish[ \t]*\n([\s\S]*?)(```|$)/i.exec(text)
+  if (!m) return []
+  try {
+    const list = JSON.parse(m[1]!.trim()) as unknown
+    return Array.isArray(list) ? list.filter((x) => x && typeof x === 'object').map((x) => ({ tool: String((x as Record<string, unknown>)['tool'] ?? ''), why: String((x as Record<string, unknown>)['why'] ?? '') })) : []
+  } catch {
+    return []
+  }
+}
 
 /** A capability loaded on demand: one line always, its guide and tools only once a reply opens it. */
 interface Capability {
@@ -511,6 +534,8 @@ export async function buildSetup(req: SendRequest): Promise<{ parts: SetupPart[]
 export async function reply(req: SendRequest, handlers: ConversationHandlers, signal: AbortSignal): Promise<void> {
   const { parts, tools, webSearch, afterReply, role, team, chat } = await buildSetup(req)
   let text = ''
+  // what this reply costs, from the calls it makes (kept with the role, for the trade-off of combining roles)
+  const firstCall = nextUsageSeq()
   await runConversation(
     {
       model: req.model,
@@ -535,5 +560,10 @@ export async function reply(req: SendRequest, handlers: ConversationHandlers, si
       // a save after the reply must not turn a finished reply into an error
     }
   }
-  if (role) bumpRole(role.id)
+  if (role) {
+    const wishes = roleWishesIn(text)
+    if (wishes.length) addWishes(role.id, wishes, 'work')
+    const calls = usageLog.filter((u) => u.seq >= firstCall)
+    bumpRole(role.id, { input: calls.reduce((n, u) => n + u.input, 0), output: calls.reduce((n, u) => n + u.output, 0) })
+  }
 }

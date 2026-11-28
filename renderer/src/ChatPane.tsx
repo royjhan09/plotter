@@ -365,8 +365,8 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
           return
         }
         setActivity(null)
-        // the kit-uses note is for Plotter (it recorded the uses): not kept in the reply
-        if (/```[ \t]*kit-uses/i.test(last.text)) msgs[msgs.length - 1] = { ...last, text: last.text.replace(/\n*```[ \t]*kit-uses[ \t]*\n[\s\S]*?(```|$)/i, '') }
+        // Plotter's notes (kit-uses, role-wish) were read when the reply finished: not kept in it
+        if (/```[ \t]*(kit-uses|role-wish)/i.test(last.text)) msgs[msgs.length - 1] = { ...last, text: last.text.replace(/\n*```[ \t]*(kit-uses|role-wish)[ \t]*\n[\s\S]*?```/gi, '').replace(/\n*```[ \t]*(kit-uses|role-wish)[ \t]*\n[\s\S]*$/i, '') }
         if (ev.type === 'error') {
           msgs[msgs.length - 1] = { ...msgs[msgs.length - 1]!, error: ev.message }
           if (ev.usageLimit) setLimitHit(true)

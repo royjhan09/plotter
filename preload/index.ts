@@ -60,6 +60,11 @@ const api: PlotterApi = {
     save: (role) => ipcRenderer.invoke('roles:save', role),
     remove: (id) => ipcRenderer.invoke('roles:remove', id),
     draft: (input) => ipcRenderer.invoke('roles:draft', input),
+    suggestTools: (id) => ipcRenderer.invoke('roles:suggestTools', id),
+    grantWish: (id, tool, give) => ipcRenderer.invoke('roles:grantWish', id, tool, give),
+    combineDraft: (a, b) => ipcRenderer.invoke('roles:combineDraft', a, b),
+    combine: (a, b, draft) => ipcRenderer.invoke('roles:combine', a, b, draft),
+    restore: (id) => ipcRenderer.invoke('roles:restore', id),
     onChanged: (listener) => {
       const handler = (): void => listener()
       ipcRenderer.on('roles:changed', handler)

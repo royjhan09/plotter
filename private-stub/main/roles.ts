@@ -1,4 +1,4 @@
-import type { RoleEntity, RoleDraft, RoleIdentity, RoleTool } from '../../shared/api'
+import type { RoleEntity, RoleDraft, RoleIdentity, RoleTool, RoleWish } from '../../shared/api'
 
 /** Public stand-in for roles (in Plotter's private folder): none. */
 export const ROLES = false
@@ -15,4 +15,14 @@ export const saveRole = (_input: RoleDraft & { id?: string }): RoleEntity => {
   throw new Error(OFF)
 }
 export const removeRole = (_id: string): RoleEntity[] => []
-export const bumpRole = (_id: string): void => undefined
+export const bumpRole = (_id: string, _used?: { input: number; output: number }): void => undefined
+export const addWishes = (_id: string, _wishes: { tool: string; why: string }[], _from: RoleWish['from']): RoleEntity | undefined => undefined
+export const grantWish = (_id: string, _tool: string, _give: boolean): RoleEntity => {
+  throw new Error(OFF)
+}
+export const setRetired = (_id: string, _retired: boolean): RoleEntity => {
+  throw new Error(OFF)
+}
+export const saveCombined = (_a: RoleEntity, _b: RoleEntity, _draft: RoleDraft): RoleEntity => {
+  throw new Error(OFF)
+}

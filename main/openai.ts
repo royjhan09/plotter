@@ -192,6 +192,8 @@ interface RoundRequest {
 
 /** Token use per call (dev: the browser-mode server keeps the last calls, to measure what features cost). */
 export interface UsageEntry {
+  /** A running number (the log keeps only the latest calls, so positions shift). */
+  seq: number
   at: number
   tag: string
   ms: number
@@ -206,6 +208,9 @@ export interface UsageEntry {
   calls?: string[]
 }
 export const usageLog: UsageEntry[] = []
+let usageSeq = 0
+/** The running number of the next call to be logged. */
+export const nextUsageSeq = (): number => usageSeq + 1
 
 /** One streamed request. Resolves with the response's output items on response.completed; anything else throws. */
 export async function streamRound(req: RoundRequest, handlers: StreamHandlers, signal: AbortSignal): Promise<{ output: unknown[] }> {
@@ -290,6 +295,7 @@ export async function streamRound(req: RoundRequest, handlers: StreamHandlers, s
         const u = ev.response?.usage
         if (u) {
           usageLog.push({
+            seq: ++usageSeq,
             at: Date.now(),
             tag: req.tag ?? 'other',
             ms: Date.now() - started,
@@ -546,4 +552,52 @@ export async function draftRole(input: { name: string; purpose: string }): Promi
   } catch {
     throw new Error('ChatGPT did not fill in the role. Try again.')
   }
+}
+
+/** One ChatGPT call that answers with JSON (low effort, no tools). */
+async function oneJson(instructions: string, text: string, tag: string): Promise<Record<string, unknown>> {
+  const model = await primaryModel()
+  const effort = model.efforts.find((e) => e.effort === 'low')?.effort ?? model.defaultEffort
+  let out = ''
+  await streamRound(
+    { model: model.slug, effort, instructions, input: [toInput({ role: 'user', text })], tools: [], verbosity: 'low', tag },
+    { onDelta: (t) => (out += t), onActivity: () => undefined, onSource: () => undefined },
+    AbortSignal.timeout(120_000)
+  )
+  try {
+    return JSON.parse(out.slice(out.indexOf('{'), out.lastIndexOf('}') + 1)) as Record<string, unknown>
+  } catch {
+    throw new Error('ChatGPT did not answer in the expected form. Try again.')
+  }
+}
+
+const roleText = (r: Pick<RoleDraft, 'name' | 'tagline' | 'purpose' | 'responsibilities' | 'boundaries' | 'style' | 'tools'>): string =>
+  `Name: ${r.name}\nTagline: ${r.tagline}\nPurpose: ${r.purpose}\nResponsibilities:\n${r.responsibilities.map((x) => `- ${x}`).join('\n')}${r.boundaries ? `\nDoes not: ${r.boundaries}` : ''}${r.style ? `\nTone: ${r.style}` : ''}\nTools: ${r.tools.join(', ') || 'none'}`
+
+/** ChatGPT judges which tools a role's job needs that it does not have (Plotter's, or ideas Plotter lacks). */
+export async function suggestRoleTools(role: RoleDraft, wishedAtWork: string[]): Promise<{ tool: string; why: string }[]> {
+  const j = await oneJson(
+    `You review which tools a ChatGPT "role" (an assistant with one job) needs to do its job well. Plotter's tools: ${Object.entries(ROLE_TOOL_INFO)
+      .map(([id, t]) => `${id} (${t.hint})`)
+      .join('; ')}.
+Suggest only tools it does not have and its job clearly needs, at most 4, each with one line on what it would let the role do. You may also name a tool Plotter does not have yet (short name) if the job really needs it. Fewer is better: every tool adds to what each of its messages costs. Answer with JSON only: {"tools": [{"tool": "<id or short name>", "why": "<one line>"}]}`,
+    `${roleText(role)}${wishedAtWork.length ? `\nWhile working it said it lacked: ${wishedAtWork.join('; ')}` : ''}`,
+    'suggest-tools'
+  )
+  return Array.isArray(j['tools']) ? (j['tools'] as Record<string, unknown>[]).map((x) => ({ tool: String(x['tool'] ?? ''), why: String(x['why'] ?? '') })).filter((x) => x.tool) : []
+}
+
+/** ChatGPT drafts one role that does what two roles did: a new name, both jobs, both tool sets, and a look grown from both. */
+export async function draftCombinedRole(a: RoleDraft, b: RoleDraft): Promise<Partial<RoleDraft>> {
+  const j = await oneJson(
+    `You combine two ChatGPT "roles" (assistants with one job each) into one role that does both jobs, the way a frontend engineer and a backend engineer become a full stack engineer. Keep what matters from both; merge overlapping responsibilities instead of listing both; keep the list short (at most 8). Tools: the ones both jobs need (usually the union, drop any the combined job does not need).
+Its look is the sprout-bot evolved from both: a colour and costume pieces that carry something recognisable from each (e.g. one's hat and the other's held item).
+Answer with JSON only:
+{"name": "...", "tagline": "...", "purpose": "...", "responsibilities": ["..."], "boundaries": "...", "style": "...", "tools": [ids], "identity": {"color": hex, "hat": id, "eyes": id, "neck": id, "hand": id}}
+Tool ids: ${Object.keys(ROLE_TOOL_INFO).join(', ')}. Look options:
+${wardrobeBrief()}`,
+    `Role A:\n${roleText(a)}\nA's look: ${JSON.stringify(a.identity)}\n\nRole B:\n${roleText(b)}\nB's look: ${JSON.stringify(b.identity)}`,
+    'combine-roles'
+  )
+  return j as Partial<RoleDraft>
 }

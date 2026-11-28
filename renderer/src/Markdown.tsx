@@ -117,8 +117,8 @@ function splitPieces(text: string): Piece[] {
       pieces.push({ kind: 'tool', id: tool[1]! })
       continue
     }
-    // the kit-uses note at the end of a reply is for Plotter (it records the uses), never shown, even mid-stream
-    if (/^```[ \t]*kit-uses[ \t]*$/i.test(lines[i]!.trimEnd())) {
+    // notes at the end of a reply are for Plotter (kit-uses: the kit pieces used; role-wish: a tool the role lacked), never shown, even mid-stream
+    if (/^```[ \t]*(kit-uses|role-wish)[ \t]*$/i.test(lines[i]!.trimEnd())) {
       let j = i + 1
       while (j < lines.length && !/^```[ \t]*$/.test(lines[j]!.trimEnd())) j++
       i = j
