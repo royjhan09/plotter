@@ -1,4 +1,4 @@
-import type { CatalogEntry, PluginInfo, PopularService } from '../../shared/api'
+import type { CatalogEntry, PluginInfo, PopularService, ServerDetails } from '../../shared/api'
 
 /** Public stand-in for plugins (in Plotter's private folder): none in this build. */
 export const PLUGINS = false
@@ -22,3 +22,5 @@ export function addPopular(_id: string, _key?: string): string {
   throw new Error(OFF)
 }
 export const popularIcons = async (): Promise<Record<string, string>> => ({})
+export const serverDetails = async (_t: { popularId?: string; toolId?: string }, _refresh?: boolean): Promise<ServerDetails> => ({ tools: [], skills: [], prompts: [], at: 0 })
+export const serverSkill = async (_t: { popularId?: string; toolId?: string }, _uri: string): Promise<string> => ''

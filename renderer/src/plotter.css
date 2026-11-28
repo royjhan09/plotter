@@ -9532,6 +9532,166 @@ webview.bp-page:not(.on) {
 .mk2-line.more .mk2-text span {
   font-size: 13.5px;
 }
+.mk2-features {
+  margin: 4px 0 8px;
+  padding-left: 20px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.mk2-features b {
+  font-weight: 600;
+}
+/* windows over a plugin page: an app's tools, a server's skill, the sign-in sheet */
+.mk2-sheet {
+  position: relative;
+  max-height: 86vh;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  border-radius: 24px;
+  background: var(--surface);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.18);
+}
+.mk2-sheet.wide {
+  width: min(600px, 92vw);
+}
+.mk2-sheet.narrow {
+  width: min(360px, 92vw);
+  align-items: stretch;
+  padding: 28px 24px 22px;
+}
+.mk2-sheet-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+.mk2-sheet-x {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+}
+.mk2-sheet-logo {
+  display: grid;
+  place-items: center;
+  margin-bottom: 10px;
+}
+.mk2-sheet-title {
+  margin: 12px 0 2px;
+  font-size: 19px;
+  font-weight: 600;
+}
+.mk2-sheet-title span {
+  font-weight: 400;
+  color: var(--muted);
+  font-size: 15px;
+}
+.mk2-sheet-lead {
+  margin: 4px 0 14px;
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.mk2-sheet.wide .mk2-sheet-lead {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.mk2-sheet-small {
+  margin: -6px 0 16px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.mk2-sheet-small a {
+  color: var(--muted);
+}
+.mk2-sheet .center {
+  text-align: center;
+}
+.mk2-sheet-go {
+  width: 100%;
+  height: 42px;
+  margin-top: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.mk2-tools {
+  min-height: 0;
+  overflow: auto;
+  border: 1px solid var(--sand);
+  border-radius: 14px;
+}
+.mk2-skill-text {
+  padding: 4px 18px;
+  font-size: 14px;
+}
+.mk2-tool-group + .mk2-tool-group {
+  border-top: 1px solid var(--sand);
+}
+.mk2-tool-group-head {
+  position: sticky;
+  top: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 0;
+  background: var(--surface);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink);
+  cursor: pointer;
+}
+.mk2-tool-group-head span {
+  color: var(--muted);
+  font-weight: 400;
+  flex: 1;
+  text-align: left;
+}
+.mk2-tool {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 14px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--sand);
+  font-size: 13px;
+}
+.mk2-tool b {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mk2-tool span {
+  color: var(--muted);
+  line-height: 1.45;
+}
+.mk2-wait {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 18px;
+  font-size: 13.5px;
+  color: var(--muted);
+}
+.mk2-spin {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2.5px solid var(--sand-strong);
+  border-top-color: var(--orange);
+  animation: mk2-spin 0.8s linear infinite;
+}
+@keyframes mk2-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
 .mk2-info {
   margin: 8px 0 0;
   display: flex;

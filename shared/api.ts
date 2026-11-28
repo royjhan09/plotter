@@ -726,6 +726,31 @@ export interface PluginInfo {
   addedAt: number
 }
 
+/** One tool an MCP server offers, by what it may do (from the server's own hints). */
+export interface ServerTool {
+  name: string
+  title?: string
+  description: string
+  kind: 'read' | 'write' | 'destructive'
+}
+
+/** What an MCP server says about itself: its details, tools, skills and prompts (cached on this PC). */
+export interface ServerDetails {
+  title?: string
+  version?: string
+  description?: string
+  website?: string
+  instructions?: string
+  tools: ServerTool[]
+  /** Skills the server offers (skill://…/SKILL.md). */
+  skills: { name: string; description: string; uri: string }[]
+  prompts: { name: string; description?: string }[]
+  at: number
+  /** It tells nothing until you sign in (account sign-in). */
+  needsSignIn?: boolean
+  error?: string
+}
+
 /** A popular service with an official MCP server, ready to add (sign in, or paste a key). */
 export interface PopularService {
   id: string
@@ -744,6 +769,11 @@ export interface PopularService {
   examples: string[]
   /** What it does, in a few words each. */
   abilities: string[]
+  /** A paragraph about it, and its main uses (a title and a line each). */
+  about: string
+  features: { title: string; text: string }[]
+  privacy?: string
+  terms?: string
   added: boolean
 }
 
@@ -1238,6 +1268,10 @@ export interface PlotterApi {
     popular: () => Promise<PopularService[]>
     /** Adds one as a plugin (its server as a tool); key services need the key. Returns the plugin's id. */
     addPopular: (id: string, key?: string) => Promise<string>
+    /** What a server says about itself (a popular service by id, or an added tool); cached, refetched with refresh. */
+    serverDetails: (target: { popularId?: string; toolId?: string }, refresh?: boolean) => Promise<ServerDetails>
+    /** One of a server's skills, its SKILL.md. */
+    serverSkill: (target: { popularId?: string; toolId?: string }, uri: string) => Promise<string>
     /** The services' official icons (id → data URL; '' when none), fetched from their own sites and cached. */
     popularIcons: () => Promise<Record<string, string>>
     /** Adds a skill or plugin from Plotter's catalogue. */

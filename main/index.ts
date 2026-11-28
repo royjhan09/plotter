@@ -30,7 +30,7 @@ import { addIdea, readLab, removeIdea, setLabCapture, updateIdea } from '@privat
 import { estimateLab, settleLab, startLab, stopLab } from './labRun'
 import { checkMarketTool, closeAllMarket, listMarket, removeMarketTool, saveMarketTool, setMarketApproval, setMarketConnected, signInTool, signOutTool } from '@private/main/market'
 import { getSkill, listSkills, readSkillFile, removeSkill, saveSkill, setSkillEnabled, uploadSkills } from '@private/main/skills'
-import { addFromCatalog, addPopular, catalog, listPlugins, popular, popularIcons, removePlugin, savePlugin, setPluginIcon, uploadPlugin } from '@private/main/plugins'
+import { addFromCatalog, addPopular, catalog, listPlugins, popular, popularIcons, removePlugin, serverDetails, serverSkill, savePlugin, setPluginIcon, uploadPlugin } from '@private/main/plugins'
 import { answerApproval, builtinApprovals, setBuiltinApproval } from '@private/main/approvals'
 import { claudeCodeAvailable, makeProjectFolder, recentFolders, suggestProjectFolder, sendMember, sendToClaude, forgetGroup, settleStale, stopAllClaude, stopClaude } from '@private/main/claudeCode'
 import { USAGE_URL, type LabTest, type BesideChat, type Chat, type KitComponent, type KitPatch, type BrandPatch, type KitPieceOffer, type ToolApproval, type SkillDraft, type PluginInfo, type RoleDraft, type RoleLink, type HistoryItem, type RoleDeployment, type KitRule, type LibraryRef, type ChatMetaPatch, type MarketToolInput, type ConnectorId, type Features, type ReplyEvent, type SendRequest } from '../shared/api'
@@ -406,6 +406,8 @@ export const handlers: Record<string, (...args: never[]) => unknown> = {
   'market:signOut': (id: string) => signOutTool(String(id)),
   'plugins:popular': () => popular(),
   'plugins:popularIcons': () => popularIcons(),
+  'plugins:serverDetails': (target: { popularId?: string; toolId?: string }, refresh?: boolean) => serverDetails({ ...(target?.popularId ? { popularId: String(target.popularId) } : {}), ...(target?.toolId ? { toolId: String(target.toolId) } : {}) }, !!refresh),
+  'plugins:serverSkill': (target: { popularId?: string; toolId?: string }, uri: string) => serverSkill({ ...(target?.popularId ? { popularId: String(target.popularId) } : {}), ...(target?.toolId ? { toolId: String(target.toolId) } : {}) }, String(uri)),
   'plugins:addPopular': (id: string, key?: string) => addPopular(String(id), key ? String(key) : undefined),
   'skills:list': () => listSkills(),
   'skills:get': (id: string) => getSkill(String(id)),
