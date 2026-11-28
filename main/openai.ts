@@ -34,7 +34,7 @@ Make answers clear and visual when it helps understanding. Plotter renders all o
 
 When the question is about visual design, a website, an app screen, UI/UX or a layout, show it rather than only describe it: start with a ui wireframe of the whole page, then give most sections their own ui mockup (e.g. header, hero, feature cards, dashboard, key inner pages such as a quiz or exam screen, made interactive where that is how it is used), plus a colour palette with swatches and a typography scale when the visual style matters, and tables for structured breakdowns. Put each mockup right before or after the text that explains it. Each visual appears as soon as its block is written, so a rich answer with many visuals does not feel slow. Analysis requests deserve a thorough, well-organised answer with numbered sections.
 
-Use charts for numbers and comparisons, diagrams for processes, structures and timelines, ui mockups when the topic is visual design or layout, tables for options side by side, and callouts for key warnings or tips. Keep visuals purposeful. Plotter cannot generate images (photos/paintings), but it can draw them as SVG inside a ui block.`
+Use charts for numbers and comparisons, diagrams for processes, structures and timelines, ui mockups when the topic is visual design or layout, tables for options side by side, and callouts for key warnings or tips. Keep visuals purposeful. When you need several tools that don't depend on each other's results, call them together in one turn rather than one after another. Plotter cannot generate images (photos/paintings), but it can draw them as SVG inside a ui block.`
 
 export const WEB_INSTRUCTIONS = `You can search the web and open web pages. Use it when the user gives a link, asks about current or recent information, or when facts need checking; otherwise answer directly. When you use the web, cite sources with Markdown links whose text is the site's domain, e.g. ([example.com](https://example.com/page)); they are shown as small source chips. If a page cannot be opened, say so plainly and say what you used instead.`
 
@@ -134,6 +134,11 @@ export interface LocalTool {
   description: string
   /** JSON schema of the arguments. */
   parameters: Record<string, unknown>
+  /**
+   * Needs no answer back (recording, saving): when a round's only tool calls are such tools and the reply has already
+   * been written in that round, they run and the reply ends there, without another round.
+   */
+  final?: boolean
   /** Shown while it runs, e.g. "Running Python…". */
   label: (args: Record<string, unknown>) => string
   /**
@@ -197,6 +202,8 @@ export interface UsageEntry {
   instructionsChars: number
   inputItems: number
   tools: number
+  /** The tools this call asked for (filled in by runConversation). */
+  calls?: string[]
 }
 export const usageLog: UsageEntry[] = []
 
@@ -215,6 +222,8 @@ export async function streamRound(req: RoundRequest, handlers: StreamHandlers, s
       text: { verbosity: req.verbosity },
       // Reasoning is handed back between tool rounds (store:false keeps nothing on OpenAI's side).
       include: ['reasoning.encrypted_content'],
+      // several tool calls in one round when they don't depend on each other (fewer rounds, each re-sends the whole input)
+      ...(req.tools.length ? { parallel_tool_calls: true } : {}),
       ...(req.cacheKey ? { prompt_cache_key: req.cacheKey } : {}),
       store: false,
       stream: true
@@ -352,7 +361,12 @@ export async function runConversation(
       signal
     )
     const calls = output.filter((o): o is { type: 'function_call'; name: string; arguments: string; call_id: string } => (o as { type?: string }).type === 'function_call')
+    const logged = usageLog[usageLog.length - 1]
+    if (logged && calls.length) logged.calls = calls.map((c) => c.name)
     if (calls.length === 0) return
+    // the answer is written and the only calls left need no answer back: run them and finish here
+    const wrote = output.some((o) => (o as { type?: string }).type === 'message')
+    const lastRound = wrote && calls.every((c) => byName.get(c.name)?.final)
     input.push(...output)
     for (const c of calls) {
       const tool = byName.get(c.name)
@@ -384,6 +398,7 @@ export async function runConversation(
       input.push({ type: 'function_call_output', call_id: c.call_id, output: result })
     }
     handlers.onActivity(null)
+    if (lastRound) return
   }
   handlers.onDelta('\n\n_(Stopped after too many tool steps.)_')
 }

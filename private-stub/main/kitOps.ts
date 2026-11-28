@@ -6,6 +6,7 @@ export interface KitCtx {
   chatId?: string
   chatTitle?: string
   folder?: string
+  afterReply?: (job: (replyText: string) => void) => void
 }
 
 export interface KitToolSpec {

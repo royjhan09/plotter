@@ -244,14 +244,17 @@ ${KIT_GUIDE}
 For where, name the place (e.g. "ui block: pricing page", "reply"). Do not mention the kit in replies that have nothing to do with design.`
 
 /** The design-kit tools (private kitOps), the same ones Claude Code gets. */
-function kitTools(kit: Kit, chatId: string, chatTitle: string): LocalTool[] {
+function kitTools(kit: Kit, chatId: string, chatTitle: string, afterReply: ((text: string) => void)[]): LocalTool[] {
+  // recording and saving need no answer back: called together with the written reply, they end it (no extra round)
+  const FINAL = ['kit_record_use', 'kit_save_component', 'kit_add_rule']
   return kitToolSpecs().map((t) => ({
     name: t.name,
     description: t.description,
     parameters: t.parameters,
+    ...(FINAL.includes(t.name) ? { final: true } : {}),
     label: () => t.label,
     run: async (args) => {
-      const out = runKitTool(kit.id, t.name, args, { by: 'ChatGPT', chatId, chatTitle })
+      const out = runKitTool(kit.id, t.name, args, { by: 'ChatGPT', chatId, chatTitle, afterReply: (job) => void afterReply.push(job) })
       return { output: out.output, ...(out.card ? { run: { kind: 'kit' as const, title: out.card.title, output: out.card.output } } : {}) }
     }
   }))
@@ -344,6 +347,8 @@ interface Capability {
   brief: string
   guide: string
   tools: LocalTool[]
+  /** Items to hand over with the guide when opening (the design kit: the components to reuse), saving a round. */
+  prefetch?: (names: string[]) => string
 }
 
 const CAPABILITIES_PROMPT = (caps: Capability[]): string =>
@@ -355,12 +360,21 @@ function openCapability(caps: Capability[]): LocalTool {
   return {
     name: 'open_capability',
     description: `Load one of these for the rest of this reply: its instructions and its tools. ${caps.map((c) => c.name).join(', ')}.`,
-    parameters: { type: 'object', properties: { name: { type: 'string', enum: caps.map((c) => c.name) } }, required: ['name'] },
+    parameters: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', enum: caps.map((c) => c.name) },
+        components: { type: 'array', items: { type: 'string' }, description: 'design_kit: the components you will reuse, so their code comes with it.' }
+      },
+      required: ['name']
+    },
     label: (args) => (args['name'] === 'design_kit' ? 'Opening your design kit…' : args['name'] === 'connected_apps' ? 'Opening your connected apps…' : 'Opening your tools…'),
     run: async (args) => {
       const c = caps.find((x) => x.name === args['name'])
       if (!c) return { output: JSON.stringify({ error: `Open one of: ${caps.map((x) => x.name).join(', ')}` }) }
-      return { output: `${c.guide}\n\nIts tools are now available: ${c.tools.map((t) => t.name).join(', ')}.`, addTools: c.tools }
+      const names = Array.isArray(args['components']) ? (args['components'] as unknown[]).map(String).filter(Boolean) : []
+      const items = c.prefetch && names.length ? `\n\nThe components you asked for:\n${c.prefetch(names)}` : ''
+      return { output: `${c.guide}${items}\n\nIts tools are now available: ${c.tools.map((t) => t.name).join(', ')}.`, addTools: c.tools }
     }
   }
 }
@@ -375,7 +389,7 @@ export interface SetupPart {
  * Everything a ChatGPT reply is set up with: the instruction parts and the tools, each labelled. reply() sends
  * them; the dev server reports their sizes (debug:setup), so what every message carries can be measured.
  */
-export async function buildSetup(req: SendRequest): Promise<{ parts: SetupPart[]; tools: (LocalTool & { pack: string })[]; webSearch: boolean; role?: RoleEntity; team: string; chat?: Chat }> {
+export async function buildSetup(req: SendRequest): Promise<{ parts: SetupPart[]; tools: (LocalTool & { pack: string })[]; webSearch: boolean; afterReply: ((text: string) => void)[]; role?: RoleEntity; team: string; chat?: Chat }> {
   const f = readFeatures()
   const chat = getChat(req.chatId)
   // a role decides which tools its chats get (the user's own picks for one message still count)
@@ -384,6 +398,8 @@ export async function buildSetup(req: SendRequest): Promise<{ parts: SetupPart[]
   const webSearch = can('web', f.webSearch) || !!req.research || !!req.modes?.search
   const tools: (LocalTool & { pack: string })[] = []
   const parts: SetupPart[] = []
+  // things to do once the reply is finished, with its text (e.g. a kit component saved from the reply's ui block)
+  const afterReply: ((text: string) => void)[] = []
   const add = (name: string, text: string): void => void (text && parts.push({ name, text }))
   const use = (pack: string, list: LocalTool[]): void => void tools.push(...list.map((t) => ({ ...t, pack })))
   add('base', INSTRUCTIONS)
@@ -432,9 +448,10 @@ export async function buildSetup(req: SendRequest): Promise<{ parts: SetupPart[]
   if (kit)
     lazy.push({
       name: 'design_kit',
-      brief: `the user's design kit "${kit.name}" (${kit.rules.length} design rules, ${kit.components.length} reusable components): open it before you design or build anything visual (ui blocks, HTML or CSS, app screens, mockups, icons, logos), then follow its rules and reuse its components without being reminded`,
+      brief: `the user's design kit "${kit.name}" (${kit.rules.length} design rules, and components: ${kit.components.map((c) => c.name).slice(0, 60).join(', ')}): open it before you design or build anything visual (ui blocks, HTML or CSS, app screens, mockups, icons, logos), naming in components the ones you will reuse so their code comes with it; then follow its rules and reuse its components without being reminded`,
       guide: KIT_INSTRUCTIONS(kitBrief(kit)),
-      tools: kitTools(kit, req.chatId, title)
+      tools: kitTools(kit, req.chatId, title, afterReply),
+      prefetch: (names) => runKitTool(kit.id, 'kit_component', { names }, { by: 'ChatGPT', chatId: req.chatId, chatTitle: title }).output
     })
   if (lazy.length) {
     add('capabilities', CAPABILITIES_PROMPT(lazy))
@@ -462,11 +479,12 @@ export async function buildSetup(req: SendRequest): Promise<{ parts: SetupPart[]
   // shared, unchanging parts first (they are cached across messages and chats); this chat's and this turn's last
   const ORDER = ['base', 'web', 'python', 'pictures', 'canvas', 'capabilities', 'research', 'role', 'memory', 'project', 'side', 'team', 'picked', 'canvas-now']
   parts.sort((a, b) => ORDER.indexOf(a.name) - ORDER.indexOf(b.name))
-  return { parts, tools, webSearch, ...(role ? { role } : {}), team, ...(chat ? { chat } : {}) }
+  return { parts, tools, webSearch, afterReply, ...(role ? { role } : {}), team, ...(chat ? { chat } : {}) }
 }
 
 export async function reply(req: SendRequest, handlers: ConversationHandlers, signal: AbortSignal): Promise<void> {
-  const { parts, tools, webSearch, role, team, chat } = await buildSetup(req)
+  const { parts, tools, webSearch, afterReply, role, team, chat } = await buildSetup(req)
+  let text = ''
   await runConversation(
     {
       model: req.model,
@@ -480,8 +498,15 @@ export async function reply(req: SendRequest, handlers: ConversationHandlers, si
       verbosity: req.research ? 'high' : 'medium',
       tag: team ? `member:${role!.name}` : role ? `role:${role.name}` : 'chat'
     },
-    handlers,
+    { ...handlers, onDelta: (t) => ((text += t), handlers.onDelta(t)) },
     signal
   )
+  for (const job of afterReply) {
+    try {
+      job(text)
+    } catch {
+      // a save after the reply must not turn a finished reply into an error
+    }
+  }
   if (role) bumpRole(role.id)
 }
