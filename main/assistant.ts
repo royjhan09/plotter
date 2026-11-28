@@ -315,9 +315,14 @@ function TEAM_PROMPT(r: RoleEntity, chat: Chat, _req: SendRequest): string {
   return [
     `This is a team chat at ${getCompany().name}. Its purpose: ${chat.team?.purpose ?? chat.title}`,
     others.length ? `The other members:\n${others.map(memberLine).join('\n')}` : '',
+    chat.team?.mode === 'tag'
+      ? 'Members answer only when a message is for them (they are tagged, or it is about their job). Tag another member with @Name only when you need something from them or what you did changes their work, and say exactly what; otherwise tag nobody. A Claude Code member works in the project folder: it changes the code and runs it, and posts what it did.'
+      : '',
     `You speak only as ${r.name}, in your own message: never write another member's lines or pretend to be them.`,
     'Write it like a message in a group chat: no greeting, and do not start with your own name or "X here" (the chat already shows who is talking, and who you are speaking to).',
-    'Do your part of the work for real (the actual text, design, code, numbers or review, not a plan to do it). Keep the talk around it short. End by saying plainly what you hand to whom, or what you need and from whom.',
+    chat.team?.mode === 'tag'
+      ? 'Do your part for real (the actual text, design, numbers or review, not a plan to do it), and keep the talk around it short.'
+      : 'Do your part of the work for real (the actual text, design, code, numbers or review, not a plan to do it). Keep the talk around it short. End by saying plainly what you hand to whom, or what you need and from whom.',
     'Post a whole code block or document only when it is new, or when you are asked for the complete final version. For a fix or a review, show just what changes (the changed lines, or a short list), not everything again.',
     "Ask others only for what their tools let them do (each member's tools are listed). A check nobody here can run (in a real browser, on a phone, with a screen reader) is for the user: say so once and do not pass it around."
   ]
@@ -331,7 +336,7 @@ function TEAM_PROMPT(r: RoleEntity, chat: Chat, _req: SendRequest): string {
  * A team chat's history as one member sees it: its own replies as its own, everyone else's as messages to it,
  * older code left out (only the latest version is kept), and this turn's ask from the facilitator last.
  */
-function teamHistory(history: SendRequest['history'], me: string, req: SendRequest): SendRequest['history'] {
+function teamHistory(history: SendRequest['history'], me: string, req: SendRequest, tagMode = false): SendRequest['history'] {
   const FENCE = /```[\s\S]*?(```|$)/g
   let latestCode = -1
   history.forEach((h, i) => {
@@ -344,6 +349,10 @@ function teamHistory(history: SendRequest['history'], me: string, req: SendReque
     return { ...h, role: 'user' as const, text: `[${who}]\n${text.replace(/\[\[tool:[^\]]+\]\]/g, '').trim()}` }
   })
   const to = req.speakTo && req.speakTo !== 'you' ? `Speak to ${req.speakTo}, by name.` : 'Speak to the user.'
+  if (tagMode) {
+    const by = req.speakTo && req.speakTo !== 'you' ? req.speakTo : 'the user'
+    return [...items, { role: 'user', text: `[Plotter] ${by === 'the user' ? 'The message above is for you' : `${by} tagged you`}: answer ${by}.${req.teamNote ? ` What to look at: ${req.teamNote}` : ''}` }]
+  }
   return [...items, { role: 'user', text: `[Facilitator] Your turn. ${to}${req.teamNote ? ` What is needed from you now: ${req.teamNote}` : ''}` }]
 }
 
@@ -589,7 +598,7 @@ export async function reply(req: SendRequest, handlers: ConversationHandlers, si
       effort: req.research ? 'high' : req.effort,
       instructions: parts.map((x) => x.text).join('\n\n'),
       // in a team chat, the other members' messages are theirs, not this member's own
-      history: team ? teamHistory(req.history, role!.id, req) : req.history,
+      history: team ? teamHistory(req.history, role!.id, req, chat?.team?.mode === 'tag') : req.history,
       ...(team ? { cacheKey: `team:${chat!.id}:${role!.id}` } : {}),
       webSearch,
       tools: lab ? tools.map(dryRun) : tools,

@@ -9,7 +9,8 @@ import { addNote, createProject, editNote, listProjects, removeNote, removeProje
 import { addWishes, cleanDraft, getRole, grantWish, listRoles, removeRole, saveCombined, saveRole, setRetired } from '@private/main/roles'
 import { combineSuggestions, dismissCombo, getCompany, labelLine, linkRoles, mergeTradeoff, noteHandoff, placeRole, renameCompany, replaceInChart, setPrefer, unlinkRoles } from '@private/main/company'
 import { addUseWhen, createKit, getKit, kitFolder, listKits, listUsage, removeComponent, removeKit, removeRule, restoreVersion, saveComponent, saveRule, setDefaultKit, updateKit, versionCode } from '@private/main/kits'
-import { nextSpeaker, suggestMembers } from './team'
+import { alsoIn, groupOf, nextSpeaker, routeIn, suggestMembers } from './team'
+import { runRouteTests } from './routeTests'
 import { usageLog } from './openai'
 import { draftCombinedRole, draftRole, forgetModel, roleInterview, suggestRoleTools, generateProjectBrief, generateSuggestion, generateTitle, primaryModel, ReplyError } from './openai'
 import { buildSetup, reply } from './assistant'
@@ -25,7 +26,7 @@ import { pdfHandlers } from '@private/main/pdf'
 import { addIdea, readLab, removeIdea, setLabCapture, updateIdea } from '@private/main/lab'
 import { estimateLab, settleLab, startLab, stopLab } from './labRun'
 import { checkMarketTool, closeAllMarket, listMarket, removeMarketTool, saveMarketTool, setMarketConnected } from '@private/main/market'
-import { claudeCodeAvailable, makeProjectFolder, recentFolders, suggestProjectFolder, sendToClaude, settleStale, stopAllClaude, stopClaude } from '@private/main/claudeCode'
+import { claudeCodeAvailable, makeProjectFolder, recentFolders, suggestProjectFolder, sendMember, sendToClaude, forgetGroup, settleStale, stopAllClaude, stopClaude } from '@private/main/claudeCode'
 import { USAGE_URL, type LabTest, type BesideChat, type Chat, type KitComponent, type KitPatch, type RoleDraft, type RoleLink, type HistoryItem, type RoleDeployment, type KitRule, type LibraryRef, type ChatMetaPatch, type MarketToolInput, type ConnectorId, type Features, type ReplyEvent, type SendRequest } from '../shared/api'
 
 app.setName('Plotter')
@@ -170,6 +171,16 @@ export const handlers: Record<string, (...args: never[]) => unknown> = {
     return turn
   },
   'team:suggest': (purpose: string) => suggestMembers(String(purpose ?? '')),
+  'team:route': async (chatId: string, history: HistoryItem[]) => {
+    const chat = getChat(String(chatId))
+    if (!chat?.team) return { answer: [] }
+    return routeIn(groupOf(chat), Array.isArray(history) ? history : [], `route:${chat.id}`)
+  },
+  'team:also': async (chatId: string, history: HistoryItem[], spoke: string[]) => {
+    const chat = getChat(String(chatId))
+    if (!chat?.team) return []
+    return alsoIn(groupOf(chat), Array.isArray(history) ? history : [], Array.isArray(spoke) ? spoke.map(String) : [], `also:${chat.id}`)
+  },
   // dev measurements only (the browser-mode server): token use per ChatGPT call
   'debug:usage': () => (BROWSER_ONLY ? usageLog : []),
   // dev measurements only: what a ChatGPT message in this chat is set up with, part by part (characters)
@@ -187,6 +198,8 @@ export const handlers: Record<string, (...args: never[]) => unknown> = {
     for (const p of parts) text.set(p.name, (text.get(p.name) ?? 0) + p.text.length)
     return { instructions: Object.fromEntries(text), tools: Object.fromEntries(byPack) }
   },
+  // dev only: how well a group chat picks who answers and who else is needed (see main/routeTests.ts)
+  'debug:routeTest': (times?: number) => (BROWSER_ONLY ? runRouteTests(Math.min(5, Math.max(1, Number(times) || 2))) : null),
   'debug:usageClear': () => {
     if (BROWSER_ONLY) usageLog.length = 0
   },
@@ -321,6 +334,8 @@ export const handlers: Record<string, (...args: never[]) => unknown> = {
   },
   'chats:remove': (id: string) => {
     stopClaude(String(id))
+    // a group: stop its Claude Code members and forget their sessions
+    forgetGroup(String(id))
     removeChat(id)
   },
   'chats:update': (id: string, patch: ChatMetaPatch) => {
@@ -364,6 +379,7 @@ export const handlers: Record<string, (...args: never[]) => unknown> = {
     return r.canceled ? null : (r.filePaths[0] ?? null)
   },
   'claudeCode:send': (chatId: string, messageId: string, beside?: BesideChat) => sendToClaude(String(chatId), String(messageId), (u) => emit('claudeCode:update', u), beside),
+  'claudeCode:sendMember': (chatId: string, messageId: string, roleId: string, by: string) => sendMember(String(chatId), String(messageId), String(roleId), String(by || 'you'), (u) => emit('claudeCode:update', u)),
   'claudeCode:suggestFolder': (name: string) => suggestProjectFolder(String(name ?? '')),
   'claudeCode:makeFolder': (path: string) => makeProjectFolder(String(path ?? '')),
   'claudeCode:stop': (chatId: string) => stopClaude(String(chatId)),

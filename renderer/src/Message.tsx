@@ -8,6 +8,7 @@ import { SproutBot } from './SproutBot'
 import { RoleBot } from '@private/renderer/RoleBot'
 import { MenuIcon } from './PlusMenu'
 import { ClaudeTurn } from '@private/renderer/ClaudeCode'
+import { memberKey } from '../../shared/mentions'
 import icon from '../../assets/sprout.svg'
 
 function siteName(url: string): string {
@@ -89,7 +90,7 @@ export function Message({
         {m.text && <div className="bubble">{m.text}</div>}
       </div>
     )
-  if (m.cc)
+  if (m.cc && !(m.speaker && role))
     return (
       <div className="msg assistant claude" data-msg-id={m.id}>
         <span className="sprout buddy-avatar">
@@ -111,7 +112,7 @@ export function Message({
     )
   return (
     m.speaker && role ? (
-      <TeamMessage m={m} role={role} typing={typing} activity={activity} first={teamFirst !== false} />
+      <TeamMessage m={m} role={role} typing={typing} activity={activity} first={teamFirst !== false} chatId={chatId ?? ''} />
     ) : (
     <div className="msg assistant" data-msg-id={m.id}>
       {role ? <RoleBot identity={role.identity} replies={role.replies} size={30} working={typing} className="sprout" /> : <SproutBot size={30} working={typing} className="sprout" />}
@@ -171,21 +172,25 @@ export function Message({
 const clock = (t: number): string => new Date(t).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
 
 /** A team member's message, messenger style: its bot and name on the first of a run, a bubble in its colour, @who it is for. */
-function TeamMessage({ m, role, typing, activity, first }: { m: ChatMessage; role: RoleEntity; typing: boolean; activity?: string | null; first: boolean }): React.JSX.Element {
+function TeamMessage({ m, role, typing, activity, first, chatId }: { m: ChatMessage; role: RoleEntity; typing: boolean; activity?: string | null; first: boolean; chatId: string }): React.JSX.Element {
+  const working = typing || m.cc?.state === 'running'
   return (
     <div className={`msg assistant team-msg ${first ? 'first' : ''}`} data-msg-id={m.id} style={{ ['--role' as string]: role.identity.color }}>
-      <div className="team-avatar">{first && <RoleBot identity={role.identity} replies={role.replies} size={30} working={typing} />}</div>
+      <div className="team-avatar">{first && <RoleBot identity={role.identity} replies={role.replies} size={30} working={working} />}</div>
       <div className="team-col">
         {first && (
           <div className="team-name">
             <b>{role.name}</b>
-            {typing && !m.text ? <span className="team-typing">is typing…</span> : <time>{clock(m.at)}</time>}
+            {m.cc?.state === 'running' ? <span className="team-typing">is working in the folder…</span> : typing && !m.text ? <span className="team-typing">is typing…</span> : <time>{clock(m.at)}</time>}
           </div>
         )}
-        <div className="team-bubble">
+        <div className={`team-bubble ${m.cc ? 'cc' : ''}`}>
           {m.speakerTo && m.speakerTo !== 'you' && <span className="team-mention">@{m.speakerTo}</span>}
           {typing && activity && <div className="activity">{activity}</div>}
-          {m.text ? (
+          {m.cc ? (
+            // a Claude Code member: what it did (steps folded), then its answer
+            <ClaudeTurn m={m} chatId={memberKey(chatId, m.speaker ?? '')} />
+          ) : m.text ? (
             <Markdown text={m.text} streaming={typing} runs={m.toolRuns} />
           ) : typing && !activity ? (
             <span className="dots">

@@ -1,5 +1,6 @@
 import { useCallback, useContext, useEffect, useRef, useState } from 'react'
-import { ROLE_TOOL_INFO, type Attachment, type Chat, type ChatKind, type ChatMessage, type BesideChat, type ClaudeChatConfig, type HandOff, type MessageModes, type Model, type Project, type ReplyEvent, type RoleEntity, type TeamSetup } from '../../shared/api'
+import { ROLE_TOOL_INFO, type Attachment, type Chat, type ChatKind, type ChatMessage, type BesideChat, type ClaudeChatConfig, type HandOff, type MessageModes, type Model, type Project, type ReplyEvent, type RoleEntity, type TeamAlso, type TeamSetup, type HistoryItem } from '../../shared/api'
+import { memberKey, mentionsIn } from '../../shared/mentions'
 import { Composer, EffortMenu } from './Composer'
 import { VoiceMode } from './VoiceMode'
 import { toAttachment } from './attachments'
@@ -26,6 +27,20 @@ function withHandOff(m: ChatMessage): string {
   const ask = m.text.trim() || (m.from.kind === 'side' ? 'Answer this message from the chat beside, for the user.' : 'Look at this.')
   return `${ask}\n\n<handed_over from="${who.replace(/"/g, "'")}">\n${m.from.text.trim()}\n</handed_over>`
 }
+
+/** A group message as the members read it: a Claude Code member's turn with the files it changed. */
+function memberView(m: ChatMessage): string {
+  const text = withHandOff(m)
+  if (!m.cc) return text
+  const changed = [...new Set(m.cc.steps.filter((s) => s.kind === 'tool' && /^(Edit|Write) /.test(s.text)).map((s) => s.text.replace(/^(Edit|Write) /, '')))]
+  return `${text}${changed.length ? `\n(Files changed: ${changed.slice(0, 20).join(', ')})` : ''}`
+}
+
+/** A group chat's history for its members and the router. */
+const groupHistory = (c: Chat): HistoryItem[] =>
+  c.messages
+    .filter((m) => m.role === 'user' || m.text)
+    .map((m) => ({ role: m.role, text: memberView(m), ...(m.attachments ? { attachments: m.attachments } : {}), ...(m.speaker ? { speaker: m.speaker } : {}) }))
 
 function titleFrom(text: string, attachments: Attachment[]): string {
   const line = text.trim().split('\n')[0] ?? ''
@@ -141,6 +156,13 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
   const [teamBusy, setTeamBusy] = useState(false)
   const [teamDone, setTeamDone] = useState<string | null>(null)
   const teamStop = useRef(false)
+  // tag mode: members who did not take part in the last round but may be needed (the user decides whether to ask them)
+  const [also, setAlso] = useState<TeamAlso[]>([])
+  const [showMaybe, setShowMaybe] = useState(false)
+  // a Claude Code member at work in a group: its run's key (to stop it), and who waits for its turn to end
+  const ccMember = useRef<string | null>(null)
+  const ccWaiters = useRef(new Map<string, () => void>())
+  const lastSave = useRef<Promise<unknown>>(Promise.resolve())
   const roles = useContext(RolesContext)
   handOffRef.current = handOff
   // a project brief's suggested new folder (Create project), and whether it was made
@@ -293,7 +315,12 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
         const messages = has ? current.messages.map((m) => (m.id === u.message.id ? u.message : m)) : [...current.messages, u.message]
         chatRef.current = { ...current, messages, cc: current.cc && u.sessionId ? { ...current.cc, sessionId: u.sessionId } : current.cc }
         setChat(chatRef.current)
-        if (u.message.cc?.state !== 'running') refreshList()
+        if (u.message.cc?.state !== 'running') {
+          refreshList()
+          // a group's Claude Code member finished its turn
+          ccWaiters.current.get(u.message.id)?.()
+          ccWaiters.current.delete(u.message.id)
+        }
       }),
     [refreshList]
   )
@@ -376,7 +403,8 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
         pendingRef.current = null
         setChat(done)
         setPending(null)
-        void api.chats.save(done).then(refreshList)
+        // kept, so a group member's turn starts only once this save has landed (it would overwrite the new message)
+        lastSave.current = api.chats.save(done).then(refreshList, () => undefined)
         const users = done.messages.filter((m) => m.role === 'user')
         // a team chat is named once, after its first round (not after every member's turn)
         if (users.length === 1 && last.text && !done.titled && !done.team) void nameChat(done.id, users[0]!.text, last.text)
@@ -522,7 +550,7 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
       await api.chats.save(next)
       if (!current) onChatId(next.id)
       refreshList()
-      void runTeam()
+      void (next.team?.mode === 'tag' ? runTagged() : runTeam())
       return ''
     }
     const next: Chat = { ...base, model: p.model.slug, messages: [...history, reply], updatedAt: now }
@@ -616,6 +644,114 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
     }
   }
 
+  /**
+   * Tag mode: only the members a message is for answer. The user's @tags decide; an untagged message goes to
+   * whoever the router says it is for. A member's reply that tags another hands to them (a few turns at most).
+   * After the round, members who did not take part but may be needed are offered, never left out silently.
+   */
+  const GROUP_TURNS = 4
+  const memberTurn = async (roleId: string, by: string, note?: string): Promise<string> => {
+    const cur = chatRef.current
+    const r = roleById(roleId)
+    if (!cur || !r || !p.model) return ''
+    const now = Date.now()
+    if (r.engine === 'claude') {
+      // a reply that just finished may still be saving: let it land first, then save with the new message
+      await lastSave.current
+      const msg: ChatMessage = { id: newId(), role: 'assistant', text: '', at: now, speaker: roleId, speakerTo: by, cc: { state: 'running', steps: [], startedAt: now } }
+      const base = chatRef.current ?? cur
+      const next: Chat = { ...base, messages: [...base.messages, msg], updatedAt: now }
+      chatRef.current = next
+      setChat(next)
+      await api.chats.save(next)
+      const ended = new Promise<void>((resolve) => ccWaiters.current.set(msg.id, resolve))
+      ccMember.current = memberKey(cur.id, roleId)
+      try {
+        await api.claudeCode.sendMember(cur.id, msg.id, roleId, by)
+        await ended
+      } catch (e) {
+        ccWaiters.current.delete(msg.id)
+        const c = chatRef.current!
+        const failed: Chat = { ...c, messages: c.messages.map((m) => (m.id === msg.id ? { ...m, error: cleanError(e), cc: { ...m.cc!, state: 'failed', endedAt: Date.now() } } : m)) }
+        chatRef.current = failed
+        setChat(failed)
+        await api.chats.save(failed)
+      } finally {
+        ccMember.current = null
+      }
+      return chatRef.current?.messages.find((m) => m.id === msg.id)?.text ?? ''
+    }
+    const hist = groupHistory(cur)
+    const reply: ChatMessage = { id: newId(), role: 'assistant', text: '', at: now, speaker: roleId, speakerTo: by }
+    const next: Chat = { ...cur, messages: [...cur.messages, reply], updatedAt: now }
+    chatRef.current = next
+    setChat(next)
+    const requestId = newId()
+    pendingRef.current = { requestId, chatId: next.id }
+    setPending(pendingRef.current)
+    const finished = new Promise<string>((resolve, reject) => waiters.current.set(requestId, { resolve, reject }))
+    await api.reply.send({ requestId, chatId: next.id, model: p.model.slug, effort: p.effort, history: hist, asRole: roleId, speakTo: by, ...(note ? { teamNote: note } : {}) })
+    return finished
+  }
+  const runTagged = async (ask?: TeamAlso[]): Promise<void> => {
+    if (!p.model) return
+    teamStop.current = false
+    setTeamBusy(true)
+    setTeamDone(null)
+    setAlso([])
+    setShowMaybe(false)
+    try {
+      const cur = chatRef.current
+      if (!cur?.team) return
+      const members = cur.team.members.map((id) => roleById(id)).filter((r): r is RoleEntity => !!r)
+      const lastUser = [...cur.messages].reverse().find((m) => m.role === 'user')
+      let queue: { id: string; by: string; note?: string }[]
+      if (ask) queue = ask.map((a) => ({ id: a.roleId, by: 'you', note: a.why }))
+      else {
+        const tagged = mentionsIn(lastUser?.text ?? '', members)
+        if (tagged.length) queue = tagged.map((id) => ({ id, by: 'you' }))
+        else {
+          setActivity('Working out who this is for…')
+          const r = await api.team.route(cur.id, groupHistory(cur))
+          setActivity(null)
+          queue = r.answer.map((id) => ({ id, by: 'you' }))
+          if (!queue.length) {
+            setTeamDone('Nobody here seems to be the one for this. Tag a member with @ to ask them.')
+            return
+          }
+        }
+      }
+      const spoke: string[] = []
+      let turns = 0
+      while (queue.length && turns < GROUP_TURNS && !teamStop.current) {
+        const t = queue.shift()!
+        turns++
+        const text = await memberTurn(t.id, t.by, t.note)
+        spoke.push(t.id)
+        // a member who tags another hands to them (each member answers at most twice in a round)
+        const asker = roleById(t.id)?.name ?? 'A member'
+        for (const id of mentionsIn(text, members))
+          if (id !== t.id && !queue.some((q) => q.id === id) && spoke.filter((x) => x === id).length < 2) queue.push({ id, by: asker })
+      }
+      if (teamStop.current) setTeamDone('Stopped.')
+      else if (queue.length) setTeamDone(`Paused after ${GROUP_TURNS} turns: ${queue.map((q) => roleById(q.id)?.name).join(', ')} still asked. Tag them to carry on.`)
+      // who else may be needed: offered, never left out without the user knowing (not after asking those already)
+      if (!teamStop.current && !ask && chatRef.current) {
+        const more = await api.team.also(chatRef.current.id, groupHistory(chatRef.current), spoke).catch(() => [])
+        setAlso(more)
+      }
+    } catch (e) {
+      setTeamDone(cleanError(e))
+    } finally {
+      setActivity(null)
+      setTeamBusy(false)
+      const done = chatRef.current
+      const users = done?.messages.filter((m) => m.role === 'user') ?? []
+      const lastText = [...(done?.messages ?? [])].reverse().find((m) => m.role === 'assistant' && m.text)?.text
+      if (done && !done.titled && users.length === 1 && lastText) void nameChat(done.id, users[0]!.text, lastText)
+    }
+  }
+
   // Something the chat beside sent here: answer it right away (or keep it in the box if this chat is busy).
   const deliverRef = useRef<(from: HandOff) => void>(() => undefined)
   deliverRef.current = (from: HandOff): void => {
@@ -645,6 +781,7 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
 
   const stop = (): void => {
     teamStop.current = true
+    if (ccMember.current) void api.claudeCode.stop(ccMember.current)
     if (isClaude && chat) return void api.claudeCode.stop(chat.id)
     if (pending) void api.reply.stop(pending.requestId)
   }
@@ -680,6 +817,16 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
   const role = useRole(chat ? chat.roleId : newRole)
   const team = isClaude ? undefined : chat ? chat.team : newTeam
   const roleById = (id: string | undefined): RoleEntity | undefined => (id ? roles.find((r) => r.id === id) : undefined)
+  // the @ picker in a tag-mode group: members whose name starts with what follows the last @
+  const mention = (() => {
+    const t = chat ? chat.team : newTeam
+    if (!t || t.mode !== 'tag') return null
+    const m = /(?:^|\s)@([^@\n]{0,30})$/.exec(draft)
+    if (!m) return null
+    const q = m[1]!.toLowerCase()
+    const list = t.members.map((id) => roleById(id)).filter((r): r is RoleEntity => !!r && r.name.toLowerCase().startsWith(q.trimStart()) && r.name.toLowerCase() !== q.trim())
+    return list.length ? list : null
+  })()
   const lastReply = messages.reduce((at, m, i) => (m.role === 'assistant' && m.text && !m.cc ? i : at), -1)
   return (
     <main
@@ -780,7 +927,11 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
             {team && (
               <div className="role-hello">
                 <p>{team.purpose}</p>
-                <p className="team-hello-note">Send a task: the members talk it through and hand work to each other until it is done, or they need you.</p>
+                <p className="team-hello-note">
+                  {team.mode === 'tag'
+                    ? 'Tag a member with @ to talk to them. A message that tags nobody goes to whoever it is for, and anyone else who may be needed is offered after.'
+                    : 'Send a task: the members talk it through and hand work to each other until it is done, or they need you.'}
+                </p>
               </div>
             )}
             {role && (
@@ -856,8 +1007,44 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
                 }
               />
             ))}
-            {team && teamBusy && !pending && <div className="team-status working">Deciding who speaks next…</div>}
+            {team && teamBusy && !pending && !ccMember.current && <div className="team-status working">{team.mode === 'tag' ? (activity ?? 'Working out who this is for…') : 'Deciding who speaks next…'}</div>}
             {team && !teamBusy && teamDone && <div className="team-status">{teamDone}</div>}
+            {team && !teamBusy && also.length > 0 && (
+              <div className="team-also">
+                <span className="team-also-label">{also.some((a) => a.level === 'needed') ? 'May also be needed' : 'Could also help'}</span>
+                {also
+                  .filter((a) => a.level === 'needed' || showMaybe || !also.some((x) => x.level === 'needed'))
+                  .map((a) => {
+                    const r = roleById(a.roleId)
+                    return r ? (
+                      <div key={a.roleId} className={`team-also-item ${a.level}`} style={{ ['--role' as string]: r.identity.color }}>
+                        <RoleBot identity={r.identity} replies={r.replies} size={22} />
+                        <span className="team-also-text">
+                          <b>{r.name}</b> {a.why}
+                        </span>
+                        <button className="btn small" onClick={() => void runTagged([a])}>
+                          Ask {r.name}
+                        </button>
+                      </div>
+                    ) : null
+                  })}
+                <div className="team-also-actions">
+                  {also.some((a) => a.level === 'needed') && also.some((a) => a.level === 'maybe') && !showMaybe && (
+                    <button className="link" onClick={() => setShowMaybe(true)}>
+                      {also.filter((a) => a.level === 'maybe').length} more could help
+                    </button>
+                  )}
+                  {also.filter((a) => a.level === 'needed').length > 1 && (
+                    <button className="link" onClick={() => void runTagged(also.filter((a) => a.level === 'needed'))}>
+                      Ask the {also.filter((a) => a.level === 'needed').length} needed
+                    </button>
+                  )}
+                  <button className="link muted" onClick={() => setAlso([])}>
+                    Not now
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -869,6 +1056,26 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
             <button className="btn primary" onClick={() => void api.openUsage()}>
               Manage usage
             </button>
+          </div>
+        )}
+        {mention && (
+          <div className="mention-pop" role="listbox" aria-label="Tag a member">
+            {mention.map((r) => (
+              <button
+                key={r.id}
+                role="option"
+                aria-selected={false}
+                onMouseDown={(e) => {
+                  e.preventDefault()
+                  setDraft(draft.replace(/@([^@\n]*)$/, `@${r.name} `))
+                  setTimeout(() => paneRef.current?.querySelector<HTMLTextAreaElement>('.composer textarea')?.focus(), 0)
+                }}
+              >
+                <RoleBot identity={r.identity} replies={r.replies} size={20} />
+                <b>{r.name}</b>
+                <span>{r.engine === 'claude' ? 'Claude Code' : r.tagline}</span>
+              </button>
+            ))}
           </div>
         )}
         <Composer
@@ -896,7 +1103,9 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
                 ? 'Say what to do with it (optional), then send'
                 : p.model
                 ? team
-                  ? 'Message the team'
+                  ? team.mode === 'tag'
+                    ? 'Message the group (@ to tag someone)'
+                    : 'Message the team'
                   : `Ask ${role ? role.name : 'Plotter'} anything`
                 : p.modelError
                   ? 'Plotter could not load its model'

@@ -100,6 +100,13 @@ export const VISIBILITY: VisibilityGroup[] = [
         tradeoff: `${MOVED} The public stand-in has no Lab: chats are not asked to note ideas.`
       },
       {
+        name: 'Claude Code members in group chats',
+        now: 'private',
+        advice: 'keep-private',
+        why: 'A Claude Code role working in a group chat: its own session in the group’s folder, given only the group messages since its last turn.',
+        tradeoff: `${MOVED} The public stand-in has no Claude Code members in groups.`
+      },
+      {
         name: 'Company page and org chart',
         now: 'private',
         advice: 'keep-private',
@@ -183,6 +190,13 @@ export const VISIBILITY: VisibilityGroup[] = [
         advice: 'must-public',
         why: 'How a role says it lacked a tool, the "Suggest tools" review, making a role by chatting, the draft of a combined role, and a role’s per-project tools and notes in its replies are ChatGPT parts (main/assistant.ts, main/openai.ts, main/projects.ts).',
         tradeoff: 'Shows how roles are reviewed and combined, not your roles themselves.'
+      },
+      {
+        name: 'Who answers in a group chat',
+        now: 'public',
+        advice: 'must-public',
+        why: 'ChatGPT decides who an untagged group message is for, and after a round which members who sat it out may be needed (main/team.ts); the routing tests are in main/routeTests.ts.',
+        tradeoff: 'Shows how a group picks who answers, not your roles or chats.'
       },
       {
         name: 'Lab tests run by ChatGPT',

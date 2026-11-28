@@ -8418,3 +8418,150 @@ body,
   flex: 1;
   font-size: 13px;
 }
+
+/* ======================================================================
+   Group chats where members answer when tagged
+   ====================================================================== */
+.composer-wrap {
+  position: relative;
+}
+.mention-pop {
+  position: absolute;
+  left: 24px;
+  bottom: calc(100% - 4px);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  min-width: 260px;
+  max-width: 420px;
+  padding: 4px;
+  border: 1px solid var(--sand);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+.mention-pop button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13.5px;
+  text-align: left;
+  cursor: pointer;
+}
+.mention-pop button:hover {
+  background: var(--bubble);
+}
+.mention-pop button span {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.team-also {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 4px 0 18px 44px;
+  padding: 10px 12px;
+  border: 1px dashed var(--sand-strong);
+  border-radius: 12px;
+}
+.team-also-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+}
+.team-also-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+.team-also-text {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.45;
+}
+.team-also-text b {
+  margin-right: 4px;
+}
+.team-also-actions {
+  display: flex;
+  gap: 14px;
+  font-size: 13px;
+}
+.team-also-actions .muted {
+  color: var(--muted);
+}
+.team-bubble.cc {
+  width: 100%;
+}
+.team-bubble.cc .cc-turn {
+  margin: 0;
+}
+.team-modes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.team-modes button {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--sand);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.team-modes button b {
+  font-size: 13.5px;
+}
+.team-modes button span {
+  font-size: 12px;
+  color: var(--muted);
+}
+.team-modes button.on {
+  border-color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--ink);
+}
+.team-modes button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.team-pick-cc {
+  margin-left: 2px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #18181b;
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 600;
+}
+.team-folder {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.team-folder-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+.team-also-item.maybe {
+  opacity: 0.85;
+}

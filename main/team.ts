@@ -1,4 +1,4 @@
-import { ROLE_TOOL_INFO, type Chat, type HistoryItem, type RoleEntity, type TeamTurn } from '../shared/api'
+import { ROLE_TOOL_INFO, type Chat, type HistoryItem, type RoleEntity, type TeamAlso, type TeamRoute, type TeamTurn } from '../shared/api'
 import { getRole, listRoles } from '@private/main/roles'
 import { getCompany, roleTeam } from '@private/main/company'
 import { primaryModel, streamRound, toInput } from './openai'
@@ -13,7 +13,12 @@ import { primaryModel, streamRound, toInput } from './openai'
 export function memberLine(r: RoleEntity): string {
   const t = roleTeam(r)
   const team = t ? [t.manager ? `reports to ${t.manager.replace(/, who .*$/, '')}` : '', ...t.relations.map((x) => x.replace(/\byou\b/g, r.name).replace(/^You /, `${r.name} `))].filter(Boolean).join('; ') : ''
-  const tools = r.tools.length ? r.tools.map((x) => ROLE_TOOL_INFO[x].label).join(', ') : 'none (it can write and review, but cannot run or test anything)'
+  const tools =
+    r.engine === 'claude'
+      ? 'Claude Code in the project folder (reads and changes the code, runs commands and tests)'
+      : r.tools.length
+        ? r.tools.map((x) => ROLE_TOOL_INFO[x].label).join(', ')
+        : 'none (it can write and review, but cannot run or test anything)'
   return `- ${r.name}: ${r.tagline || r.purpose.slice(0, 140)}${r.responsibilities.length ? ` Responsible for: ${r.responsibilities.slice(0, 5).join('; ')}.` : ''} Tools: ${tools}.${team ? ` (${team})` : ''}`
 }
 
@@ -22,8 +27,8 @@ export function memberLine(r: RoleEntity): string {
  * is shortened the same way however old it is, so the text up to the newest message stays the same from turn to
  * turn (and can be cached); the newest message comes after it at more length.
  */
-export function transcript(history: HistoryItem[], max = 30): { earlier: string; latest: string } {
-  const name = (id?: string): string => (id ? (getRole(id)?.name ?? 'A member') : 'Assistant')
+export function transcript(history: HistoryItem[], max = 30, nameOf: (id: string) => string | undefined = (id) => getRole(id)?.name): { earlier: string; latest: string } {
+  const name = (id?: string): string => (id ? (nameOf(id) ?? 'A member') : 'Assistant')
   const clean = (t: string): string =>
     t
       .replace(/\[\[tool:[^\]]+\]\]/g, '')
@@ -88,8 +93,8 @@ export async function nextSpeaker(chat: Chat, history: HistoryItem[], turnsLeft:
 
 /** The roles a purpose needs, picked by ChatGPT from the ones the user made. */
 export async function suggestMembers(purpose: string): Promise<string[]> {
-  // Claude Code roles work in their own chats, not in (ChatGPT) team chats
-  const roles = listRoles().filter((r) => !r.retired && r.engine !== 'claude')
+  // Claude Code roles too (they join groups where members answer when tagged; the dialog leaves them out otherwise)
+  const roles = listRoles().filter((r) => !r.retired && !r.builtin)
   if (!roles.length || !purpose.trim()) return []
   const j = await askJson(
     'You pick which of the user\'s roles should be in a team chat for a purpose: only those whose job the work needs (usually 2 to 4). Answer with JSON only: {"members": ["<role name>", ...]}',
@@ -99,3 +104,81 @@ export async function suggestMembers(purpose: string): Promise<string[]> {
   const names = Array.isArray(j['members']) ? (j['members'] as unknown[]).map((x) => String(x).toLowerCase()) : []
   return roles.filter((r) => names.includes(r.name.toLowerCase())).map((r) => r.id)
 }
+
+/* ------------------------------------------------------------------ tag mode: who answers, who else is needed */
+
+const ROUTE = `You route messages in a group chat at the user's company. The members are roles (some are ChatGPT, some are Claude Code working in the project's folder). Members answer only when a message is for them.
+The user's newest message tags nobody. Decide who should answer it:
+- the member whose job the message is about, or who was just working with the user on it (a follow-up like "and on mobile?" goes to whoever was doing that work);
+- several members when the message asks for several jobs, asks what everyone thinks, or asks about another member's work (asking for an opinion on what X said goes to the member whose job it is to judge it, not to X);
+- also a member whose work or decision is directly needed to answer well.
+Leaving out a member who should answer is worse than including one more; but do not include a member only because the topic is loosely near their field.
+Answer with JSON only: {"answer": ["<member name>", ...], "why": "<one short line>"}`
+
+const ALSO = `A round of a group chat at the user's company just ended. Some members took part; the others did not. For each member who did not take part, decide whether they should be told or asked now.
+"needed" when:
+- their own work is affected by what was said or done (an interface, a file, a design, copy, data or a decision they own changed, or now depends on them),
+- or they own a check that this kind of work needs and nobody here has done it: only checks that apply to it (a code change needs code review and testing; new personal data needs a privacy check; wording needs no code review),
+- or the user asked something their job should answer and nobody with that job answered.
+"maybe" when they could add something useful, but nothing waits on them.
+Leave out members the round has nothing to do with. Missing a member whose work is affected is worse than one extra suggestion.
+Answer with JSON only: {"also": [{"name": "<member name>", "level": "needed" | "maybe", "why": "<one short line: what they should look at>"}]} (an empty list when nobody is needed)`
+
+/** The roles in a group, and how to name a message's writer (role ids, or fixtures in the routing tests). */
+export interface GroupView {
+  purpose: string
+  members: RoleEntity[]
+  /** For the prompt cache: the chat's id. */
+  key: string
+}
+
+const byName = (members: RoleEntity[], name: unknown): RoleEntity | undefined => {
+  const n = String(name ?? '').trim().toLowerCase()
+  return members.find((m) => m.name.toLowerCase() === n) ?? members.find((m) => n && (n.includes(m.name.toLowerCase()) || m.name.toLowerCase().includes(n)))
+}
+
+/** Who answers a message that tags nobody. One member: no call needed. */
+export async function routeIn(g: GroupView, history: HistoryItem[], tag = 'route'): Promise<TeamRoute> {
+  if (g.members.length <= 1) return { answer: g.members.map((m) => m.id) }
+  const t = transcript(history, 20, (id) => g.members.find((m) => m.id === id)?.name)
+  const j = await askJson(ROUTE, `Purpose of this chat: ${g.purpose}\nMembers:\n${g.members.map(memberLine).join('\n')}\n\nThe conversation so far:\n${t.earlier || '(nothing yet)'}\n\nThe newest message:\n${t.latest}`, tag, `team:${g.key}:router`)
+  const answer = (Array.isArray(j['answer']) ? (j['answer'] as unknown[]) : [])
+    .map((n) => byName(g.members, n)?.id)
+    .filter((id): id is string => !!id)
+  return { answer: [...new Set(answer)], ...(j['why'] ? { why: String(j['why']).slice(0, 200) } : {}) }
+}
+
+/** After a round: members who did not take part but may be needed. Nobody left out: no call. */
+export async function alsoIn(g: GroupView, history: HistoryItem[], spoke: string[], tag = 'also'): Promise<TeamAlso[]> {
+  const rest = g.members.filter((m) => !spoke.includes(m.id))
+  if (!rest.length) return []
+  const nameOf = (id: string): string | undefined => g.members.find((m) => m.id === id)?.name
+  const start = history.map((h) => h.role).lastIndexOf('user')
+  const before = transcript(history.slice(0, Math.max(0, start)), 16, nameOf).earlier
+  const clean = (s: string): string => s.replace(/\[\[tool:[^\]]+\]\]/g, '').replace(/```[\s\S]*?(```|$)/g, (m) => `[code, ${m.split('\n').length} lines]`).trim()
+  const round = history
+    .slice(Math.max(0, start))
+    .map((h) => `### ${h.role === 'user' ? 'User' : (h.speaker ? nameOf(h.speaker) : undefined) ?? 'A member'}\n${clean(h.text).slice(0, 1500)}`)
+    .join('\n\n')
+  const j = await askJson(
+    ALSO,
+    `Purpose of this chat: ${g.purpose}\nMembers:\n${g.members.map(memberLine).join('\n')}\n\nEarlier in the chat:\n${before || '(nothing)'}\n\nThis round:\n${round}\n\nTook part in this round: ${g.members.filter((m) => spoke.includes(m.id)).map((m) => m.name).join(', ') || 'nobody'}\nDid not: ${rest.map((m) => m.name).join(', ')}`,
+    tag,
+    `team:${g.key}:router`
+  )
+  const list = Array.isArray(j['also']) ? (j['also'] as Record<string, unknown>[]) : []
+  const out: TeamAlso[] = []
+  for (const x of list) {
+    const m = byName(rest, x?.['name'])
+    if (m && !out.some((o) => o.roleId === m.id)) out.push({ roleId: m.id, why: String(x['why'] ?? '').slice(0, 200), level: x['level'] === 'maybe' ? 'maybe' : 'needed' })
+  }
+  // the needed ones first
+  return [...out.filter((o) => o.level === 'needed'), ...out.filter((o) => o.level === 'maybe')]
+}
+
+/** A group chat as the router sees it (its members that still exist). */
+export const groupOf = (chat: Chat): GroupView => ({
+  purpose: chat.team?.purpose ?? chat.title,
+  members: (chat.team?.members ?? []).map((id) => getRole(id)).filter((r): r is RoleEntity => !!r),
+  key: chat.id
+})

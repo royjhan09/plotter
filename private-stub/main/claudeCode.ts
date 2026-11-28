@@ -15,7 +15,13 @@ export async function sendToClaude(_chatId: string, _messageId: string, _emit: (
   throw new Error('Claude Code chats are not part of this build.')
 }
 
+export async function sendMember(_chatId: string, _messageId: string, _roleId: string, _by: string, _emit: (u: ClaudeCodeUpdate) => void): Promise<void> {
+  throw new Error('Claude Code members are not part of this build.')
+}
+
 export function stopClaude(_chatId: string): void {}
+
+export function forgetGroup(_chatId: string): void {}
 
 export function stopAllClaude(): void {}
 

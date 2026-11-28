@@ -95,6 +95,8 @@ export function installDevBridge(): void {
     },
     team: {
       next: (chatId, history, turnsLeft) => call('team:next', chatId, history, turnsLeft),
+      route: (chatId, history) => call('team:route', chatId, history),
+      also: (chatId, history, spoke) => call('team:also', chatId, history, spoke),
       suggest: (purpose) => call('team:suggest', purpose)
     },
     company: {
@@ -221,6 +223,7 @@ export function installDevBridge(): void {
       folders: () => call('claudeCode:folders'),
       pickFolder: () => call('claudeCode:pickFolder'),
       send: (chatId, messageId, beside) => call('claudeCode:send', chatId, messageId, beside),
+      sendMember: (chatId, messageId, roleId, by) => call('claudeCode:sendMember', chatId, messageId, roleId, by),
       stop: (chatId) => call('claudeCode:stop', chatId),
       openFolder: (folder) => call('claudeCode:openFolder', folder),
       suggestFolder: (name) => call('claudeCode:suggestFolder', name),

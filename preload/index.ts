@@ -44,6 +44,8 @@ const api: PlotterApi = {
   },
   team: {
     next: (chatId, history, turnsLeft) => ipcRenderer.invoke('team:next', chatId, history, turnsLeft),
+    route: (chatId, history) => ipcRenderer.invoke('team:route', chatId, history),
+    also: (chatId, history, spoke) => ipcRenderer.invoke('team:also', chatId, history, spoke),
     suggest: (purpose) => ipcRenderer.invoke('team:suggest', purpose)
   },
   company: {
@@ -169,6 +171,7 @@ const api: PlotterApi = {
     folders: () => ipcRenderer.invoke('claudeCode:folders'),
     pickFolder: () => ipcRenderer.invoke('claudeCode:pickFolder'),
     send: (chatId, messageId, beside) => ipcRenderer.invoke('claudeCode:send', chatId, messageId, beside),
+    sendMember: (chatId, messageId, roleId, by) => ipcRenderer.invoke('claudeCode:sendMember', chatId, messageId, roleId, by),
     stop: (chatId) => ipcRenderer.invoke('claudeCode:stop', chatId),
     openFolder: (folder) => ipcRenderer.invoke('claudeCode:openFolder', folder),
     suggestFolder: (name) => ipcRenderer.invoke('claudeCode:suggestFolder', name),

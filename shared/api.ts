@@ -114,6 +114,29 @@ export interface Chat {
 export interface TeamSetup {
   purpose: string
   members: string[]
+  /**
+   * tag: only the members a message tags answer (an untagged message goes to whoever it is for); auto: the
+   * members take turns, a facilitator picking who speaks next (team chats made before tag mode work this way).
+   */
+  mode?: 'tag' | 'auto'
+  /** Where Claude Code members work (a group with one needs a folder). */
+  folder?: string
+  /** What Claude Code members may do there: edit files, or only read and answer. */
+  ccMode?: ClaudeCodeMode
+}
+
+/** Who answers a group message that tags nobody. */
+export interface TeamRoute {
+  answer: string[]
+  why?: string
+}
+
+/** A member who did not take part in a round but may be needed: their part is affected, or they could add something. */
+export interface TeamAlso {
+  roleId: string
+  why: string
+  /** needed: their work is affected or a check they own is due; maybe: they could add something (shown folded). */
+  level: 'needed' | 'maybe'
 }
 
 /** Who speaks next in a team chat (from the facilitator), or that the team is done for now. */
@@ -877,6 +900,10 @@ export interface PlotterApi {
     next: (chatId: string, history: HistoryItem[], turnsLeft: number) => Promise<TeamTurn>
     /** ChatGPT picks the roles a purpose needs (role ids). */
     suggest: (purpose: string) => Promise<string[]>
+    /** Tag mode: who should answer a message that tags nobody. */
+    route: (chatId: string, history: HistoryItem[]) => Promise<TeamRoute>
+    /** Tag mode, after a round: members who did not take part but may be needed. */
+    also: (chatId: string, history: HistoryItem[], spoke: string[]) => Promise<TeamAlso[]>
   }
   lab: {
     get: () => Promise<LabState>
@@ -1014,6 +1041,9 @@ export interface PlotterApi {
     /** Runs the chat's last user message; the reply is the message with this id (already saved, cc.state running). */
     /** beside: the chat open on the other side, when the user typed the message (so Claude Code may send to it). */
     send: (chatId: string, messageId: string, beside?: BesideChat) => Promise<void>
+    /** A Claude Code member's turn in a group chat: the reply is the message with this id. by: who tagged it. */
+    sendMember: (chatId: string, messageId: string, roleId: string, by: string) => Promise<void>
+    /** Stops a chat's run (for a group member: memberKey(chatId, roleId)). */
     stop: (chatId: string) => Promise<void>
     openFolder: (folder: string) => Promise<void>
     /** Where a new project folder with this name would go (next to recent projects; not created yet). */
