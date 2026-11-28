@@ -370,7 +370,7 @@ const ROLE_PROMPT = (r: RoleEntity): string =>
     r.boundaries ? `You do not: ${r.boundaries}` : '',
     r.style ? `How you talk: ${r.style}` : '',
     teamLine(r),
-    `Your tools: ${r.tools.length ? r.tools.map((t) => ROLE_TOOL_INFO[t].label).join(', ') : 'none (answer from what you know)'}. Stay in this role in every reply. When asked for something outside it, say so in a line and help as far as the role allows, or say who or what would be better placed.`,
+    `Your tools: ${r.tools.length ? r.tools.map((t) => ROLE_TOOL_INFO[t].label).join(', ') : 'none (answer from what you know)'}.${r.skillIds?.length ? ' Your skills are listed below: follow the one that matches a job, as a professional follows their own practice.' : ''} Stay in this role in every reply. When asked for something outside it, say so in a line and help as far as the role allows, or say who or what would be better placed.`,
     wishLine(r)
   ]
     .filter(Boolean)
@@ -528,7 +528,9 @@ export async function buildSetup(req: SendRequest, lab?: LabReply): Promise<{ pa
       guide: connected.instructions,
       tools: connected.tools
     })
-  const market = can('market', true) || req.modes?.tools?.length ? await marketTools() : { tools: [], instructions: '' }
+  // a role with its own tools gets only those; others (and roles from before) keep the all-or-nothing switch
+  const roleTools = role?.marketIds?.length ? role.marketIds : undefined
+  const market = roleTools || can('market', true) || req.modes?.tools?.length ? await marketTools(roleTools && !req.modes?.tools?.length ? roleTools : undefined) : { tools: [], instructions: '' }
   if (market.tools.length && req.modes?.tools?.length) {
     // tools the user picked for this message: there from the start
     add('market', market.instructions)
@@ -560,7 +562,8 @@ export async function buildSetup(req: SendRequest, lab?: LabReply): Promise<{ pa
       }))
     })
   // skills: their names and descriptions always (as in ChatGPT); a skill's instructions only when opened
-  const skills = can('skills', true) ? skillSetup() : null
+  // a role with its own skills sees only those (and pays only for their lines); others keep the switch
+  const skills = role?.skillIds?.length ? skillSetup(role.skillIds) : can('skills', true) ? skillSetup() : null
   if (skills) {
     add('skills', skills.instructions)
     use('skills', skills.tools)

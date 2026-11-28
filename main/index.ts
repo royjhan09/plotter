@@ -7,6 +7,7 @@ import { getLibraryItem, listLibrary } from '@private/main/library'
 import { clearImageKey, imageKeyStatus, setImageKey, setImageOn, setImageOptions } from '@private/main/images'
 import { addNote, createProject, editNote, listProjects, removeNote, removeProject, removeProjectRole, renameProject, setProjectBrand, setProjectKit, setProjectRole } from './projects'
 import { addWishes, cleanDraft, getRole, grantWish, listRoles, removeRole, saveCombined, saveRole, setRetired } from '@private/main/roles'
+import { addIdeas, dismissIdea, linkRole, roleKit } from '@private/main/roleKit'
 import { combineSuggestions, dismissCombo, getCompany, labelLine, linkRoles, mergeTradeoff, noteHandoff, placeRole, renameCompany, replaceInChart, setPrefer, unlinkRoles } from '@private/main/company'
 import { addPieceFromReply } from '@private/main/kitOps'
 import { BROWSER, captureUrl, capturePage, saveMarkup, setupBrowser } from '@private/main/browser'
@@ -15,7 +16,7 @@ import { addUseWhen, createBrand, createKit, getBrand, getKit, kitFolder, listBr
 import { alsoIn, groupOf, nextSpeaker, routeIn, suggestMembers } from './team'
 import { runRouteTests } from './routeTests'
 import { usageLog } from './openai'
-import { draftCombinedRole, draftRole, forgetModel, roleInterview, suggestRoleTools, generateProjectBrief, generateSuggestion, generateTitle, primaryModel, ReplyError } from './openai'
+import { draftCombinedRole, draftRole, forgetModel, roleInterview, suggestRoleKit, suggestRoleTools, generateProjectBrief, generateSuggestion, generateTitle, primaryModel, ReplyError } from './openai'
 import { buildSetup, reply } from './assistant'
 import { hire, runRecruit, worthRecruiting } from './recruit'
 import { onPythonStatus, pythonStatus, PY_SCHEME } from './python'
@@ -255,6 +256,16 @@ export const handlers: Record<string, (...args: never[]) => unknown> = {
     const tools = await suggestRoleTools(role, (role.wishes ?? []).filter((w) => w.from === 'work').map((w) => `${w.tool}: ${w.why}`))
     return addWishes(role.id, tools, 'review') ?? role
   },
+  'roles:kit': (id: string) => roleKit(String(id)),
+  'roles:link': (id: string, kind: string, ref: string, on: boolean) => linkRole(String(id), kind === 'plugin' ? 'plugin' : kind === 'tool' ? 'tool' : 'skill', String(ref), !!on),
+  'roles:suggestMore': async (id: string) => {
+    const role = getRole(String(id))
+    if (!role) throw new Error('No such role.')
+    const kit = roleKit(role.id)
+    const ideas = await suggestRoleKit(role, { skills: kit.skills.map((s) => s.name), tools: kit.tools.map((t) => t.name) })
+    return addIdeas(role.id, ideas)
+  },
+  'roles:dismissIdea': (id: string, name: string) => dismissIdea(String(id), String(name ?? '')),
   'roles:grantWish': (id: string, tool: string, give: boolean) => grantWish(String(id), String(tool ?? ''), !!give),
   'roles:combineDraft': async (a: string, b: string) => {
     const ra = getRole(String(a))

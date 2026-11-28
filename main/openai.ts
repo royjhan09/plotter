@@ -589,6 +589,28 @@ Suggest only tools it does not have and its job clearly needs, at most 4, each w
   return Array.isArray(j['tools']) ? (j['tools'] as Record<string, unknown>[]).map((x) => ({ tool: String(x['tool'] ?? ''), why: String(x['why'] ?? '') })).filter((x) => x.tool) : []
 }
 
+/**
+ * Skills and tools that would be good for a role's job (one call, on request). A skill is a skilled professional's
+ * know-how written down (their steps, standards, checks), so it names know-how the job needs that the role lacks;
+ * a tool reaches a service or does work the role cannot. What it already has is listed so it is not suggested again.
+ */
+export async function suggestRoleKit(role: RoleDraft, have: { skills: string[]; tools: string[] }): Promise<{ kind: 'skill' | 'tool'; name: string; why: string; covers?: string }[]> {
+  const j = await oneJson(
+    `You suggest what a ChatGPT "role" (an assistant with one job) should have to do its job like a skilled professional.
+Skills are a professional's know-how written down: the steps they follow, what a good result looks like, the checks they make. Suggest skills for the parts of this job where such know-how matters, each with what it should cover. Name each like "release-notes" (lowercase words with hyphens).
+Tools reach a service or do what the role cannot on its own (e.g. GitHub, Stripe, a calendar). Suggest a tool only when the job clearly works with one; name the service.
+At most 3 skills and 2 tools, the most useful first. Do not suggest what it already has. Answer with JSON only: {"skills": [{"name": "...", "why": "<one line>", "covers": "<what the skill should cover, one line>"}], "tools": [{"name": "...", "why": "<one line>"}]}`,
+    `${roleText(role)}
+It already has: skills ${have.skills.join(', ') || 'none'}; tools ${have.tools.join(', ') || 'none'}.`,
+    'suggest-kit'
+  )
+  const list = (k: string): Record<string, unknown>[] => (Array.isArray(j[k]) ? (j[k] as Record<string, unknown>[]) : [])
+  return [
+    ...list('skills').slice(0, 3).map((x) => ({ kind: 'skill' as const, name: String(x['name'] ?? '').slice(0, 60), why: String(x['why'] ?? '').slice(0, 240), covers: String(x['covers'] ?? '').slice(0, 300) })),
+    ...list('tools').slice(0, 2).map((x) => ({ kind: 'tool' as const, name: String(x['name'] ?? '').slice(0, 60), why: String(x['why'] ?? '').slice(0, 240) }))
+  ].filter((x) => x.name)
+}
+
 /** ChatGPT drafts one role that does what two roles did: a new name, both jobs, both tool sets, and a look grown from both. */
 export async function draftCombinedRole(a: RoleDraft, b: RoleDraft): Promise<Partial<RoleDraft>> {
   const j = await oneJson(

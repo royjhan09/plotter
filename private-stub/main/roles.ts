@@ -27,3 +27,6 @@ export const saveCombined = (_a: RoleEntity, _b: RoleEntity, _draft: RoleDraft):
   throw new Error(OFF)
 }
 export const recruiter = (): RoleEntity | undefined => undefined
+export const patchRole = (_id: string, _patch: unknown): RoleEntity => {
+  throw new Error('Roles are not part of this build.')
+}

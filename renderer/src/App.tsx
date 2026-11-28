@@ -167,6 +167,8 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [marketOpen, setMarketOpen] = useState(false)
   const [kitsOpen, setKitsOpen] = useState(false)
+  // where the Market opens when another page sends you there (a service's page, or a search)
+  const [marketStart, setMarketStart] = useState<{ popularId?: string; query?: string } | null>(null)
   // Roles: ChatGPT chats with a job and their own look
   const [rolesOpen, setRolesOpen] = useState(false)
   const [companyOpen, setCompanyOpen] = useState(false)
@@ -720,7 +722,8 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
 
       {marketOpen && !settingsOpen && (
         <Market
-          onClose={() => setMarketOpen(false)}
+          {...(marketStart ? { start: marketStart } : {})}
+          onClose={() => (setMarketOpen(false), setMarketStart(null))}
           onTryInChat={(text) => {
             // a new chat with the prompt typed in (not sent), as ChatGPT's "Try in chat"
             setMarketOpen(false)
@@ -761,7 +764,24 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
           }}
         />
       )}
-      {rolesOpen && !settingsOpen && !marketOpen && !kitsOpen && <Roles onClose={() => setRolesOpen(false)} onStartChat={(id) => newRoleChat(id)} />}
+      {rolesOpen && !settingsOpen && !marketOpen && !kitsOpen && (
+        <Roles
+          onClose={() => setRolesOpen(false)}
+          onStartChat={(id) => newRoleChat(id)}
+          onTryInChat={(text) => {
+            // making a skill for a role: a new chat with the request typed in (not sent)
+            setRolesOpen(false)
+            setSideNew(side, 'chatgpt', text)
+            setSideId(side, null)
+          }}
+          onOpenMarket={(open) => {
+            // a tool for a role: its page in the Market, or a search there
+            setRolesOpen(false)
+            setMarketStart(open)
+            setMarketOpen(true)
+          }}
+        />
+      )}
 
       {openProject && !settingsOpen && !marketOpen && !kitsOpen && !rolesOpen && (
         <ProjectPage

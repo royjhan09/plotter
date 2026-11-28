@@ -7,8 +7,9 @@ import { approveCall } from '@private/main/approvals'
  * Hands the tools connected in the Market to a ChatGPT reply, as function tools (public: it is part of how
  * Plotter uses ChatGPT). The Market itself, where tools are registered and stored, is private.
  */
-export async function marketTools(): Promise<{ tools: LocalTool[]; instructions: string }> {
-  const { functions, tools: connected, unavailable } = await connectedFunctions()
+/** The Market tools a chat gets: every connected one, or only a role's own (by tool id). */
+export async function marketTools(only?: string[]): Promise<{ tools: LocalTool[]; instructions: string }> {
+  const { functions, tools: connected, unavailable } = await connectedFunctions(only)
   if (!connected.length) return { tools: [], instructions: '' }
   const used = new Set<string>()
   const unique = (n: string): string => {

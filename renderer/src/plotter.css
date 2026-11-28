@@ -7621,6 +7621,70 @@ body,
   gap: 8px;
   margin-top: 10px;
 }
+/* a role's own skills and tools: removable chips, a picker of what you have, and what would be good to have */
+.role-kit {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: 6px;
+  border-top: 1px solid var(--sand);
+}
+.role-kit-items,
+.role-kit-pick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.role-kit-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 4px 0 10px;
+  border: 1px solid var(--sand);
+  border-radius: 999px;
+  background: var(--paper);
+  font-size: var(--type-sm);
+  color: var(--ink);
+}
+.role-kit-chip button {
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+.role-kit-chip button:hover {
+  background: var(--sand);
+  color: var(--ink);
+}
+.role-kit-pick {
+  padding: 8px;
+  border-radius: 12px;
+  background: var(--cream);
+}
+.role-kit-pick button {
+  height: 28px;
+  padding: 0 10px;
+  border: 1px dashed var(--sand-strong);
+  border-radius: 999px;
+  background: var(--paper);
+  font: inherit;
+  font-size: var(--type-sm);
+  color: var(--ink);
+  cursor: pointer;
+}
+.role-kit-pick button:hover {
+  border-style: solid;
+}
+.role-kit-none {
+  font-size: var(--type-sm);
+  color: var(--muted);
+}
 .role-wish-list {
   list-style: none;
   margin: 4px 0 0;

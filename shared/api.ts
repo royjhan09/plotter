@@ -453,6 +453,11 @@ export interface RoleEntity {
   replies: number
   /** Tools it said would have helped while working (or a suggestion asked for), newest first. */
   wishes?: RoleWish[]
+  /** Its own skills and Market tools (by id): its chats see only these, not every skill and tool you have. */
+  skillIds?: string[]
+  marketIds?: string[]
+  /** Skills and tools ChatGPT said would be good to have for its job (asked for with Suggest more). */
+  ideas?: RoleIdea[]
   /** What its replies cost, measured: tokens in and out over all replies (for the trade-off of combining). */
   stats?: { replies: number; input: number; output: number }
   /** The roles it was combined from (by name). */
@@ -466,6 +471,39 @@ export interface RoleEntity {
 }
 
 /** A tool a role wished it had: one of Plotter's (it can be given) or an idea Plotter does not have yet. */
+/** A skill or tool that would be good for a role's job, named by ChatGPT when asked. */
+export interface RoleIdea {
+  kind: 'skill' | 'tool'
+  name: string
+  why: string
+  /** For a skill: what it should cover. */
+  covers?: string
+  at: number
+}
+
+/**
+ * Something good for a role to have: a skill or tool you have (to link), one you can add (Plotter's catalogue, a
+ * popular service), or one to make. With why: the words its job shares with it, or what the role asked for.
+ */
+export interface RoleKitSuggestion {
+  kind: 'skill' | 'catalog-skill' | 'plugin' | 'catalog-plugin' | 'tool' | 'popular' | 'make-skill' | 'make-tool'
+  /** The thing's id (skill, plugin, tool, catalogue entry or popular service); none for something to make. */
+  ref?: string
+  name: string
+  why: string
+  /** How it came up: matched to the job, asked for while working, or named by Suggest more. */
+  from: 'match' | 'wish' | 'idea'
+  /** For a skill to make: what it should cover. */
+  covers?: string
+}
+
+/** A role's skills and tools: what it has, and what would be good to have. */
+export interface RoleKit {
+  skills: { id: string; name: string; description: string; maker: string }[]
+  tools: { id: string; name: string; description: string; plugin?: string }[]
+  good: RoleKitSuggestion[]
+}
+
 export interface RoleWish {
   tool: RoleTool | string
   why: string
@@ -1151,6 +1189,14 @@ export interface PlotterApi {
     interview: (messages: { role: 'user' | 'assistant'; text: string }[]) => Promise<{ reply: string; draft?: RoleDraft }>
     /** ChatGPT reviews which tools a role's job needs; the result lands in its wishes. */
     suggestTools: (id: string) => Promise<RoleEntity>
+    /** A role's skills and tools, and what would be good to have (matched to its job; no model call). */
+    kit: (id: string) => Promise<RoleKit>
+    /** Links a skill, Market tool or plugin (its tools and skills) to a role, or unlinks it. */
+    link: (id: string, kind: 'skill' | 'tool' | 'plugin', ref: string, on: boolean) => Promise<RoleEntity>
+    /** ChatGPT names skills and tools that would be good for the role's job (one call); they land in its ideas. */
+    suggestMore: (id: string) => Promise<RoleEntity>
+    /** Dismisses a suggestion (an idea or a wish) by name. */
+    dismissIdea: (id: string, name: string) => Promise<RoleEntity>
     /** Gives a role a tool it wished for (or dismisses the wish). */
     grantWish: (id: string, tool: string, give: boolean) => Promise<RoleEntity>
     /** ChatGPT drafts one role combining two, and what that would change. */

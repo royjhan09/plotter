@@ -82,7 +82,7 @@ export const VISIBILITY: VisibilityGroup[] = [
         name: 'Roles and their looks',
         now: 'private',
         advice: 'keep-private',
-        why: 'The Roles page, where roles are kept, the sprout-bot’s costumes and how it grows with each role.',
+        why: 'The Roles page, where roles are kept, the sprout-bot’s costumes and how it grows with each role; each role’s own skills and tools, and what would be good for its job (matched, asked for while working, or suggested).',
         tradeoff: `${MOVED} The public stand-in has no Roles page, and role chats show the plain sprout.`
       },
       {

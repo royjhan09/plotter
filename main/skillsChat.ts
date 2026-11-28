@@ -1,6 +1,7 @@
 import type { PluginInfo, SkillInfo } from '../shared/api'
 import type { LocalTool } from './openai'
-import { enabledSkills, getSkill, readSkillFile, recordSkillUse, saveSkill, skillCheck } from '@private/main/skills'
+import { enabledSkills, getSkill, listSkills, readSkillFile, recordSkillUse, saveSkill, skillCheck } from '@private/main/skills'
+import { linkSkillToRole } from '@private/main/roleKit'
 import { listPlugins, savePlugin } from '@private/main/plugins'
 import { listMarket } from '@private/main/market'
 
@@ -31,7 +32,8 @@ function saveSkillTool(): LocalTool {
         name: { type: 'string', description: 'lowercase-words-with-hyphens' },
         description: { type: 'string', description: 'What it does and when to use it, in the user\'s words (under 300 characters).' },
         instructions: { type: 'string', description: 'The body of SKILL.md (Markdown).' },
-        files: { type: 'array', items: { type: 'object', properties: { path: { type: 'string', description: 'e.g. references/checklist.md or scripts/tally.py' }, content: { type: 'string' } }, required: ['path', 'content'] } }
+        files: { type: 'array', items: { type: 'object', properties: { path: { type: 'string', description: 'e.g. references/checklist.md or scripts/tally.py' }, content: { type: 'string' } }, required: ['path', 'content'] } },
+        for_role: { type: 'string', description: "Only when the skill is made for one of the user's roles: that role's name, so the skill is linked to it." }
       },
       required: ['name', 'description', 'instructions']
     },
@@ -43,8 +45,9 @@ function saveSkillTool(): LocalTool {
           'chat'
         )
         // the check on what was saved: common mistakes to fix (save again under the same name)
+        const linked = typeof args['for_role'] === 'string' && args['for_role'].trim() ? linkSkillToRole(String(args['for_role']), s.id) : undefined
         const warnings = skillCheck({ name: String(args['name'] ?? ''), description: String(args['description'] ?? ''), body: String(args['instructions'] ?? '') }, s.files)
-        return { output: JSON.stringify({ saved: s.name, files: s.files, ...(warnings.length ? { check: warnings } : {}) }), run: { kind: 'skill', title: 'Saved a skill to your Market', output: s.name } }
+        return { output: JSON.stringify({ saved: s.name, files: s.files, ...(linked === undefined ? {} : { linked_to_role: linked }), ...(warnings.length ? { check: warnings } : {}) }), run: { kind: 'skill', title: 'Saved a skill to your Market', output: s.name } }
       } catch (e) {
         return { output: JSON.stringify({ error: e instanceof Error ? e.message : String(e) }) }
       }
@@ -106,10 +109,11 @@ function savePluginTool(): LocalTool {
 }
 
 /** The skills part of a ChatGPT reply's set-up: the list, and the tools that open and read skills. */
-export function skillSetup(): { instructions: string; tools: LocalTool[] } | null {
+/** The skills a chat sees: every switched-on skill, or only a role's own (its links, on or off in the Market). */
+export function skillSetup(only?: string[]): { instructions: string; tools: LocalTool[] } | null {
   let skills: SkillInfo[]
   try {
-    skills = enabledSkills()
+    skills = only ? listSkills().filter((s) => only.includes(s.id)) : enabledSkills()
   } catch {
     return null
   }

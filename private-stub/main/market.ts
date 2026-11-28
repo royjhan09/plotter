@@ -32,6 +32,6 @@ export async function checkMarketTool(_id: string): Promise<MarketCheck> {
   return { ok: false, error: 'The Market is not part of this build.' }
 }
 export async function closeAllMarket(): Promise<void> {}
-export async function connectedFunctions(): Promise<{ functions: MarketFunction[]; tools: { name: string; description: string }[]; unavailable: { name: string; why: string }[] }> {
+export async function connectedFunctions(_only?: string[]): Promise<{ functions: MarketFunction[]; tools: { name: string; description: string }[]; unavailable: { name: string; why: string }[] }> {
   return { functions: [], tools: [], unavailable: [] }
 }
