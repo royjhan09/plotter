@@ -519,6 +519,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
                 setRolesOpen(false)
                 setProjectOpen(null)
                 setPanel(null)
+                setLabOpen(false)
                 setCompanyOpen(!companyOpen)
               }}
             >
