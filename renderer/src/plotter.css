@@ -9532,6 +9532,120 @@ webview.bp-page:not(.on) {
 .mk2-line.more .mk2-text span {
   font-size: 13.5px;
 }
+/* an optional guide on your own plugin's page: what it has, and ways to add the rest */
+.mk2-guide {
+  border: 1px solid var(--sand);
+  border-radius: 16px;
+  padding: 14px 16px;
+  margin-bottom: 18px;
+}
+.mk2-guide-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+.mk2-guide-head b {
+  font-weight: 600;
+}
+.mk2-guide-head span {
+  flex: 1;
+  color: var(--muted);
+  font-size: 13px;
+}
+.mk2-guide-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin: 10px 0 12px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.mk2-guide-items span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.mk2-guide-items span.done {
+  color: var(--ink);
+}
+.mk2-guide-items span.done svg {
+  color: var(--leaf-text);
+}
+.mk2-guide-items i {
+  width: 10px;
+  height: 10px;
+  margin: 0 2px;
+  border-radius: 50%;
+  border: 1.5px solid var(--sand-strong);
+}
+.mk2-guide-actions {
+  display: flex;
+  gap: 8px;
+}
+/* the plugin page editor */
+.mk2-editor {
+  width: min(620px, 94vw);
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+}
+.mk2-editor-body {
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  /* in line with the title and the buttons */
+  padding: 6px 20px 14px;
+}
+.mk2-editor-logo {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.mk2-f {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+}
+.mk2-f > span {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--muted);
+}
+.mk2-f input,
+.mk2-f textarea,
+.mk2-f select {
+  font: inherit;
+  font-size: 14px;
+  padding: 8px 10px;
+  border: 1px solid var(--sand);
+  border-radius: 10px;
+  background: var(--paper);
+  color: var(--ink);
+  resize: vertical;
+}
+.mk2-f input:focus,
+.mk2-f textarea:focus,
+.mk2-f select:focus {
+  outline: 0;
+  border-color: var(--focus);
+}
+.mk2-f-pair {
+  display: grid;
+  grid-template-columns: 180px 1fr 28px;
+  gap: 6px;
+  align-items: center;
+}
+.mk2-f-more {
+  align-self: flex-start;
+}
+.mk2-f-row {
+  display: flex;
+  gap: 12px;
+}
 .mk2-features {
   margin: 4px 0 8px;
   padding-left: 20px;

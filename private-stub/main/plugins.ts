@@ -1,4 +1,4 @@
-import type { CatalogEntry, PluginInfo, PopularService, ServerDetails } from '../../shared/api'
+import type { CatalogEntry, PluginDetailsPatch, PluginInfo, PopularService, ServerDetails } from '../../shared/api'
 
 /** Public stand-in for plugins (in Plotter's private folder): none in this build. */
 export const PLUGINS = false
@@ -10,6 +10,7 @@ export function savePlugin(_p: Omit<PluginInfo, 'id' | 'addedAt' | 'source'> & {
 }
 export const removePlugin = (_id: string): PluginInfo[] => []
 export const setPluginIcon = (_id: string, _icon: string | null): PluginInfo[] => []
+export const editPlugin = (_id: string, _patch: PluginDetailsPatch): PluginInfo[] => []
 export function uploadPlugin(_input: { zip?: string; files?: { path: string; base64: string }[] }): PluginInfo[] {
   throw new Error(OFF)
 }

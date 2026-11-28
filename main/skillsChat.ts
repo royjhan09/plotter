@@ -1,4 +1,4 @@
-import type { SkillInfo } from '../shared/api'
+import type { PluginInfo, SkillInfo } from '../shared/api'
 import type { LocalTool } from './openai'
 import { enabledSkills, getSkill, readSkillFile, recordSkillUse, saveSkill } from '@private/main/skills'
 import { listPlugins, savePlugin } from '@private/main/plugins'
@@ -50,10 +50,16 @@ function saveSkillTool(): LocalTool {
   }
 }
 
+/** What a plugin's page still lacks, for the plugin-creator to offer (never to insist on). */
+const pageGaps = (p: PluginInfo): string => {
+  const gaps = [!p.about && 'about', !p.features?.length && 'main uses', p.examples.length < 2 && 'prompts', !p.category && 'category', !p.website && 'website', p.madeIcon && 'own logo'].filter(Boolean)
+  return gaps.length ? ` (page could add: ${gaps.join(', ')})` : ''
+}
+
 function savePluginTool(): LocalTool {
   return {
     name: 'save_plugin',
-    description: "Save a plugin to the user's Market: their tools and skills bundled, with example prompts. Only after the user agreed to it.",
+    description: "Save a plugin to the user's Market: their tools and skills bundled, with example prompts and, if the user gave them, its page details. Saving under the name of one of their plugins updates it (fields left out stay as they are). Only after the user agreed to it.",
     parameters: {
       type: 'object',
       properties: {
@@ -61,7 +67,11 @@ function savePluginTool(): LocalTool {
         description: { type: 'string', description: 'What it is for, one line.' },
         examples: { type: 'array', items: { type: 'string' }, description: 'Two or three prompts to try it, in the user\'s words.' },
         tools: { type: 'array', items: { type: 'string' }, description: 'Names of Market tools to include.' },
-        skills: { type: 'array', items: { type: 'string' }, description: 'Names of skills to include.' }
+        skills: { type: 'array', items: { type: 'string' }, description: 'Names of skills to include.' },
+        about: { type: 'string', description: 'Optional page detail: a short paragraph on what it does and for whom.' },
+        features: { type: 'array', items: { type: 'object', properties: { title: { type: 'string' }, text: { type: 'string' } }, required: ['title', 'text'] }, description: 'Optional: two to four main uses, a short title and one line each.' },
+        category: { type: 'string', description: 'Optional: e.g. Productivity, Writing, Developer tools, Design, Finance, Research.' },
+        website: { type: 'string', description: 'Optional: a https link about it.' }
       },
       required: ['name', 'description']
     },
@@ -71,7 +81,20 @@ function savePluginTool(): LocalTool {
         const names = (k: string): string[] => (Array.isArray(args[k]) ? (args[k] as unknown[]).map((x) => String(x).toLowerCase()) : [])
         const tools = listMarket().filter((t) => names('tools').includes(t.name.toLowerCase()))
         const skills = enabledSkills().filter((s) => names('skills').includes(s.name.toLowerCase()))
-        savePlugin({ name: String(args['name'] ?? ''), description: String(args['description'] ?? ''), examples: names('examples').length ? (args['examples'] as string[]) : [], toolIds: tools.map((t) => t.id), skillIds: skills.map((s) => s.id) }, 'chat')
+        const page = Object.fromEntries((['about', 'features', 'category', 'website'] as const).filter((k) => args[k] !== undefined).map((k) => [k, args[k]]))
+        const have = listPlugins().find((p) => p.name.toLowerCase() === String(args['name'] ?? '').trim().toLowerCase())
+        savePlugin(
+          {
+            name: String(args['name'] ?? ''),
+            description: String(args['description'] ?? ''),
+            examples: names('examples').length ? (args['examples'] as string[]) : [],
+            // updating one: tools and skills left out stay as they were
+            toolIds: names('tools').length || !have ? tools.map((t) => t.id) : have.toolIds,
+            skillIds: names('skills').length || !have ? skills.map((s) => s.id) : have.skillIds,
+            ...page
+          },
+          'chat'
+        )
         return { output: JSON.stringify({ saved: args['name'], tools: tools.map((t) => t.name), skills: skills.map((s) => s.name) }), run: { kind: 'skill', title: 'Saved a plugin to your Market', output: String(args['name'] ?? '') } }
       } catch (e) {
         return { output: JSON.stringify({ error: e instanceof Error ? e.message : String(e) }) }
@@ -109,7 +132,7 @@ export function skillSetup(): { instructions: string; tools: LocalTool[] } | nul
           const plugins = listPlugins()
           extra = `\n\nWhat the user has now:\n- Market tools: ${tools.map((t) => `${t.name} (${t.description.slice(0, 100)})`).join('; ') || 'none'}\n- Skills: ${enabledSkills()
             .map((x) => x.name)
-            .join(', ')}\n- Plugins: ${plugins.map((p) => p.name).join(', ') || 'none'}`
+            .join(', ')}\n- Plugins: ${plugins.map((p) => `${p.name}${p.source === 'chat' || p.source === 'you' ? pageGaps(p) : ''}`).join(', ') || 'none'}`
         }
         return {
           output: `# Skill: ${s.name}\n${s.body}${files.length ? `\n\nIts files (read with read_skill_file when a step needs one): ${files.join(', ')}` : ''}${extra}`,

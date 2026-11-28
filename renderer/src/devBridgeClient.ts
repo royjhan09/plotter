@@ -278,6 +278,7 @@ export function installDevBridge(): void {
       save: (pl) => call('plugins:save', pl),
       remove: (id) => call('plugins:remove', id),
       setIcon: (id, icon) => call('plugins:setIcon', id, icon),
+      edit: (id, patch) => call('plugins:edit', id, patch),
       upload: (input) => call('plugins:upload', input),
       catalog: () => call('plugins:catalog'),
       popular: () => call('plugins:popular'),

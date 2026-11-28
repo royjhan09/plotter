@@ -719,6 +719,16 @@ export interface PluginInfo {
   version?: string
   /** Prompts to try it in a chat. */
   examples: string[]
+  /** Its page, as a listing (all optional; the Market guides you to fill them): a paragraph, main uses, where it belongs, links. */
+  about?: string
+  features?: { title: string; text: string }[]
+  category?: string
+  developer?: string
+  website?: string
+  privacy?: string
+  terms?: string
+  /** You closed the guide that suggests filling in its page. */
+  guideHidden?: boolean
   toolIds: string[]
   skillIds: string[]
   source: 'you' | 'chat' | 'upload' | 'catalog'
@@ -750,6 +760,9 @@ export interface ServerDetails {
   needsSignIn?: boolean
   error?: string
 }
+
+/** A plugin's page details you can change (all optional). */
+export type PluginDetailsPatch = Partial<Pick<PluginInfo, 'name' | 'description' | 'examples' | 'about' | 'features' | 'category' | 'developer' | 'website' | 'privacy' | 'terms' | 'version' | 'guideHidden'>>
 
 /** A popular service with an official MCP server, ready to add (sign in, or paste a key). */
 export interface PopularService {
@@ -1259,6 +1272,8 @@ export interface PlotterApi {
     save: (plugin: Omit<PluginInfo, 'id' | 'addedAt' | 'source'> & { id?: string }) => Promise<PluginInfo[]>
     /** Removes the plugin with the skills and tools that came with it. */
     remove: (id: string) => Promise<PluginInfo[]>
+    /** Changes a plugin's page details (any of them; an empty value clears it). */
+    edit: (id: string, patch: PluginDetailsPatch) => Promise<PluginInfo[]>
     /** Sets a plugin's logo (an image data URL), or null for one Plotter makes. */
     setIcon: (id: string, icon: string | null) => Promise<PluginInfo[]>
     /** Adds a plugin from files you picked (a folder, or a .zip as base64): its skills, and its MCP servers (off until you check them). */
