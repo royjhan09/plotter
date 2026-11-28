@@ -8634,3 +8634,300 @@ body,
   font-size: 12.5px;
   color: var(--bad);
 }
+
+/* small icon buttons in a chat's top bar (PDF, browser) */
+.topbar-icon:disabled {
+  opacity: 0.45;
+}
+.topbar-icon.on {
+  background: var(--sand);
+  color: var(--ink);
+}
+
+/* the browser pane, beside the chats */
+.browser-pane {
+  position: relative;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  min-width: 320px;
+  height: 100%;
+  border-left: 1px solid var(--sand);
+  background: var(--surface);
+}
+.bp-resize {
+  position: absolute;
+  left: -4px;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  cursor: col-resize;
+  z-index: 5;
+}
+.bp-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px 0;
+  min-height: 40px;
+  overflow-x: auto;
+}
+.bp-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 190px;
+  min-width: 90px;
+  height: 30px;
+  padding: 0 6px 0 10px;
+  border: 1px solid var(--sand);
+  border-radius: 999px;
+  font-size: 13px;
+  color: var(--muted);
+  cursor: pointer;
+  flex: none;
+}
+.bp-tab.on {
+  color: var(--ink);
+  background: var(--paper);
+  border-color: var(--sand-strong);
+}
+.bp-tab-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bp-x,
+.bp-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  border-radius: 50%;
+  cursor: pointer;
+}
+.bp-x {
+  width: 20px;
+  height: 20px;
+}
+.bp-icon {
+  width: 30px;
+  height: 30px;
+}
+.bp-x:hover,
+.bp-icon:hover:not(:disabled) {
+  background: var(--sand);
+  color: var(--ink);
+}
+.bp-icon:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.bp-grow {
+  flex: 1;
+}
+.bp-spin {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--sand-strong);
+  border-top-color: var(--orange);
+  border-radius: 50%;
+  animation: bp-turn 0.8s linear infinite;
+  flex: none;
+}
+@keyframes bp-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.bp-bar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 8px 8px;
+  border-bottom: 1px solid var(--sand);
+}
+.bp-address {
+  flex: 1;
+  min-width: 0;
+  margin-left: 6px;
+  height: 30px;
+  border: 1px solid var(--sand);
+  border-radius: 999px;
+  padding: 0 14px;
+  font: inherit;
+  font-size: 13px;
+  text-align: center;
+  background: var(--paper);
+  color: var(--ink);
+  outline: none;
+}
+.bp-address:focus {
+  text-align: left;
+  border-color: var(--orange);
+}
+.bp-body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  background: #fff;
+}
+.bp-page {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  visibility: hidden;
+}
+.bp-page.on {
+  visibility: visible;
+}
+webview.bp-page:not(.on) {
+  /* a hidden webview keeps its page; it just is not shown */
+  pointer-events: none;
+}
+.bp-start {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  color: var(--muted);
+  background: var(--surface);
+  text-align: center;
+  padding: 20px;
+}
+.bp-start p {
+  margin: 4px 0 0;
+  font-size: 14px;
+}
+.bp-start .bp-hint {
+  font-size: 12.5px;
+}
+.bp-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+.bp-overlay[class*='tool-'] {
+  pointer-events: auto;
+  cursor: crosshair;
+}
+.bp-overlay.tool-select {
+  cursor: default;
+}
+.bp-overlay.tool-text {
+  cursor: text;
+}
+.bp-marks {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+}
+.bp-hover-label {
+  position: absolute;
+  max-width: 320px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: #228be6;
+  color: #fff;
+  font-size: 11.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+.bp-type {
+  position: absolute;
+  min-width: 220px;
+  padding: 6px 10px;
+  border: 2px solid var(--orange);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 13px;
+  background: #fff;
+  color: #1f1f1f;
+  outline: none;
+  box-shadow: var(--shadow);
+}
+.bp-tools {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid var(--sand);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.bp-tool {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--ink);
+  cursor: pointer;
+}
+.bp-tool:hover {
+  background: var(--sand);
+}
+.bp-tool.on {
+  background: var(--orange);
+  color: #fff;
+}
+.bp-sep {
+  width: 1px;
+  height: 20px;
+  background: var(--sand);
+  margin: 0 4px;
+}
+.bp-add {
+  /* beside the tools, so they never move when it appears */
+  position: absolute;
+  left: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
+  box-shadow: var(--shadow);
+  height: 36px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--orange);
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.bp-add:disabled {
+  opacity: 0.6;
+}
+.bp-note {
+  position: absolute;
+  left: 50%;
+  bottom: 62px;
+  transform: translateX(-50%);
+  z-index: 3;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 12.5px;
+}

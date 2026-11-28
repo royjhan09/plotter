@@ -100,6 +100,13 @@ export const VISIBILITY: VisibilityGroup[] = [
         tradeoff: `${MOVED} The public stand-in has no Lab: chats are not asked to note ideas.`
       },
       {
+        name: 'The browser pane',
+        now: 'private',
+        advice: 'keep-private',
+        why: 'Web pages beside the chat (tabs, address bar), and marks on a page (pick an element, draw, box, write) added to a message as a screenshot with notes.',
+        tradeoff: `${MOVED} The public stand-in has no browser pane and no globe button.`
+      },
+      {
         name: 'Kit tags in previews',
         now: 'private',
         advice: 'keep-private',

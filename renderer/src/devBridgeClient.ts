@@ -39,7 +39,8 @@ const listeners = {
   kits: new Set<(kitId: string) => void>(),
   roles: new Set<() => void>(),
   company: new Set<() => void>(),
-  lab: new Set<() => void>()
+  lab: new Set<() => void>(),
+  browserOpen: new Set<(url: string) => void>()
 }
 
 export function installDevBridge(): void {
@@ -52,6 +53,7 @@ export function installDevBridge(): void {
   events.addEventListener('projects:changed', () => listeners.projects.forEach((l) => l()))
   events.addEventListener('company:changed', () => listeners.company.forEach((l) => l()))
   events.addEventListener('lab:changed', () => listeners.lab.forEach((l) => l()))
+  events.addEventListener('browser:open', (e) => listeners.browserOpen.forEach((l) => l(JSON.parse((e as MessageEvent).data).url)))
   events.addEventListener('roles:changed', () => listeners.roles.forEach((l) => l()))
   events.addEventListener('kits:changed', (e) => listeners.kits.forEach((l) => l(JSON.parse((e as MessageEvent).data).kitId)))
   events.addEventListener('speech:status', (e) => listeners.speech.forEach((l) => l(JSON.parse((e as MessageEvent).data))))
@@ -111,6 +113,15 @@ export function installDevBridge(): void {
       onChanged: (l) => {
         listeners.company.add(l)
         return () => listeners.company.delete(l)
+      }
+    },
+    browser: {
+      capture: (id) => call('browser:capture', id),
+      captureUrl: (url, width, height) => call('browser:captureUrl', url, width, height),
+      saveMarkup: (dataUrl) => call('browser:saveMarkup', dataUrl),
+      onOpen: (l) => {
+        listeners.browserOpen.add(l)
+        return () => listeners.browserOpen.delete(l)
       }
     },
     lab: {

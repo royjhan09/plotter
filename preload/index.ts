@@ -63,6 +63,16 @@ const api: PlotterApi = {
       return () => ipcRenderer.removeListener('company:changed', handler)
     }
   },
+  browser: {
+    capture: (id) => ipcRenderer.invoke('browser:capture', id),
+    captureUrl: (url, width, height) => ipcRenderer.invoke('browser:captureUrl', url, width, height),
+    saveMarkup: (dataUrl) => ipcRenderer.invoke('browser:saveMarkup', dataUrl),
+    onOpen: (listener) => {
+      const handler = (_e: unknown, p: { url: string }): void => listener(p.url)
+      ipcRenderer.on('browser:open', handler)
+      return () => ipcRenderer.removeListener('browser:open', handler)
+    }
+  },
   lab: {
     get: () => ipcRenderer.invoke('lab:get'),
     add: (idea) => ipcRenderer.invoke('lab:add', idea),

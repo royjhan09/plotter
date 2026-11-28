@@ -11,6 +11,7 @@ import { CLAUDE_CODE } from '@private/renderer/ClaudeCode'
 import { ChatPane, announceRename, cleanError } from './ChatPane'
 import { RailIcon } from './RailIcon'
 import { MARKET, Market } from '@private/renderer/Market'
+import { BROWSER, BrowserPane } from '@private/renderer/Browser'
 import { KITS, Kits } from '@private/renderer/Kits'
 import { ROLES, Roles } from '@private/renderer/Roles'
 import { LAB, Lab } from '@private/renderer/Lab'
@@ -170,6 +171,8 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
   const [companyOpen, setCompanyOpen] = useState(false)
   // the Lab: untested ideas, and the tests you chose to run
   const [labOpen, setLabOpen] = useState(false)
+  const [browserOpen, setBrowserOpen] = useState(() => BROWSER && localStorage.getItem('plotter-browser-open') === '1')
+  useEffect(() => localStorage.setItem('plotter-browser-open', browserOpen ? '1' : '0'), [browserOpen])
   const [roles, setRoles] = useState<RoleEntity[]>([])
   useEffect(() => {
     const load = (): void => void api.roles.list().then(setRoles, () => setRoles([]))
@@ -457,7 +460,9 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
     savePdf,
     pdfBusy: !!pdf,
     theme,
-    setTheme
+    setTheme,
+    browserOpen,
+    onToggleBrowser: BROWSER ? () => setBrowserOpen((o) => !o) : undefined
   }
 
   return (
@@ -805,6 +810,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
             sendBeside={(from) => setLeftIn((prev) => ({ from, attach: true, n: (prev?.n ?? 0) + 1 }))}
           />
         )}
+        {BROWSER && browserOpen && <BrowserPane onClose={() => setBrowserOpen(false)} />}
         {dropSide && (
           <div className="drop-zones">
             <div className={`drop-zone ${dropSide === 'left' ? 'on' : ''}`}>{split ? 'Open on the left' : 'Open here'}</div>

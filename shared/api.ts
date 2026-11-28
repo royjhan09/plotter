@@ -1083,6 +1083,16 @@ export interface PlotterApi {
     onStatus: (listener: (status: SpeechStatus) => void) => () => void
   }
   /** Interactive previews: store the HTML in the main process, then load it from frameUrl(id). */
+  /** The browser pane: screenshots of its pages, for the user's marks. */
+  browser: {
+    capture: (webContentsId: number) => Promise<string>
+    /** Dev browser mode: a screenshot of an address, at a size (pages there are iframes). */
+    captureUrl: (url: string, width: number, height: number) => Promise<string>
+    /** Saves a marked-up page (PNG data URL) as a file; returns its path. */
+    saveMarkup: (dataUrl: string) => Promise<string>
+    /** A page in the pane opened a link in a new window: open it as a tab. */
+    onOpen: (listener: (url: string) => void) => () => void
+  }
   ui: {
     /** live: a page that shows a preview while it is being written (post { plotterUiLive: html } to it). */
     put: (html: string, dark: boolean, live?: boolean) => Promise<string>

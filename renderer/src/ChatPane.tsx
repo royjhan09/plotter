@@ -6,6 +6,7 @@ import { VoiceMode } from './VoiceMode'
 import { toAttachment } from './attachments'
 import { CanvasContext } from './Canvas'
 import { PDF_EXPORT, PdfBadge } from '@private/renderer/PdfPreview'
+import { BROWSER, BrowserIcon, type BrowserAttach } from '@private/renderer/Browser'
 import { Arrow, HandOffCard, Message, sideName } from './Message'
 import { ProjectIcon } from './Projects'
 import { RailIcon, ThemeButton } from './RailIcon'
@@ -90,6 +91,9 @@ export interface ChatPaneProps {
   toast: (message: string) => void
   savePdf: (messageId: string | undefined, target: { id: string; title: string }) => void
   pdfBusy: boolean
+  /** The browser pane beside the chats: open or not, and its switch. */
+  browserOpen?: boolean
+  onToggleBrowser?: () => void
   /** "Send to Claude Code" from a reply or the + menu: starts a Claude Code chat (opened beside this one). */
   onSendToClaude: (task: string, from?: HandOff, projectId?: string) => void
   /** What this side's new chat is, text to start it with and a reply handed to it; a new n means "start a new chat now". */
@@ -787,6 +791,25 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
     if (pending) void api.reply.stop(pending.requestId)
   }
 
+  // a page marked up in the browser pane: the focused chat takes it (ChatGPT: the picture; Claude Code: a file it reads)
+  useEffect(() => {
+    const on = (e: Event): void => {
+      if (!p.focused) return
+      const d = (e as CustomEvent<BrowserAttach>).detail
+      if (isClaude)
+        void api.browser
+          .saveMarkup(d.png)
+          .then((path) => setDraft((prev) => `${prev ? `${prev}\n\n` : ''}${d.notes}\nScreenshot with my marks: ${path}\n`))
+          .catch((err: unknown) => toast(cleanError(err)))
+      else {
+        setAttachments((prev) => [...prev, ...d.attachments])
+        setDraft((prev) => `${prev ? `${prev}\n\n` : ''}${d.notes}\n`)
+      }
+    }
+    window.addEventListener('plotter-browser-attach', on)
+    return () => window.removeEventListener('plotter-browser-attach', on)
+  })
+
   const onDropFiles = async (files: FileList): Promise<void> => {
     if (isClaude) return
     for (const f of Array.from(files)) {
@@ -900,9 +923,13 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
           </button>
         )}
         {PDF_EXPORT && messages.length > 0 && (
-          <button className="topbar-pdf" title="Convert this chat to a PDF" onClick={() => chat && p.savePdf(undefined, chat)} disabled={!!pending || ccBusy || p.pdfBusy}>
+          <button className="theme-btn topbar-icon" title="Convert this chat to a PDF" onClick={() => chat && p.savePdf(undefined, chat)} disabled={!!pending || ccBusy || p.pdfBusy}>
             <PdfBadge />
-            {!p.split && 'Convert chat to PDF'}
+          </button>
+        )}
+        {BROWSER && p.onToggleBrowser && (
+          <button className={`theme-btn topbar-icon ${p.browserOpen ? 'on' : ''}`} title={p.browserOpen ? 'Close the browser' : 'Open the browser beside the chat'} onClick={p.onToggleBrowser}>
+            <BrowserIcon />
           </button>
         )}
         <ThemeButton theme={isClaude ? ccTheme : p.theme} onChange={isClaude ? setCcTheme : p.setTheme} />

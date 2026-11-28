@@ -9,6 +9,7 @@ import { addNote, createProject, editNote, listProjects, removeNote, removeProje
 import { addWishes, cleanDraft, getRole, grantWish, listRoles, removeRole, saveCombined, saveRole, setRetired } from '@private/main/roles'
 import { combineSuggestions, dismissCombo, getCompany, labelLine, linkRoles, mergeTradeoff, noteHandoff, placeRole, renameCompany, replaceInChart, setPrefer, unlinkRoles } from '@private/main/company'
 import { addPieceFromReply } from '@private/main/kitOps'
+import { BROWSER, captureUrl, capturePage, saveMarkup, setupBrowser } from '@private/main/browser'
 import { addUseWhen, createKit, getKit, kitFolder, kitFor, listKits, listUsage, removeComponent, removeKit, removeRule, restoreVersion, saveComponent, saveRule, setDefaultKit, updateKit, versionCode } from '@private/main/kits'
 import { alsoIn, groupOf, nextSpeaker, routeIn, suggestMembers } from './team'
 import { runRouteTests } from './routeTests'
@@ -64,9 +65,11 @@ function createWindow(): void {
       contextIsolation: true,
       sandbox: true,
       nodeIntegration: false,
-      plugins: true // Chromium's PDF viewer, for the PDF preview before downloading
+      plugins: true, // Chromium's PDF viewer, for the PDF preview before downloading
+      webviewTag: BROWSER // the browser pane's pages (locked down in setupBrowser)
     }
   })
+  if (BROWSER) setupBrowser(win, (url) => emit('browser:open', { url }))
   win.once('ready-to-show', () => win?.show())
   // Links in replies open in the real browser, never inside Plotter.
   win.webContents.setWindowOpenHandler(({ url }) => {
@@ -300,6 +303,9 @@ export const handlers: Record<string, (...args: never[]) => unknown> = {
     saveComponent(String(id), { ...c, name: String(c?.name ?? ''), code: String(c?.code ?? '') }),
   'kits:removeComponent': (id: string, cid: string) => removeComponent(String(id), String(cid)),
   'kits:usage': (id: string) => listUsage(String(id)),
+  'browser:capture': (webContentsId: number) => capturePage(Number(webContentsId)),
+  'browser:captureUrl': (url: string, width: number, height: number) => captureUrl(String(url), Number(width), Number(height)),
+  'browser:saveMarkup': (dataUrl: string) => saveMarkup(String(dataUrl)),
   'kits:addFromReply': (projectId: string | null, piece: KitPieceOffer, chatTitle?: string) => {
     const kit = kitFor(listProjects().find((p) => p.id === projectId)?.kitId)
     if (!kit) throw new Error('There is no design kit to add it to.')
