@@ -17,6 +17,8 @@ export interface ClaudeSendOptions {
   projectId?: string
   /** The user meant the message for the chat beside: Claude Code writes it up and sends it there. */
   toSide?: boolean
+  /** For a new chat: the role it works as (a Claude Code role). */
+  roleId?: string
 }
 
 export async function sendClaudeTurn(_chat: Chat, _text: string, _opts?: ClaudeSendOptions): Promise<Chat> {

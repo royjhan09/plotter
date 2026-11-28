@@ -1,5 +1,8 @@
-import { useEffect, useState } from 'react'
-import { PROJECT_MEMORY_LIMIT, type ChatKind, type ChatSummary, type KitSummary, type Project } from '../../shared/api'
+import { useContext, useEffect, useState } from 'react'
+import { PROJECT_MEMORY_LIMIT, ROLE_TOOL_INFO, type ChatKind, type ChatSummary, type KitSummary, type Project, type RoleDeployment, type RoleEntity, type RoleTool } from '../../shared/api'
+import { RoleBot } from '@private/renderer/RoleBot'
+import { ROLES } from '@private/renderer/Roles'
+import { RolesContext } from './roles'
 import { ClaudeBuddy } from './ClaudeBuddy'
 import { CLAUDE_CODE } from '@private/renderer/ClaudeCode'
 import icon from '../../assets/sprout.svg'
@@ -34,6 +37,7 @@ export function ProjectPage({
   onNewChat,
   onRemoveChat,
   onDeleted,
+  onRoleChat,
   toast
 }: {
   project: Project
@@ -43,6 +47,8 @@ export function ProjectPage({
   onNewChat: (kind: ChatKind) => void
   onRemoveChat: (id: string) => void
   onDeleted: () => void
+  /** A chat with a role, in this project (with this project's tool picks and notes for it). */
+  onRoleChat?: (roleId: string) => void
   toast: (m: string) => void
 }): React.JSX.Element {
   const [name, setName] = useState(project.name)
@@ -141,6 +147,8 @@ export function ProjectPage({
             </div>
           )}
         </section>
+
+        {ROLES && <ProjectRoles project={project} onChat={onRoleChat} />}
 
         <section className="project-section">
           <div className="project-section-head">
@@ -249,5 +257,103 @@ export function ProjectPage({
       </div>
       </div>
     </div>
+  )
+}
+
+/**
+ * The roles working in a project: each a generic role (made once on the Roles page) with this project's own picks:
+ * which of its usual tools it uses here, and notes on what is different here.
+ */
+function ProjectRoles({ project, onChat }: { project: Project; onChat?: (roleId: string) => void }): React.JSX.Element {
+  const roles = useContext(RolesContext).filter((r) => !r.retired)
+  const [open, setOpen] = useState<string | null>(null)
+  const deployed = (project.roles ?? []).map((d) => ({ d, role: roles.find((r) => r.id === d.roleId) })).filter((x): x is { d: RoleDeployment; role: RoleEntity } => !!x.role)
+  const free = roles.filter((r) => !deployed.some((x) => x.role.id === r.id))
+  const save = (d: RoleDeployment): void => void api.projects.setRole(project.id, d)
+  return (
+    <section className="project-section">
+      <div className="project-section-head">
+        <h3>Roles</h3>
+        {free.length > 0 && (
+          <select
+            className="project-role-add"
+            value=""
+            onChange={(e) => {
+              const r = roles.find((x) => x.id === e.target.value)
+              if (!r) return
+              save({ roleId: r.id, tools: r.tools })
+              setOpen(r.id)
+            }}
+            aria-label="Add a role to this project"
+          >
+            <option value="">+ Add a role</option>
+            {free.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.name}
+              </option>
+            ))}
+          </select>
+        )}
+      </div>
+      {deployed.length === 0 ? (
+        <p className="project-empty">{roles.length ? 'Add a role to work here: it keeps its job, and this project picks its tools and adds its own notes.' : 'Make roles on the Roles page, then add them here.'}</p>
+      ) : (
+        <div className="project-roles">
+          {deployed.map(({ d, role }) => {
+            const options = [...new Set([...(role.toolOptions ?? []), ...role.tools])] as RoleTool[]
+            const changed = d.tools.join() !== role.tools.join() || !!d.notes
+            return (
+              <div key={role.id} className={`project-role ${open === role.id ? 'open' : ''}`}>
+                <div className="project-role-head">
+                  <span className="project-role-bot" style={{ ['--role' as string]: role.identity.color }}>
+                    <RoleBot identity={role.identity} replies={role.replies} size={30} />
+                  </span>
+                  <span className="project-role-name">
+                    <b>{role.name}</b>
+                    <span>{role.engine === 'claude' ? 'Claude Code' : d.tools.length ? d.tools.map((t) => ROLE_TOOL_INFO[t].label).join(', ') : 'No tools'}{changed ? ' · adjusted for this project' : ''}</span>
+                  </span>
+                  {onChat && (
+                    <button className="btn small primary" onClick={() => onChat(role.id)}>
+                      Chat
+                    </button>
+                  )}
+                  <button className="link" onClick={() => setOpen(open === role.id ? null : role.id)}>
+                    {open === role.id ? 'Done' : 'Adjust'}
+                  </button>
+                </div>
+                {open === role.id && (
+                  <div className="project-role-body">
+                    {role.engine !== 'claude' && (
+                      <div className="kit-field">
+                        <span>Tools here (from what this job usually uses)</span>
+                        <div className="role-tool-pick">
+                          {options.map((t) => (
+                            <button key={t} className={d.tools.includes(t) ? 'on' : ''} title={ROLE_TOOL_INFO[t].hint} onClick={() => save({ ...d, tools: d.tools.includes(t) ? d.tools.filter((x) => x !== t) : [...d.tools, t] })}>
+                              {ROLE_TOOL_INFO[t].label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <label className="kit-field">
+                      <span>In this project</span>
+                      <textarea
+                        rows={2}
+                        defaultValue={d.notes ?? ''}
+                        placeholder="What is different here: tone, audience, conventions…"
+                        onBlur={(e) => e.target.value !== (d.notes ?? '') && save({ ...d, notes: e.target.value })}
+                      />
+                    </label>
+                    <button className="link danger-text" onClick={() => void api.projects.removeRole(project.id, role.id)}>
+                      Take out of this project
+                    </button>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </section>
   )
 }

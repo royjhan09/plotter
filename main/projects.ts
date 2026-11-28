@@ -1,7 +1,7 @@
 import { app } from 'electron'
 import { mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { PROJECT_MEMORY_LIMIT, type Chat, type Project } from '../shared/api'
+import { PROJECT_MEMORY_LIMIT, type Chat, type Project, type RoleDeployment } from '../shared/api'
 import { getChat, listChats, writeAtomic } from './store'
 
 /**
@@ -85,6 +85,32 @@ export function setProjectKit(id: string, kitId: string | null): Project {
     return kitId ? { ...rest, kitId } : rest
   })
 }
+
+/** Puts a role to work in a project (its tools picked for this project, its notes), or updates it there. */
+export function setProjectRole(id: string, d: RoleDeployment): Project {
+  const list = listProjects()
+  const p = list.find((x) => x.id === id)
+  if (!p) throw new Error('No such project.')
+  const clean: RoleDeployment = { roleId: String(d.roleId), tools: Array.isArray(d.tools) ? d.tools.slice(0, 12) : [], ...(d.notes?.trim() ? { notes: d.notes.trim().slice(0, 800) } : {}) }
+  p.roles = [...(p.roles ?? []).filter((r) => r.roleId !== clean.roleId), clean]
+  p.updatedAt = Date.now()
+  write(list)
+  return p
+}
+
+export function removeProjectRole(id: string, roleId: string): Project {
+  const list = listProjects()
+  const p = list.find((x) => x.id === id)
+  if (!p) throw new Error('No such project.')
+  p.roles = (p.roles ?? []).filter((r) => r.roleId !== roleId)
+  p.updatedAt = Date.now()
+  write(list)
+  return p
+}
+
+/** How a role works in a project, if it was put to work there. */
+export const roleInProject = (projectId: string | undefined, roleId: string | undefined): RoleDeployment | undefined =>
+  projectId && roleId ? getProject(projectId)?.roles?.find((r) => r.roleId === roleId) : undefined
 
 export function removeNote(id: string, noteId: string): Project {
   return update(id, (p) => ({ ...p, notes: p.notes.filter((n) => n.id !== noteId) }))

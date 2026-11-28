@@ -88,7 +88,8 @@ export async function nextSpeaker(chat: Chat, history: HistoryItem[], turnsLeft:
 
 /** The roles a purpose needs, picked by ChatGPT from the ones the user made. */
 export async function suggestMembers(purpose: string): Promise<string[]> {
-  const roles = listRoles()
+  // Claude Code roles work in their own chats, not in (ChatGPT) team chats
+  const roles = listRoles().filter((r) => !r.retired && r.engine !== 'claude')
   if (!roles.length || !purpose.trim()) return []
   const j = await askJson(
     'You pick which of the user\'s roles should be in a team chat for a purpose: only those whose job the work needs (usually 2 to 4). Answer with JSON only: {"members": ["<role name>", ...]}',

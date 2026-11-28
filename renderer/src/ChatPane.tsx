@@ -244,7 +244,7 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
     setDraft(p.newChat.seed ?? '')
     setHandOff(p.newChat.from ?? null)
     setNewProject(p.newChat.projectId)
-    setNewRole(p.newChat.kind === 'chatgpt' ? p.newChat.roleId : undefined)
+    setNewRole(p.newChat.roleId)
     setNewTeam(p.newChat.kind === 'chatgpt' ? p.newChat.team : undefined)
     setTeamDone(null)
     if (p.newChat.from) setAttachments([])
@@ -474,7 +474,7 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
         return toast(incoming ? 'The other chat sent a message here. Select a folder below, then press send.' : 'Select the folder Claude Code should work in (below the message box).')
       }
       clearBox()
-      const created = await startClaudeChat(text, ccNew.folder, 'edit', ccNew.effort, { from, files, beside, projectId: newProject, toSide: asSide })
+      const created = await startClaudeChat(text, ccNew.folder, 'edit', ccNew.effort, { from, files, beside, projectId: newProject, toSide: asSide, ...(newRole ? { roleId: newRole } : {}) })
       chatRef.current = created
       setChat(created)
       onChatId(created.id)
@@ -677,7 +677,7 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
 
   const messages = chat?.messages ?? []
   const projectOf = p.projects.find((x) => x.id === (chat ? chat.projectId : newProject))
-  const role = useRole(isClaude ? undefined : chat ? chat.roleId : newRole)
+  const role = useRole(chat ? chat.roleId : newRole)
   const team = isClaude ? undefined : chat ? chat.team : newTeam
   const roleById = (id: string | undefined): RoleEntity | undefined => (id ? roles.find((r) => r.id === id) : undefined)
   const lastReply = messages.reduce((at, m, i) => (m.role === 'assistant' && m.text && !m.cc ? i : at), -1)
@@ -775,8 +775,8 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
                   </span>
                 ))}
               </div>
-            ) : isClaude ? <ClaudeBuddy size={84} /> : role ? <RoleBot identity={role.identity} replies={role.replies} size={72} className="hello-bot" /> : <SproutBot size={72} className="hello-bot" />}
-            <h2>{isClaude ? 'What shall we build?' : team ? 'Team chat' : role ? role.name : 'What shall we grow today?'}</h2>
+            ) : isClaude && !role ? <ClaudeBuddy size={84} /> : role ? <RoleBot identity={role.identity} replies={role.replies} size={72} className="hello-bot" /> : <SproutBot size={72} className="hello-bot" />}
+            <h2>{team ? 'Team chat' : role ? role.name : isClaude ? 'What shall we build?' : 'What shall we grow today?'}</h2>
             {team && (
               <div className="role-hello">
                 <p>{team.purpose}</p>
@@ -787,11 +787,17 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
               <div className="role-hello">
                 {role.tagline && <p>{role.tagline}</p>}
                 <div className="role-hello-tools">
-                  {role.tools.length ? role.tools.map((t) => <span key={t}>{ROLE_TOOL_INFO[t].label}</span>) : <span>No tools: it answers from what it knows</span>}
+                  {role.engine === 'claude' ? (
+                    <span>Works in Claude Code</span>
+                  ) : role.tools.length ? (
+                    role.tools.map((t) => <span key={t}>{ROLE_TOOL_INFO[t].label}</span>)
+                  ) : (
+                    <span>No tools: it answers from what it knows</span>
+                  )}
                 </div>
                 {!chat && (
                   <button className="link" onClick={() => setNewRole(undefined)}>
-                    Talk to plain ChatGPT instead
+                    Chat without the role
                   </button>
                 )}
               </div>

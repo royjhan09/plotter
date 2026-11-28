@@ -70,6 +70,8 @@ export function installDevBridge(): void {
       remove: (id) => call('projects:remove', id),
       addNote: (id, text) => call('projects:addNote', id, text),
       setKit: (id, kitId) => call('projects:setKit', id, kitId),
+      setRole: (id, deployment) => call('projects:setRole', id, deployment),
+      removeRole: (id, roleId) => call('projects:removeRole', id, roleId),
       editNote: (id, noteId, text) => call('projects:editNote', id, noteId, text),
       removeNote: (id, noteId) => call('projects:removeNote', id, noteId),
       onChanged: (l) => {
@@ -109,6 +111,7 @@ export function installDevBridge(): void {
       save: (role) => call('roles:save', role),
       remove: (id) => call('roles:remove', id),
       draft: (input) => call('roles:draft', input),
+      interview: (messages) => call('roles:interview', messages),
       suggestTools: (id) => call('roles:suggestTools', id),
       grantWish: (id, tool, give) => call('roles:grantWish', id, tool, give),
       combineDraft: (a, b) => call('roles:combineDraft', a, b),

@@ -1,6 +1,6 @@
 import { INSTRUCTIONS, WEB_INSTRUCTIONS, nextUsageSeq, runConversation, usageLog, type ConversationHandlers, type LocalTool } from './openai'
 import { addMemory, getChat, listMemories, readFeatures, removeMemory } from './store'
-import { addNote, chatDigest, projectContext, removeNote } from './projects'
+import { addNote, chatDigest, projectContext, removeNote, roleInProject } from './projects'
 import { deliverToSide, projectsChanged } from './appEvents'
 import { generateWithKey, imageKeyStatus, IMAGES } from '@private/main/images'
 import { kitBrief, kitFor } from '@private/main/kits'
@@ -435,7 +435,10 @@ export async function buildSetup(req: SendRequest): Promise<{ parts: SetupPart[]
   const f = readFeatures()
   const chat = getChat(req.chatId)
   // a role decides which tools its chats get (the user's own picks for one message still count)
-  const role = getRole(req.asRole ?? chat?.roleId)
+  // a generic role, as this project uses it: the tools the project picked, and what is different here
+  const base = getRole(req.asRole ?? chat?.roleId)
+  const dep = base ? roleInProject(chat?.projectId, base.id) : undefined
+  const role = base && dep ? { ...base, tools: dep.tools, purpose: dep.notes ? `${base.purpose}\nIn this project: ${dep.notes}` : base.purpose } : base
   const can = (t: RoleTool, otherwise: boolean): boolean => (role ? role.tools.includes(t) : otherwise)
   const webSearch = can('web', f.webSearch) || !!req.research || !!req.modes?.search
   const tools: (LocalTool & { pack: string })[] = []

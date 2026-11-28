@@ -190,8 +190,18 @@ export interface Project {
   notes: ProjectNote[]
   /** The design kit its chats build with (otherwise the default kit). */
   kitId?: string
+  /** Roles working in this project, each a generic role with this project's own tool picks and notes. */
+  roles?: RoleDeployment[]
   createdAt: number
   updatedAt: number
+}
+
+/** A generic role put to work in one project: the tools this project picked (from the role's usual ones) and how it works here. */
+export interface RoleDeployment {
+  roleId: string
+  tools: RoleTool[]
+  /** What is different in this project (tone, audience, conventions…), added to the role's instructions here. */
+  notes?: string
 }
 
 /**
@@ -336,6 +346,10 @@ export interface RoleEntity {
   /** How it talks. */
   style?: string
   tools: RoleTool[]
+  /** The tools commonly used for this job: a project using the role picks from these (tools are the defaults). */
+  toolOptions?: RoleTool[]
+  /** Which AI it works in: ChatGPT (default), or Claude Code for roles that build in a project folder (programming…). */
+  engine?: 'chatgpt' | 'claude'
   identity: RoleIdentity
   /** Replies it has written (it grows with them). */
   replies: number
@@ -721,6 +735,9 @@ export interface PlotterApi {
     setKit: (id: string, kitId: string | null) => Promise<Project>
     editNote: (id: string, noteId: string, text: string) => Promise<Project>
     removeNote: (id: string, noteId: string) => Promise<Project>
+    /** Puts a role to work in the project with its own tool picks and notes (or updates them). */
+    setRole: (id: string, deployment: RoleDeployment) => Promise<Project>
+    removeRole: (id: string, roleId: string) => Promise<Project>
     /** A project changed (a chat saved a note, a chat moved in or out). */
     onChanged: (listener: () => void) => () => void
   }
@@ -763,6 +780,8 @@ export interface PlotterApi {
     remove: (id: string) => Promise<RoleEntity[]>
     /** ChatGPT fills in a role from its name and purpose: responsibilities, tools, tone and its costume. */
     draft: (input: { name: string; purpose: string }) => Promise<RoleDraft>
+    /** Making a role by chatting: the conversation so far in, the next reply and (once it knows enough) the role out. */
+    interview: (messages: { role: 'user' | 'assistant'; text: string }[]) => Promise<{ reply: string; draft?: RoleDraft }>
     /** ChatGPT reviews which tools a role's job needs; the result lands in its wishes. */
     suggestTools: (id: string) => Promise<RoleEntity>
     /** Gives a role a tool it wished for (or dismisses the wish). */

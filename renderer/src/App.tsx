@@ -333,14 +333,16 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
     setSideId(side, null)
   }
   /** A new chat with a role, on the focused side. */
-  const newRoleChat = (roleId: string): void => {
+  const newRoleChat = (roleId: string, projectId?: string): void => {
     setProjectOpen(null)
     setSettingsOpen(false)
     setMarketOpen(false)
     setKitsOpen(false)
     setRolesOpen(false)
     setCompanyOpen(false)
-    setSideNew(side, 'chatgpt', undefined, undefined, undefined, roleId)
+    // a Claude Code role works in a Claude Code chat (in a project folder); the others in a ChatGPT chat
+    const engine = roles.find((r) => r.id === roleId)?.engine === 'claude' && CLAUDE_CODE ? 'claude' : 'chatgpt'
+    setSideNew(side, engine, undefined, undefined, projectId, roleId)
     setSideId(side, null)
   }
   /** A new chat of a kind inside a project, on the focused side. */
@@ -694,6 +696,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
           onOpenChat={(id) => openChat(id)}
           onNewChat={(kind) => newChatInProject(kind, openProject.id)}
           onRemoveChat={(id) => updateChat(id, { projectId: null })}
+          onRoleChat={(roleId) => newRoleChat(roleId, openProject.id)}
           onDeleted={() => {
             setProjectOpen(null)
             refreshProjects()

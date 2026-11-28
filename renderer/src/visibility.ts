@@ -174,7 +174,7 @@ export const VISIBILITY: VisibilityGroup[] = [
         name: 'Roles reviewed and combined by ChatGPT',
         now: 'public',
         advice: 'must-public',
-        why: 'How a role says it lacked a tool, the "Suggest tools" review and the draft of a combined role are ChatGPT calls (main/assistant.ts, main/openai.ts).',
+        why: 'How a role says it lacked a tool, the "Suggest tools" review, making a role by chatting, the draft of a combined role, and a role’s per-project tools and notes in its replies are ChatGPT parts (main/assistant.ts, main/openai.ts, main/projects.ts).',
         tradeoff: 'Shows how roles are reviewed and combined, not your roles themselves.'
       },
       {

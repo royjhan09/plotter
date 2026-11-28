@@ -519,7 +519,9 @@ export async function generateProjectBrief(chat: Chat): Promise<ProjectBrief> {
 }
 
 const ROLE_INSTRUCTIONS = (): string => `You set up a "role": a ChatGPT assistant with one job, which the user will chat with. From its name and purpose, write what it needs as JSON only, no other text:
-{"tagline": "one short line saying what it is for (under 70 characters)", "purpose": "its main instructions, second person, 2-5 sentences: who it helps, with what, and how it works", "responsibilities": ["4-7 concrete things it is responsible for, each a short line starting with a verb"], "boundaries": "what it does not do, or hands back to the user (1-2 sentences)", "style": "how it talks (1 sentence)", "tools": [ids], "identity": {"color": hex, "hat": id, "eyes": id, "neck": id, "hand": id}}
+{"tagline": "one short line saying what it is for (under 70 characters)", "purpose": "its main instructions, second person, 2-5 sentences: who it helps, with what, and how it works", "responsibilities": ["4-7 concrete things it is responsible for, each a short line starting with a verb"], "boundaries": "what it does not do, or hands back to the user (1-2 sentences)", "style": "how it talks (1 sentence)", "engine": "chatgpt" or "claude", "tools": [ids], "toolOptions": [ids], "identity": {"color": hex, "hat": id, "eyes": id, "neck": id, "hand": id}}
+engine: "claude" (Claude Code, which works in a project folder: reads and writes files, runs commands) for roles whose job is building software (programming, engineering, scripting, DevOps); "chatgpt" for everything else.
+tools: the ones it needs by default. toolOptions: every tool people in this job commonly use (a superset of tools), so each project can pick its own. For a claude role, tools and toolOptions can be empty.
 Keep the user's own words where they gave them. Tools, pick only those the job needs: ${Object.entries(ROLE_TOOL_INFO)
   .map(([id, t]) => `${id} (${t.hint})`)
   .join('; ')}.
@@ -600,4 +602,36 @@ ${wardrobeBrief()}`,
     'combine-roles'
   )
   return j as Partial<RoleDraft>
+}
+
+/**
+ * Making a role by chatting: ChatGPT asks what it needs (at most a couple of short questions), then proposes the role,
+ * and updates it when the user asks for changes. Each turn answers with what to say and, once it can, the role.
+ */
+export async function roleInterview(messages: { role: 'user' | 'assistant'; text: string }[]): Promise<{ reply: string; role?: Partial<RoleDraft> }> {
+  const model = await primaryModel()
+  const effort = model.efforts.find((e) => e.effort === 'low')?.effort ?? model.defaultEffort
+  let out = ''
+  await streamRound(
+    {
+      model: model.slug,
+      effort,
+      instructions: `You help the user make a "role" in Plotter (an AI assistant with one job and its own look) by chatting, so they never fill in a form.
+Keep each reply to 1-3 short sentences in the user's language. If you do not yet know the job, ask one short question. Ask at most two questions in the whole chat: propose a sensible role as soon as you can and let the user adjust it. When they ask for a change, update the role and say in a line what changed.
+Answer with JSON only: {"reply": "what you say to the user", "role": null, or the role as below (name included)}
+${ROLE_INSTRUCTIONS().split('\n').slice(1).join('\n').replace('{"tagline"', '{"name": "short job title", "tagline"')}`,
+      input: messages.slice(-12).map((m) => toInput({ role: m.role, text: m.text })),
+      tools: [],
+      verbosity: 'low',
+      tag: 'role-interview'
+    },
+    { onDelta: (t) => (out += t), onActivity: () => undefined, onSource: () => undefined },
+    AbortSignal.timeout(120_000)
+  )
+  try {
+    const j = JSON.parse(out.slice(out.indexOf('{'), out.lastIndexOf('}') + 1)) as { reply?: unknown; role?: Partial<RoleDraft> | null }
+    return { reply: String(j.reply ?? '').trim() || 'Here it is.', ...(j.role && typeof j.role === 'object' ? { role: j.role } : {}) }
+  } catch {
+    return { reply: out.trim() || 'Sorry, say that again?' }
+  }
 }

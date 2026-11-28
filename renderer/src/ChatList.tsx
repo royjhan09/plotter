@@ -215,7 +215,7 @@ export function ChatList({ chats, activeIds, query, visible, onOpen, onUpdate, o
       }}
       title={c.kind === 'claude' ? 'Claude Code chat. Drag to the right side to open it beside another chat' : 'Drag to the right side to open it beside another chat'}
     >
-      <span className="chat-kind">{c.kind === 'claude' ? <ClaudeBuddy size={18} /> : c.teamMembers?.length ? <TeamIcon ids={c.teamMembers} /> : roleOf(c.roleId) ? <RoleBot identity={roleOf(c.roleId)!.identity} replies={roleOf(c.roleId)!.replies} size={14} /> : <img src={icon} alt="" />}</span>
+      <span className="chat-kind">{c.kind === 'claude' && !roleOf(c.roleId) ? <ClaudeBuddy size={18} /> : c.teamMembers?.length ? <TeamIcon ids={c.teamMembers} /> : roleOf(c.roleId) ? <RoleBot identity={roleOf(c.roleId)!.identity} replies={roleOf(c.roleId)!.replies} size={14} /> : <img src={icon} alt="" />}</span>
       {renaming === c.id ? (
         <RenameInput
           initial={c.title}

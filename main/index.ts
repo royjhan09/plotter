@@ -5,13 +5,13 @@ import { authState, cancelSignIn, loadSession, signIn, signOut } from './auth'
 import { projectsChanged, setAppEmitter } from './appEvents'
 import { getLibraryItem, listLibrary } from '@private/main/library'
 import { clearImageKey, imageKeyStatus, setImageKey, setImageOptions } from '@private/main/images'
-import { addNote, createProject, editNote, listProjects, removeNote, removeProject, renameProject, setProjectKit } from './projects'
+import { addNote, createProject, editNote, listProjects, removeNote, removeProject, removeProjectRole, renameProject, setProjectKit, setProjectRole } from './projects'
 import { addWishes, cleanDraft, getRole, grantWish, listRoles, removeRole, saveCombined, saveRole, setRetired } from '@private/main/roles'
 import { combineSuggestions, dismissCombo, getCompany, labelLine, linkRoles, mergeTradeoff, noteHandoff, placeRole, renameCompany, replaceInChart, setPrefer, unlinkRoles } from '@private/main/company'
 import { addUseWhen, createKit, getKit, kitFolder, listKits, listUsage, removeComponent, removeKit, removeRule, restoreVersion, saveComponent, saveRule, setDefaultKit, updateKit, versionCode } from '@private/main/kits'
 import { nextSpeaker, suggestMembers } from './team'
 import { usageLog } from './openai'
-import { draftCombinedRole, draftRole, forgetModel, suggestRoleTools, generateProjectBrief, generateSuggestion, generateTitle, primaryModel, ReplyError } from './openai'
+import { draftCombinedRole, draftRole, forgetModel, roleInterview, suggestRoleTools, generateProjectBrief, generateSuggestion, generateTitle, primaryModel, ReplyError } from './openai'
 import { buildSetup, reply } from './assistant'
 import { onPythonStatus, pythonStatus, PY_SCHEME } from './python'
 import { connect as connectService, disconnect as disconnectService, listConnectors, setEnabled as setConnectorEnabled, setGoogleClient, setNotionToken } from './connectors'
@@ -23,7 +23,7 @@ import { showInExplorer } from './frontExplorer'
 import { pdfHandlers } from '@private/main/pdf'
 import { checkMarketTool, closeAllMarket, listMarket, removeMarketTool, saveMarketTool, setMarketConnected } from '@private/main/market'
 import { claudeCodeAvailable, makeProjectFolder, recentFolders, suggestProjectFolder, sendToClaude, settleStale, stopAllClaude, stopClaude } from '@private/main/claudeCode'
-import { USAGE_URL, type BesideChat, type Chat, type KitComponent, type KitPatch, type RoleDraft, type RoleLink, type HistoryItem, type KitRule, type LibraryRef, type ChatMetaPatch, type MarketToolInput, type ConnectorId, type Features, type ReplyEvent, type SendRequest } from '../shared/api'
+import { USAGE_URL, type BesideChat, type Chat, type KitComponent, type KitPatch, type RoleDraft, type RoleLink, type HistoryItem, type RoleDeployment, type KitRule, type LibraryRef, type ChatMetaPatch, type MarketToolInput, type ConnectorId, type Features, type ReplyEvent, type SendRequest } from '../shared/api'
 
 app.setName('Plotter')
 // Interactive previews live on their own scheme/origin (see uiFrames.ts). Must be registered before ready.
@@ -164,9 +164,11 @@ export const handlers: Record<string, (...args: never[]) => unknown> = {
   // dev measurements only (the browser-mode server): token use per ChatGPT call
   'debug:usage': () => (BROWSER_ONLY ? usageLog : []),
   // dev measurements only: what a ChatGPT message in this chat is set up with, part by part (characters)
-  'debug:setup': async (chatId: string) => {
+  'debug:setup': async (chatId: string, part?: string) => {
     if (!BROWSER_ONLY) return null
     const { parts, tools } = await buildSetup({ requestId: 'measure', chatId: String(chatId ?? ''), model: '', effort: '', history: [] })
+    // one part's whole text, to check what it says
+    if (part) return parts.filter((p) => p.name === part).map((p) => p.text).join('\n\n')
     const byPack = new Map<string, { tools: number; chars: number }>()
     for (const t of tools) {
       const b = byPack.get(t.pack) ?? { tools: 0, chars: 0 }
@@ -185,6 +187,10 @@ export const handlers: Record<string, (...args: never[]) => unknown> = {
   'company:labelLine': (roleId: string, label: string) => labelLine(String(roleId), String(label ?? '')),
   'company:link': (link: Omit<RoleLink, 'id'>) => linkRoles(link ?? ({} as Omit<RoleLink, 'id'>)),
   'company:unlink': (id: string) => unlinkRoles(String(id)),
+  'roles:interview': async (messages: { role: 'user' | 'assistant'; text: string }[]) => {
+    const r = await roleInterview(Array.isArray(messages) ? messages.map((m) => ({ role: m.role === 'assistant' ? 'assistant' : 'user', text: String(m.text ?? '') })) : [])
+    return { reply: r.reply, ...(r.role && String(r.role.name ?? '').trim() ? { draft: cleanDraft({ purpose: String(r.role.tagline ?? r.role.name), ...r.role }) } : {}) }
+  },
   'roles:list': () => listRoles(),
   'roles:suggestTools': async (id: string) => {
     const role = getRole(String(id))
@@ -218,6 +224,16 @@ export const handlers: Record<string, (...args: never[]) => unknown> = {
   'roles:save': (role: RoleDraft & { id?: string }) => saveRole({ ...role }),
   'roles:remove': (id: string) => removeRole(String(id)),
   'roles:draft': async (input: { name: string; purpose: string }) => cleanDraft(await draftRole({ name: String(input?.name ?? ''), purpose: String(input?.purpose ?? '') })),
+  'projects:setRole': (id: string, d: RoleDeployment) => {
+    const p = setProjectRole(String(id), d)
+    projectsChanged()
+    return p
+  },
+  'projects:removeRole': (id: string, roleId: string) => {
+    const p = removeProjectRole(String(id), String(roleId))
+    projectsChanged()
+    return p
+  },
   'projects:setKit': (id: string, kitId: string | null) => {
     const p = setProjectKit(String(id), kitId ? String(kitId) : null)
     projectsChanged()
