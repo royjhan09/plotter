@@ -782,6 +782,8 @@ export interface PopularService {
   examples: string[]
   /** What it does, in a few words each. */
   abilities: string[]
+  /** A few words for the line under its name on its page. */
+  tagline: string
   /** A paragraph about it, and its main uses (a title and a line each). */
   about: string
   features: { title: string; text: string }[]
