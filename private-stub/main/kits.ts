@@ -1,4 +1,4 @@
-import type { Kit, KitComponent, KitPatch, KitRule, KitSummary, KitUse } from '../../shared/api'
+import type { Brand, BrandPatch, BrandSummary, Kit, KitComponent, KitPatch, KitRule, KitSummary, KitUse } from '../../shared/api'
 
 /** Public stand-in for design kits (in Plotter's private folder): switched off. */
 export const KITS = false
@@ -20,7 +20,17 @@ export const saveComponent = (_id: string, _c: Partial<KitComponent> & { name: s
 export const removeComponent = (_id: string, _componentId: string): Kit => off()
 export const kitFolder = (_id: string): string => off()
 export const kitFor = (_projectKitId?: string): Kit | null => null
-export const kitBrief = (_kit: Kit): string => ''
+export const kitBrief = (_kit: Kit, _brand?: Brand | null): string => ''
+export const listBrands = (): BrandSummary[] => []
+export const getBrand = (_id: string): Brand => off()
+export const createBrand = (_name: string, _copyFrom?: string): Brand => off()
+export const updateBrand = (_id: string, _patch: BrandPatch): Brand => off()
+export const removeBrand = (_id: string): BrandSummary[] => []
+export const setDefaultBrand = (_id: string): BrandSummary[] => []
+export const saveBrandRule = (_id: string, _rule: Partial<KitRule> & { text: string }): Brand => off()
+export const removeBrandRule = (_id: string, _ruleId: string): Brand => off()
+export const brandFor = (_projectBrandId?: string, _projectKitId?: string): Brand | null => null
+export const brandFolder = (_id: string): string => off()
 export const slugOf = (name: string): string => name
 export const listUsage = (_kitId: string): KitUse[] => []
 export const versionCode = (_kitId: string, _componentId: string, _version: number): string => off()

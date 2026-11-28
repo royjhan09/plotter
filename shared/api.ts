@@ -227,6 +227,8 @@ export interface Project {
   notes: ProjectNote[]
   /** The design kit its chats build with (otherwise the default kit). */
   kitId?: string
+  /** The brand its chats build with: a brand's id, 'none' (each app picks its own look), or unset (the default brand). */
+  brandId?: string
   /** Roles working in this project, each a generic role with this project's own tool picks and notes. */
   roles?: RoleDeployment[]
   /** The Recruiter's suggested team for this project (made when the project is made, or asked again). */
@@ -289,9 +291,36 @@ export interface Kit {
   updatedAt: number
 }
 
+/**
+ * A brand: one app's identity (its colours, type, logo, imagery and voice), kept apart from the design kit,
+ * whose rules hold for every app. A project picks its brand as it picks its kit.
+ */
+export interface Brand {
+  id: string
+  name: string
+  description?: string
+  /** Colours and fonts, as CSS custom properties without the leading -- (accent: #e8590c). */
+  tokens: Record<string, string>
+  rules: KitRule[]
+  createdAt: number
+  updatedAt: number
+}
+
+export interface BrandSummary {
+  id: string
+  name: string
+  description?: string
+  rules: number
+  /** Its colour tokens, for swatches. */
+  colours: string[]
+  isDefault: boolean
+}
+
+export type BrandPatch = { name?: string; description?: string; tokens?: Record<string, string> }
+
 export interface KitRule {
   id: string
-  /** Copy, Layout, Icons, Buttons, Colour… */
+  /** Copy, Layout, Icons, Buttons… (a brand's: Colour, Type, Logo, Imagery, Voice) */
   category: string
   text: string
 }
@@ -999,6 +1028,8 @@ export interface PlotterApi {
     addNote: (id: string, text: string) => Promise<Project>
     /** The design kit the project's chats build with (null: the default kit). */
     setKit: (id: string, kitId: string | null) => Promise<Project>
+    /** A brand's id, 'none' (no brand), or null for the default brand. */
+    setBrand: (id: string, brandId: string | null) => Promise<Project>
     editNote: (id: string, noteId: string, text: string) => Promise<Project>
     removeNote: (id: string, noteId: string) => Promise<Project>
     /** The Recruiter suggests the team this project needs (again). */
@@ -1088,6 +1119,17 @@ export interface PlotterApi {
     /** "Not now" to a combine suggestion. */
     dismissCombo: (a: string, b: string) => Promise<void>
     onChanged: (listener: () => void) => () => void
+  }
+  brands: {
+    list: () => Promise<BrandSummary[]>
+    get: (id: string) => Promise<Brand>
+    /** A new brand, empty or copied from another. */
+    create: (name: string, copyFrom?: string) => Promise<Brand>
+    update: (id: string, patch: BrandPatch) => Promise<Brand>
+    remove: (id: string) => Promise<BrandSummary[]>
+    setDefault: (id: string) => Promise<BrandSummary[]>
+    saveRule: (id: string, rule: Partial<KitRule> & { text: string }) => Promise<Brand>
+    removeRule: (id: string, ruleId: string) => Promise<Brand>
   }
   kits: {
     list: () => Promise<KitSummary[]>

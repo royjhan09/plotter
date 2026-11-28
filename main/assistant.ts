@@ -3,7 +3,7 @@ import { addMemory, getChat, listMemories, readFeatures, removeMemory } from './
 import { addNote, chatDigest, projectContext, removeNote, roleInProject } from './projects'
 import { deliverToSide, projectsChanged } from './appEvents'
 import { generateWithKey, imageKeyStatus, IMAGES } from '@private/main/images'
-import { kitBrief, kitFor } from '@private/main/kits'
+import { brandFor, kitBrief, kitFor } from '@private/main/kits'
 import { KIT_GUIDE, KIT_TAGS_GUIDE, kitToolSpecs, runKitTool } from '@private/main/kitOps'
 import { BROWSER_GUIDE, browserToolSpecs } from '@private/main/browserControl'
 import { approveCall, browserRisk, builtinApprovals } from '@private/main/approvals'
@@ -265,7 +265,7 @@ export function kitUsesIn(text: string): Record<string, unknown>[] {
 }
 
 /** The design-kit tools (private kitOps), the same ones Claude Code gets. */
-function kitTools(kit: Kit, chatId: string, chatTitle: string, afterReply: ((text: string) => { title: string; output: string } | void)[]): LocalTool[] {
+function kitTools(kit: Kit, brandId: string | undefined, chatId: string, chatTitle: string, afterReply: ((text: string) => { title: string; output: string } | void)[]): LocalTool[] {
   // recording and saving need no answer back: called together with the written reply, they end it (no extra round)
   const FINAL = ['kit_record_use', 'kit_save_component', 'kit_add_rule']
   // uses are recorded from the reply's kit-uses block (no call, so no round), not with kit_record_use
@@ -279,7 +279,7 @@ function kitTools(kit: Kit, chatId: string, chatTitle: string, afterReply: ((tex
     label: () => t.label,
     run: async (args) => {
       // ChatGPT's previews get kit CSS from kit tags, so it is given the markup only
-      const out = runKitTool(kit.id, t.name, t.name === 'kit_component' && KIT_TAGS_GUIDE ? { ...args, markup_only: true } : args, { by: 'ChatGPT', chatId, chatTitle, afterReply: (job) => void afterReply.push(job) })
+      const out = runKitTool(kit.id, t.name, t.name === 'kit_component' && KIT_TAGS_GUIDE ? { ...args, markup_only: true } : args, { by: 'ChatGPT', chatId, chatTitle, ...(brandId ? { brandId } : {}), afterReply: (job) => void afterReply.push(job) })
       return { output: out.output, ...(out.card ? { run: { kind: 'kit' as const, title: out.card.title, output: out.card.output } } : {}) }
     }
   }))
@@ -572,12 +572,14 @@ export async function buildSetup(req: SendRequest, lab?: LabReply): Promise<{ pa
     use('project', projectTools(project.project.id, title))
   }
   const kit = can('kit', true) ? kitFor(project?.project.kitId) : null
+  // the brand (colours, type, logo) comes with the kit when it is opened, so it costs nothing until then
+  const brand = kit ? brandFor(project?.project.brandId, project?.project.kitId) : null
   if (kit)
     lazy.push({
       name: 'design_kit',
-      brief: `the user's design kit "${kit.name}" (${kit.rules.length} design rules, and components: ${kit.components.map((c) => c.name).slice(0, 60).join(', ')}): open it before you design or build anything visual (ui blocks, HTML or CSS, app screens, mockups, icons, logos), naming in components the ones you will reuse so their code comes with it; then follow its rules and reuse its components without being reminded`,
-      guide: KIT_INSTRUCTIONS(kitBrief(kit)),
-      tools: kitTools(kit, req.chatId, title, afterReply),
+      brief: `the user's design kit "${kit.name}"${brand ? ` with the brand "${brand.name}"` : ''} (${kit.rules.length} design rules, and components: ${kit.components.map((c) => c.name).slice(0, 60).join(', ')}): open it before you design or build anything visual (ui blocks, HTML or CSS, app screens, mockups, icons, logos), naming in components the ones you will reuse so their code comes with it; then follow its rules and reuse its components without being reminded`,
+      guide: KIT_INSTRUCTIONS(kitBrief(kit, brand)),
+      tools: kitTools(kit, brand?.id, req.chatId, title, afterReply),
       prefetch: (names) => runKitTool(kit.id, 'kit_component', { names, ...(KIT_TAGS_GUIDE ? { markup_only: true } : {}) }, { by: 'ChatGPT', chatId: req.chatId, chatTitle: title }).output
     })
   // the kit pieces a reply used, from its kit-uses block, recorded once the reply is finished

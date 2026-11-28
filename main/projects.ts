@@ -86,6 +86,14 @@ export function setProjectKit(id: string, kitId: string | null): Project {
   })
 }
 
+/** The brand the project's chats build with: a brand's id, 'none' (no brand), or null for the default. */
+export function setProjectBrand(id: string, brandId: string | null): Project {
+  return update(id, (p) => {
+    const { brandId: _old, ...rest } = p
+    return brandId ? { ...rest, brandId } : rest
+  })
+}
+
 /** The Recruiter's suggested team for a project (or that it is working on one). */
 export function setRecruit(id: string, recruit: Project['recruit'] | ((r: Project['recruit']) => Project['recruit'])): Project | null {
   const list = listProjects()

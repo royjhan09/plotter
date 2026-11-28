@@ -72,10 +72,10 @@ export const VISIBILITY: VisibilityGroup[] = [
         tradeoff: MOVED
       },
       {
-        name: 'Design kits',
+        name: 'Design kits and brands',
         now: 'private',
         advice: 'keep-private',
-        why: 'The kits page, where kits are kept, and how Claude Code gets your kit folder.',
+        why: 'The kits page, where kits (rules and components for every app) and brands (each app’s colours, type and logo) are kept, and how Claude Code gets their folders.',
         tradeoff: MOVED
       },
       {

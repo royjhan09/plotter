@@ -1,5 +1,5 @@
 import { useContext, useEffect, useState } from 'react'
-import { PROJECT_MEMORY_LIMIT, ROLE_TOOL_INFO, type ChatKind, type ChatSummary, type KitSummary, type Project, type RecruitPick, type RoleDeployment, type RoleEntity, type RoleTool } from '../../shared/api'
+import { PROJECT_MEMORY_LIMIT, ROLE_TOOL_INFO, type ChatKind, type ChatSummary, type KitSummary, type BrandSummary, type Project, type RecruitPick, type RoleDeployment, type RoleEntity, type RoleTool } from '../../shared/api'
 import { RoleBot } from '@private/renderer/RoleBot'
 import { ROLES } from '@private/renderer/Roles'
 import { RolesContext } from './roles'
@@ -57,6 +57,8 @@ export function ProjectPage({
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [kits, setKits] = useState<KitSummary[]>([])
   useEffect(() => void api.kits.list().then(setKits, () => setKits([])), [])
+  const [brands, setBrands] = useState<BrandSummary[]>([])
+  useEffect(() => void api.brands.list().then(setBrands, () => setBrands([])), [])
   useEffect(() => setName(project.name), [project.name])
   useEffect(() => {
     const esc = (e: KeyboardEvent): void => {
@@ -220,6 +222,24 @@ export function ProjectPage({
               </select>
             </div>
             <p className="project-lead">The rules and components this project’s chats build with.</p>
+          </section>
+        )}
+
+        {brands.length > 0 && (
+          <section className="project-section">
+            <div className="project-section-head">
+              <h3>Brand</h3>
+              <select className="setting-select" value={project.brandId ?? ''} onChange={(e) => void api.projects.setBrand(project.id, e.target.value || null).catch(fail)}>
+                <option value="">Default ({brands.find((b) => b.isDefault)?.name ?? 'none'})</option>
+                {brands.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name}
+                  </option>
+                ))}
+                <option value="none">None: the app picks its own look</option>
+              </select>
+            </div>
+            <p className="project-lead">The colours, type and logo this project’s apps use.</p>
           </section>
         )}
 

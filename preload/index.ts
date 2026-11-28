@@ -20,6 +20,7 @@ const api: PlotterApi = {
     remove: (id) => ipcRenderer.invoke('projects:remove', id),
     addNote: (id, text) => ipcRenderer.invoke('projects:addNote', id, text),
     setKit: (id, kitId) => ipcRenderer.invoke('projects:setKit', id, kitId),
+    setBrand: (id, brandId) => ipcRenderer.invoke('projects:setBrand', id, brandId),
     setRole: (id, deployment) => ipcRenderer.invoke('projects:setRole', id, deployment),
     recruit: (id) => ipcRenderer.invoke('projects:recruit', id),
     hire: (id, pick) => ipcRenderer.invoke('projects:hire', id, pick),
@@ -117,6 +118,16 @@ const api: PlotterApi = {
       ipcRenderer.on('roles:changed', handler)
       return () => ipcRenderer.removeListener('roles:changed', handler)
     }
+  },
+  brands: {
+    list: () => ipcRenderer.invoke('brands:list'),
+    get: (id) => ipcRenderer.invoke('brands:get', id),
+    create: (name, copyFrom) => ipcRenderer.invoke('brands:create', name, copyFrom),
+    update: (id, patch) => ipcRenderer.invoke('brands:update', id, patch),
+    remove: (id) => ipcRenderer.invoke('brands:remove', id),
+    setDefault: (id) => ipcRenderer.invoke('brands:setDefault', id),
+    saveRule: (id, rule) => ipcRenderer.invoke('brands:saveRule', id, rule),
+    removeRule: (id, ruleId) => ipcRenderer.invoke('brands:removeRule', id, ruleId)
   },
   kits: {
     list: () => ipcRenderer.invoke('kits:list'),

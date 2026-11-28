@@ -585,7 +585,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
           {KITS && (
             <button
               className={`rail-btn ${kitsOpen ? 'on' : ''}`}
-              title="Design kits: your rules and components"
+              title="Design kits and brands: rules and components for every app, and each app’s look"
               onClick={() => {
                 setSettingsOpen(false)
                 setMarketOpen(false)

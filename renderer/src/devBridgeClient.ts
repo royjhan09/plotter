@@ -82,6 +82,7 @@ export function installDevBridge(): void {
       remove: (id) => call('projects:remove', id),
       addNote: (id, text) => call('projects:addNote', id, text),
       setKit: (id, kitId) => call('projects:setKit', id, kitId),
+      setBrand: (id, brandId) => call('projects:setBrand', id, brandId),
       setRole: (id, deployment) => call('projects:setRole', id, deployment),
       recruit: (id) => call('projects:recruit', id),
       hire: (id, pick) => call('projects:hire', id, pick),
@@ -170,6 +171,16 @@ export function installDevBridge(): void {
         listeners.roles.add(l)
         return () => listeners.roles.delete(l)
       }
+    },
+    brands: {
+      list: () => call('brands:list'),
+      get: (id) => call('brands:get', id),
+      create: (name, copyFrom) => call('brands:create', name, copyFrom),
+      update: (id, patch) => call('brands:update', id, patch),
+      remove: (id) => call('brands:remove', id),
+      setDefault: (id) => call('brands:setDefault', id),
+      saveRule: (id, rule) => call('brands:saveRule', id, rule),
+      removeRule: (id, ruleId) => call('brands:removeRule', id, ruleId)
     },
     kits: {
       list: () => call('kits:list'),

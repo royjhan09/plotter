@@ -5725,6 +5725,89 @@ body,
   margin: 0;
   font-size: 28px;
 }
+/* Design kits | Brands: two page titles, the other one greyed */
+.kits-views {
+  display: flex;
+  gap: 18px;
+}
+.kits-views button {
+  border: 0;
+  padding: 0;
+  background: none;
+  font: inherit;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--muted);
+  opacity: 0.55;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.kits-views button:hover {
+  opacity: 0.8;
+}
+.kits-views button.on {
+  color: var(--ink);
+  opacity: 1;
+}
+.brands-switch {
+  margin-bottom: 16px;
+}
+.brand-dots {
+  display: inline-flex;
+}
+.brand-dots i {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-left: -4px;
+  box-shadow: 0 0 0 1.5px var(--surface);
+}
+.brand-dots i:first-child {
+  margin-left: 0;
+}
+.kits-switch button.on .brand-dots i {
+  box-shadow: 0 0 0 1.5px var(--ink);
+}
+/* a brand's colours and typeface at a glance */
+.brand-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 18px;
+  margin: 6px 0 18px;
+}
+.brand-swatch,
+.brand-type {
+  display: grid;
+  grid-template-columns: 36px auto;
+  grid-template-rows: auto auto;
+  column-gap: 8px;
+  align-items: center;
+}
+.brand-swatch i {
+  grid-row: span 2;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1);
+}
+.brand-swatch b,
+.brand-type span {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--ink);
+}
+.brand-swatch span {
+  font-size: 11.5px;
+  color: var(--muted);
+  font-family: ui-monospace, monospace;
+}
+.brand-type b {
+  grid-row: span 2;
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 36px;
+  text-align: center;
+}
 .kits-switch {
   display: flex;
   gap: 6px;

@@ -5,13 +5,13 @@ import { authState, cancelSignIn, loadSession, signIn, signOut } from './auth'
 import { projectsChanged, setAppEmitter } from './appEvents'
 import { getLibraryItem, listLibrary } from '@private/main/library'
 import { clearImageKey, imageKeyStatus, setImageKey, setImageOn, setImageOptions } from '@private/main/images'
-import { addNote, createProject, editNote, listProjects, removeNote, removeProject, removeProjectRole, renameProject, setProjectKit, setProjectRole } from './projects'
+import { addNote, createProject, editNote, listProjects, removeNote, removeProject, removeProjectRole, renameProject, setProjectBrand, setProjectKit, setProjectRole } from './projects'
 import { addWishes, cleanDraft, getRole, grantWish, listRoles, removeRole, saveCombined, saveRole, setRetired } from '@private/main/roles'
 import { combineSuggestions, dismissCombo, getCompany, labelLine, linkRoles, mergeTradeoff, noteHandoff, placeRole, renameCompany, replaceInChart, setPrefer, unlinkRoles } from '@private/main/company'
 import { addPieceFromReply } from '@private/main/kitOps'
 import { BROWSER, captureUrl, capturePage, saveMarkup, setupBrowser } from '@private/main/browser'
 import { setBrowserEmitter, setBrowserState, type BrowserTabState } from '@private/main/browserControl'
-import { addUseWhen, createKit, getKit, kitFolder, kitFor, listKits, listUsage, removeComponent, removeKit, removeRule, restoreVersion, saveComponent, saveRule, setDefaultKit, updateKit, versionCode } from '@private/main/kits'
+import { addUseWhen, createBrand, createKit, getBrand, getKit, kitFolder, listBrands, removeBrand, removeBrandRule, saveBrandRule, setDefaultBrand, updateBrand, kitFor, listKits, listUsage, removeComponent, removeKit, removeRule, restoreVersion, saveComponent, saveRule, setDefaultKit, updateKit, versionCode } from '@private/main/kits'
 import { alsoIn, groupOf, nextSpeaker, routeIn, suggestMembers } from './team'
 import { runRouteTests } from './routeTests'
 import { usageLog } from './openai'
@@ -33,7 +33,7 @@ import { getSkill, listSkills, readSkillFile, removeSkill, saveSkill, setSkillEn
 import { addFromCatalog, addPopular, catalog, listPlugins, popular, popularIcons, removePlugin, savePlugin, setPluginIcon, uploadPlugin } from '@private/main/plugins'
 import { answerApproval, builtinApprovals, setBuiltinApproval } from '@private/main/approvals'
 import { claudeCodeAvailable, makeProjectFolder, recentFolders, suggestProjectFolder, sendMember, sendToClaude, forgetGroup, settleStale, stopAllClaude, stopClaude } from '@private/main/claudeCode'
-import { USAGE_URL, type LabTest, type BesideChat, type Chat, type KitComponent, type KitPatch, type KitPieceOffer, type ToolApproval, type SkillDraft, type PluginInfo, type RoleDraft, type RoleLink, type HistoryItem, type RoleDeployment, type KitRule, type LibraryRef, type ChatMetaPatch, type MarketToolInput, type ConnectorId, type Features, type ReplyEvent, type SendRequest } from '../shared/api'
+import { USAGE_URL, type LabTest, type BesideChat, type Chat, type KitComponent, type KitPatch, type BrandPatch, type KitPieceOffer, type ToolApproval, type SkillDraft, type PluginInfo, type RoleDraft, type RoleLink, type HistoryItem, type RoleDeployment, type KitRule, type LibraryRef, type ChatMetaPatch, type MarketToolInput, type ConnectorId, type Features, type ReplyEvent, type SendRequest } from '../shared/api'
 
 app.setName('Plotter')
 // Interactive previews live on their own scheme/origin (see uiFrames.ts). Must be registered before ready.
@@ -296,6 +296,19 @@ export const handlers: Record<string, (...args: never[]) => unknown> = {
     projectsChanged()
     return p
   },
+  'projects:setBrand': (id: string, brandId: string | null) => {
+    const p = setProjectBrand(String(id), brandId ? String(brandId) : null)
+    projectsChanged()
+    return p
+  },
+  'brands:list': () => listBrands(),
+  'brands:get': (id: string) => getBrand(String(id)),
+  'brands:create': (name: string, copyFrom?: string) => createBrand(String(name ?? ''), copyFrom ? String(copyFrom) : undefined),
+  'brands:update': (id: string, patch: BrandPatch) => updateBrand(String(id), patch ?? {}),
+  'brands:remove': (id: string) => removeBrand(String(id)),
+  'brands:setDefault': (id: string) => setDefaultBrand(String(id)),
+  'brands:saveRule': (id: string, rule: Partial<KitRule> & { text: string }) => saveBrandRule(String(id), { ...rule, text: String(rule?.text ?? '') }),
+  'brands:removeRule': (id: string, ruleId: string) => removeBrandRule(String(id), String(ruleId)),
   'kits:list': () => listKits(),
   'kits:get': (id: string) => getKit(String(id)),
   'kits:create': (name: string, copyFrom?: string) => createKit(String(name ?? ''), copyFrom ? String(copyFrom) : undefined),
