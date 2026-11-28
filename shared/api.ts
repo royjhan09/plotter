@@ -192,8 +192,38 @@ export interface Project {
   kitId?: string
   /** Roles working in this project, each a generic role with this project's own tool picks and notes. */
   roles?: RoleDeployment[]
+  /** The Recruiter's suggested team for this project (made when the project is made, or asked again). */
+  recruit?: RecruitSuggestion
   createdAt: number
   updatedAt: number
+}
+
+/** The team the Recruiter suggests for a project. */
+export interface RecruitSuggestion {
+  at: number
+  /** Still working on it. */
+  pending?: boolean
+  /** One line on what the project needs. */
+  summary?: string
+  picks: RecruitPick[]
+  error?: string
+}
+
+/** One role the Recruiter suggests: one of yours to reuse, or a new one; with this project's tools and skills. */
+export interface RecruitPick {
+  /** One of your roles to reuse (its id), or none: a new role to create (draft). */
+  roleId?: string
+  name: string
+  why: string
+  engine: 'chatgpt' | 'claude'
+  /** The tools it should use in this project (from what its job usually uses). */
+  tools: RoleTool[]
+  /** Specific skills or know-how it needs for this project (become its notes in the project). */
+  skills: string[]
+  /** For a new role: what to create. */
+  draft?: RoleDraft
+  /** Added to the project. */
+  added?: boolean
 }
 
 /** A generic role put to work in one project: the tools this project picked (from the role's usual ones) and how it works here. */
@@ -361,6 +391,8 @@ export interface RoleEntity {
   mergedFrom?: string[]
   /** Retired (combined into another role): hidden from the lists, its old chats keep its look. */
   retired?: boolean
+  /** One of Plotter's own roles (the Recruiter), made for you. */
+  builtin?: 'recruiter'
   createdAt: number
   updatedAt: number
 }
@@ -735,6 +767,10 @@ export interface PlotterApi {
     setKit: (id: string, kitId: string | null) => Promise<Project>
     editNote: (id: string, noteId: string, text: string) => Promise<Project>
     removeNote: (id: string, noteId: string) => Promise<Project>
+    /** The Recruiter suggests the team this project needs (again). */
+    recruit: (id: string) => Promise<Project>
+    /** Adds one of the Recruiter's picks to the project (creating the role first if it is new). */
+    hire: (id: string, pick: number) => Promise<Project>
     /** Puts a role to work in the project with its own tool picks and notes (or updates them). */
     setRole: (id: string, deployment: RoleDeployment) => Promise<Project>
     removeRole: (id: string, roleId: string) => Promise<Project>

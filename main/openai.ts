@@ -635,3 +635,34 @@ ${ROLE_INSTRUCTIONS().split('\n').slice(1).join('\n').replace('{"tagline"', '{"n
     return { reply: out.trim() || 'Sorry, say that again?' }
   }
 }
+
+/** What the Recruiter is told about a project and about the roles there already are. */
+export interface RecruitInput {
+  project: string
+  notes: string[]
+  chats: string[]
+  roles: { name: string; engine: string; tagline: string; tools: string[]; toolOptions: string[] }[]
+}
+
+/** The Recruiter's answer: a small team, each role reused or new, with this project's tools and skills. */
+export async function recruitTeam(input: RecruitInput): Promise<{ summary: string; roles: Record<string, unknown>[] }> {
+  const j = await oneJson(
+    `You are the Recruiter (HR) of the user's company in Plotter. From a project's name, notes and chats, suggest the team of "roles" (AI assistants with one job each) it needs. Keep it small: 1 to 4 roles, only the ones the work clearly needs; every role costs time and tokens.
+Reuse the user's existing roles where one fits (set "existing" to its exact name); suggest a new role only where none fits.
+For each role give the tools it should use in THIS project, picked from what its job usually uses, and 2-4 specific skills or know-how it needs for this project (short phrases). A role that builds software works in Claude Code (engine "claude": it works in a project folder; tools can be empty).
+Tool ids: ${Object.entries(ROLE_TOOL_INFO)
+      .map(([id, t]) => `${id} (${t.hint})`)
+      .join('; ')}.
+Answer with JSON only:
+{"summary": "one line on what the project needs", "roles": [{"existing": "<exact name of an existing role, or null>", "name": "...", "why": "one line: what it does in this project", "engine": "chatgpt" or "claude", "tools": [ids], "skills": ["..."], "new": null, or for a new role {"tagline": "...", "purpose": "2-4 sentences, second person", "responsibilities": ["..."], "toolOptions": [ids], "identity": {"color": hex, "hat": id, "eyes": id, "neck": id, "hand": id}}}]}
+Look options for a new role:
+${wardrobeBrief()}`,
+    `Project: ${input.project}
+${input.notes.length ? `Its notes:\n${input.notes.map((n) => `- ${n}`).join('\n')}` : 'No notes yet.'}
+${input.chats.length ? `Its chats so far: ${input.chats.join('; ')}` : 'No chats yet.'}
+The user's roles:
+${input.roles.length ? input.roles.map((r) => `- ${r.name} (${r.engine === 'claude' ? 'Claude Code' : 'ChatGPT'}): ${r.tagline}. Tools: ${r.tools.join(', ') || 'none'}; usual for the job: ${r.toolOptions.join(', ') || 'none'}`).join('\n') : '(none yet)'}`,
+    'recruiter'
+  )
+  return { summary: String(j['summary'] ?? '').trim(), roles: Array.isArray(j['roles']) ? (j['roles'] as Record<string, unknown>[]).slice(0, 5) : [] }
+}

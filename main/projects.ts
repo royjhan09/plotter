@@ -86,6 +86,16 @@ export function setProjectKit(id: string, kitId: string | null): Project {
   })
 }
 
+/** The Recruiter's suggested team for a project (or that it is working on one). */
+export function setRecruit(id: string, recruit: Project['recruit'] | ((r: Project['recruit']) => Project['recruit'])): Project | null {
+  const list = listProjects()
+  const p = list.find((x) => x.id === id)
+  if (!p) return null
+  p.recruit = typeof recruit === 'function' ? recruit(p.recruit) : recruit
+  write(list)
+  return p
+}
+
 /** Puts a role to work in a project (its tools picked for this project, its notes), or updates it there. */
 export function setProjectRole(id: string, d: RoleDeployment): Project {
   const list = listProjects()

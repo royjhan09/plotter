@@ -13,6 +13,7 @@ import { nextSpeaker, suggestMembers } from './team'
 import { usageLog } from './openai'
 import { draftCombinedRole, draftRole, forgetModel, roleInterview, suggestRoleTools, generateProjectBrief, generateSuggestion, generateTitle, primaryModel, ReplyError } from './openai'
 import { buildSetup, reply } from './assistant'
+import { hire, runRecruit, worthRecruiting } from './recruit'
 import { onPythonStatus, pythonStatus, PY_SCHEME } from './python'
 import { connect as connectService, disconnect as disconnectService, listConnectors, setEnabled as setConnectorEnabled, setGoogleClient, setNotionToken } from './connectors'
 import { onSpeechStatus, speechStatus, transcribe, warmSpeech } from './speech'
@@ -125,13 +126,19 @@ export const handlers: Record<string, (...args: never[]) => unknown> = {
   'projects:create': (name: string) => {
     const p = createProject(String(name ?? ''))
     projectsChanged()
+    // the Recruiter suggests a team, once the project has something to go on (not while it is a bare "New project")
+    if (worthRecruiting(p)) void runRecruit(p.id)
     return p
   },
   'projects:rename': (id: string, name: string) => {
     const list = renameProject(String(id), String(name ?? ''))
     projectsChanged()
+    const p = list.find((x) => x.id === String(id))
+    if (p && !p.recruit && worthRecruiting(p)) void runRecruit(p.id)
     return list
   },
+  'projects:recruit': async (id: string) => (await runRecruit(String(id))) ?? undefined,
+  'projects:hire': (id: string, pick: number) => hire(String(id), Number(pick)),
   'projects:remove': (id: string) => {
     // its chats stay, outside any project
     for (const c of listChats()) if (c.projectId === id) updateChatMeta(c.id, { projectId: null })

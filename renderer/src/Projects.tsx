@@ -1,5 +1,5 @@
 import { useContext, useEffect, useState } from 'react'
-import { PROJECT_MEMORY_LIMIT, ROLE_TOOL_INFO, type ChatKind, type ChatSummary, type KitSummary, type Project, type RoleDeployment, type RoleEntity, type RoleTool } from '../../shared/api'
+import { PROJECT_MEMORY_LIMIT, ROLE_TOOL_INFO, type ChatKind, type ChatSummary, type KitSummary, type Project, type RecruitPick, type RoleDeployment, type RoleEntity, type RoleTool } from '../../shared/api'
 import { RoleBot } from '@private/renderer/RoleBot'
 import { ROLES } from '@private/renderer/Roles'
 import { RolesContext } from './roles'
@@ -272,6 +272,7 @@ function ProjectRoles({ project, onChat }: { project: Project; onChat?: (roleId:
   const save = (d: RoleDeployment): void => void api.projects.setRole(project.id, d)
   return (
     <section className="project-section">
+      <Recruiter project={project} />
       <div className="project-section-head">
         <h3>Roles</h3>
         {free.length > 0 && (
@@ -355,5 +356,105 @@ function ProjectRoles({ project, onChat }: { project: Project; onChat?: (roleId:
         </div>
       )}
     </section>
+  )
+}
+
+/** The Recruiter's suggested team for the project: each role reused or new, with this project's tools and skills. */
+function Recruiter({ project }: { project: Project }): React.JSX.Element | null {
+  const roles = useContext(RolesContext)
+  const hr = roles.find((r) => r.builtin === 'recruiter')
+  const [busy, setBusy] = useState<number | 'all' | 'ask' | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  if (!hr) return null
+  const rec = project.recruit
+  const run = async (what: number | 'all' | 'ask', job: () => Promise<unknown>): Promise<void> => {
+    setBusy(what)
+    setError(null)
+    try {
+      await job()
+    } catch (e) {
+      setError(e instanceof Error ? e.message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '') : String(e))
+    } finally {
+      setBusy(null)
+    }
+  }
+  const working = (p: RecruitPick): boolean => !!p.roleId && !!project.roles?.some((r) => r.roleId === p.roleId)
+  const open = (rec?.picks ?? []).map((p, i) => ({ p, i })).filter((x) => !x.p.added && !working(x.p))
+  const ask = (): void => void run('ask', () => api.projects.recruit(project.id))
+  return (
+    <div className="recruit">
+      <div className="recruit-head">
+        <span className="recruit-bot" style={{ ['--role' as string]: hr.identity.color }}>
+          <RoleBot identity={hr.identity} replies={hr.replies} size={30} working={!!rec?.pending || busy === 'ask'} />
+        </span>
+        <span className="recruit-title">
+          <b>Recruiter</b>
+          <span>
+            {rec?.pending || busy === 'ask'
+              ? 'Looking at what this project needs…'
+              : rec?.error
+                ? `Could not suggest a team: ${rec.error}`
+                : rec?.summary || (rec ? 'Suggested team' : 'Suggests the roles this project needs, with their tools and skills.')}
+          </span>
+        </span>
+        {!rec?.pending && (
+          <button className="link" disabled={busy !== null} onClick={ask}>
+            {rec ? 'Ask again' : 'Suggest a team'}
+          </button>
+        )}
+      </div>
+      {!rec?.pending && rec && rec.picks.length > 0 && (
+        <div className="recruit-picks">
+          {rec.picks.map((p, i) => {
+            const mine = p.roleId ? roles.find((r) => r.id === p.roleId) : undefined
+            const identity = mine?.identity ?? p.draft?.identity
+            return (
+              <div key={i} className={`recruit-pick ${p.added || working(p) ? 'added' : ''}`}>
+                <span className="project-role-bot" style={{ ['--role' as string]: identity?.color ?? '#e8590c' }}>
+                  {identity && <RoleBot identity={identity} replies={mine?.replies ?? 0} size={28} />}
+                </span>
+                <span className="recruit-pick-body">
+                  <span className="recruit-pick-name">
+                    <b>{p.name}</b>
+                    <span className={`recruit-tag ${mine ? 'yours' : 'new'}`}>{mine ? 'your role' : 'new role'}</span>
+                    {p.engine === 'claude' && <span className="recruit-tag">Claude Code</span>}
+                  </span>
+                  <span className="recruit-why">{p.why}</span>
+                  <span className="role-tools">
+                    {p.engine !== 'claude' && (p.tools.length ? p.tools.map((t) => <span key={t}>{ROLE_TOOL_INFO[t].label}</span>) : <span>No tools</span>)}
+                    {p.skills.map((k) => (
+                      <span key={k} className="recruit-skill">
+                        {k}
+                      </span>
+                    ))}
+                  </span>
+                </span>
+                {p.added || working(p) ? (
+                  <span className="recruit-added">{p.added ? 'Added' : 'In this project'}</span>
+                ) : (
+                  <button className="btn small" disabled={busy !== null} onClick={() => void run(i, () => api.projects.hire(project.id, i))}>
+                    {busy === i ? 'Adding…' : 'Add to project'}
+                  </button>
+                )}
+              </div>
+            )
+          })}
+          {open.length > 1 && (
+            <button
+              className="btn small primary recruit-all"
+              disabled={busy !== null}
+              onClick={() =>
+                void run('all', async () => {
+                  for (const { i } of open) await api.projects.hire(project.id, i)
+                })
+              }
+            >
+              {busy === 'all' ? 'Adding…' : `Add all ${open.length}`}
+            </button>
+          )}
+        </div>
+      )}
+      {error && <p className="error">{error}</p>}
+    </div>
   )
 }

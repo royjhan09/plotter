@@ -26,3 +26,4 @@ export const setRetired = (_id: string, _retired: boolean): RoleEntity => {
 export const saveCombined = (_a: RoleEntity, _b: RoleEntity, _draft: RoleDraft): RoleEntity => {
   throw new Error(OFF)
 }
+export const recruiter = (): RoleEntity | undefined => undefined

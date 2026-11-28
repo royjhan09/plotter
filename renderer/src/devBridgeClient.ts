@@ -71,6 +71,8 @@ export function installDevBridge(): void {
       addNote: (id, text) => call('projects:addNote', id, text),
       setKit: (id, kitId) => call('projects:setKit', id, kitId),
       setRole: (id, deployment) => call('projects:setRole', id, deployment),
+      recruit: (id) => call('projects:recruit', id),
+      hire: (id, pick) => call('projects:hire', id, pick),
       removeRole: (id, roleId) => call('projects:removeRole', id, roleId),
       editNote: (id, noteId, text) => call('projects:editNote', id, noteId, text),
       removeNote: (id, noteId) => call('projects:removeNote', id, noteId),

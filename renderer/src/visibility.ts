@@ -178,6 +178,13 @@ export const VISIBILITY: VisibilityGroup[] = [
         tradeoff: 'Shows how roles are reviewed and combined, not your roles themselves.'
       },
       {
+        name: 'Recruiter: the team a project needs',
+        now: 'public',
+        advice: 'must-public',
+        why: 'When a project is made, ChatGPT suggests the roles it needs (reusing yours where they fit) with their tools and skills, and adding one puts it to work there (main/recruit.ts, main/openai.ts). The built-in Recruiter role itself is kept with the private roles.',
+        tradeoff: 'Shows how a team is suggested, not your projects or roles.'
+      },
+      {
         name: 'Your design kit in ChatGPT replies',
         now: 'public',
         advice: 'must-public',

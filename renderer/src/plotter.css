@@ -7847,3 +7847,89 @@ body,
   gap: 10px;
   padding: 4px 12px 12px;
 }
+/* the Recruiter's suggested team on a project page */
+.recruit {
+  margin: -2px 0 16px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, #0c8599 35%, var(--paper));
+  border-radius: 14px;
+  background: color-mix(in srgb, #0c8599 6%, var(--paper));
+}
+.recruit-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.recruit-bot {
+  flex: none;
+}
+.recruit-title {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  font-size: 13px;
+}
+.recruit-title span {
+  color: var(--muted);
+}
+.recruit-picks {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+.recruit-pick {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 12px;
+  background: var(--surface);
+  border: 1px solid var(--sand);
+}
+.recruit-pick.added {
+  opacity: 0.7;
+}
+.recruit-pick-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+}
+.recruit-pick-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.recruit-tag {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 0 7px;
+  border-radius: 999px;
+  border: 1px solid var(--sand-strong);
+  color: var(--muted);
+}
+.recruit-tag.new {
+  border-color: var(--orange);
+  color: var(--orange);
+}
+.recruit-why {
+  color: var(--muted);
+}
+.role-tools .recruit-skill {
+  border-style: dashed;
+  color: var(--ink);
+}
+.recruit-added {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--leaf-text);
+  padding-top: 4px;
+}
+.recruit-all {
+  align-self: flex-end;
+}
