@@ -1,6 +1,7 @@
 import type { ToolRun } from '../shared/api'
 import type { LocalTool } from './openai'
 import { connectedFunctions } from '@private/main/market'
+import { approveCall } from '@private/main/approvals'
 
 /**
  * Hands the tools connected in the Market to a ChatGPT reply, as function tools (public: it is part of how
@@ -19,7 +20,7 @@ export async function marketTools(): Promise<{ tools: LocalTool[]; instructions:
   }
   const card = (toolName: string, args: Record<string, unknown>, out: { text: string; figures: string[] }, error?: string): Omit<ToolRun, 'id'> => ({
     kind: 'market',
-    title: error ? `${toolName} failed` : `Used ${toolName}`,
+    title: error === 'Not allowed' ? `${toolName}: not allowed` : error ? `${toolName} failed` : `Used ${toolName}`,
     code: Object.keys(args).length ? JSON.stringify(args, null, 2) : undefined,
     output: error ? undefined : out.text.slice(0, 4000),
     error,
@@ -32,6 +33,9 @@ export async function marketTools(): Promise<{ tools: LocalTool[]; instructions:
     label: () => `Using ${f.tool.name}…`,
     run: async (args, signal) => {
       try {
+        // the tool's approval level (Market): ask before calls it does not allow freely
+        const ok = await approveCall(f.approval, f.risk, { who: 'ChatGPT', tool: f.tool.name, what: f.description.slice(0, 160), args: JSON.stringify(args, null, 2).slice(0, 2000) }, signal)
+        if (!ok) return { output: 'The user did not allow this call.', run: card(f.tool.name, args, { text: '', figures: [] }, 'Not allowed') }
         const out = await f.call(args, signal)
         return { output: out.text || '(no output)', run: card(f.tool.name, args, out, out.isError ? out.text.slice(0, 600) : undefined) }
       } catch (e) {

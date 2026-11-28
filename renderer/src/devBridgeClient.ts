@@ -1,4 +1,4 @@
-import type { ClaudeCodeUpdate, PlotterApi, PythonStatus, ReplyEvent, SideDelivery, SpeechStatus } from '../../shared/api'
+import type { ApprovalAsk, ClaudeCodeUpdate, PlotterApi, PythonStatus, ReplyEvent, SideDelivery, SpeechStatus } from '../../shared/api'
 
 /**
  * Development only: when the UI is opened in an ordinary browser (no Electron preload), stand in for
@@ -41,7 +41,10 @@ const listeners = {
   company: new Set<() => void>(),
   lab: new Set<() => void>(),
   browserOpen: new Set<(url: string) => void>(),
-  browserAgent: new Set<(a: { who: string; what: string }) => void>()
+  browserAgent: new Set<(a: { who: string; what: string }) => void>(),
+  skills: new Set<() => void>(),
+  plugins: new Set<() => void>(),
+  approval: new Set<(a: ApprovalAsk) => void>()
 }
 
 export function installDevBridge(): void {
@@ -56,6 +59,9 @@ export function installDevBridge(): void {
   events.addEventListener('lab:changed', () => listeners.lab.forEach((l) => l()))
   events.addEventListener('browser:open', (e) => listeners.browserOpen.forEach((l) => l(JSON.parse((e as MessageEvent).data).url)))
   events.addEventListener('browser:agent', (e) => listeners.browserAgent.forEach((l) => l(JSON.parse((e as MessageEvent).data))))
+  events.addEventListener('skills:changed', () => listeners.skills.forEach((l) => l()))
+  events.addEventListener('plugins:changed', () => listeners.plugins.forEach((l) => l()))
+  events.addEventListener('approval:ask', (e) => listeners.approval.forEach((l) => l(JSON.parse((e as MessageEvent).data))))
   events.addEventListener('roles:changed', () => listeners.roles.forEach((l) => l()))
   events.addEventListener('kits:changed', (e) => listeners.kits.forEach((l) => l(JSON.parse((e as MessageEvent).data).kitId)))
   events.addEventListener('speech:status', (e) => listeners.speech.forEach((l) => l(JSON.parse((e as MessageEvent).data))))
@@ -238,7 +244,42 @@ export function installDevBridge(): void {
       save: (tool) => call('market:save', tool),
       remove: (id) => call('market:remove', id),
       setConnected: (id, on) => call('market:setConnected', id, on),
-      check: (id) => call('market:check', id)
+      check: (id) => call('market:check', id),
+      setApproval: (id, level) => call('market:setApproval', id, level)
+    },
+    skills: {
+      list: () => call('skills:list'),
+      get: (id) => call('skills:get', id),
+      readFile: (id, path) => call('skills:readFile', id, path),
+      save: (draft) => call('skills:save', draft),
+      setEnabled: (id, on) => call('skills:setEnabled', id, on),
+      remove: (id) => call('skills:remove', id),
+      upload: (input) => call('skills:upload', input),
+      onChanged: (l) => {
+        listeners.skills.add(l)
+        return () => listeners.skills.delete(l)
+      }
+    },
+    plugins: {
+      list: () => call('plugins:list'),
+      save: (pl) => call('plugins:save', pl),
+      remove: (id) => call('plugins:remove', id),
+      upload: (input) => call('plugins:upload', input),
+      catalog: () => call('plugins:catalog'),
+      addFromCatalog: (kind, id) => call('plugins:addFromCatalog', kind, id),
+      builtinApproval: () => call('plugins:builtinApproval'),
+      setBuiltinApproval: (id, level) => call('plugins:setBuiltinApproval', id, level),
+      onChanged: (l) => {
+        listeners.plugins.add(l)
+        return () => listeners.plugins.delete(l)
+      }
+    },
+    approvals: {
+      onAsk: (l) => {
+        listeners.approval.add(l)
+        return () => listeners.approval.delete(l)
+      },
+      answer: (id, allow) => call('approvals:answer', id, allow)
     },
     claudeCode: {
       available: () => call('claudeCode:available'),

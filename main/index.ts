@@ -28,9 +28,12 @@ import { showInExplorer } from './frontExplorer'
 import { pdfHandlers } from '@private/main/pdf'
 import { addIdea, readLab, removeIdea, setLabCapture, updateIdea } from '@private/main/lab'
 import { estimateLab, settleLab, startLab, stopLab } from './labRun'
-import { checkMarketTool, closeAllMarket, listMarket, removeMarketTool, saveMarketTool, setMarketConnected } from '@private/main/market'
+import { checkMarketTool, closeAllMarket, listMarket, removeMarketTool, saveMarketTool, setMarketApproval, setMarketConnected } from '@private/main/market'
+import { getSkill, listSkills, readSkillFile, removeSkill, saveSkill, setSkillEnabled, uploadSkills } from '@private/main/skills'
+import { addFromCatalog, catalog, listPlugins, removePlugin, savePlugin, uploadPlugin } from '@private/main/plugins'
+import { answerApproval, builtinApprovals, setBuiltinApproval } from '@private/main/approvals'
 import { claudeCodeAvailable, makeProjectFolder, recentFolders, suggestProjectFolder, sendMember, sendToClaude, forgetGroup, settleStale, stopAllClaude, stopClaude } from '@private/main/claudeCode'
-import { USAGE_URL, type LabTest, type BesideChat, type Chat, type KitComponent, type KitPatch, type KitPieceOffer, type RoleDraft, type RoleLink, type HistoryItem, type RoleDeployment, type KitRule, type LibraryRef, type ChatMetaPatch, type MarketToolInput, type ConnectorId, type Features, type ReplyEvent, type SendRequest } from '../shared/api'
+import { USAGE_URL, type LabTest, type BesideChat, type Chat, type KitComponent, type KitPatch, type KitPieceOffer, type ToolApproval, type SkillDraft, type PluginInfo, type RoleDraft, type RoleLink, type HistoryItem, type RoleDeployment, type KitRule, type LibraryRef, type ChatMetaPatch, type MarketToolInput, type ConnectorId, type Features, type ReplyEvent, type SendRequest } from '../shared/api'
 
 app.setName('Plotter')
 // Interactive previews live on their own scheme/origin (see uiFrames.ts). Must be registered before ready.
@@ -385,6 +388,23 @@ export const handlers: Record<string, (...args: never[]) => unknown> = {
   'market:remove': (id: string) => removeMarketTool(String(id)),
   'market:setConnected': (id: string, on: boolean) => setMarketConnected(String(id), !!on),
   'market:check': (id: string) => checkMarketTool(String(id)),
+  'market:setApproval': (id: string, level: ToolApproval) => setMarketApproval(String(id), level),
+  'skills:list': () => listSkills(),
+  'skills:get': (id: string) => getSkill(String(id)),
+  'skills:readFile': (id: string, path: string) => readSkillFile(String(id), String(path)),
+  'skills:save': (draft: SkillDraft) => (saveSkill(draft, draft?.id ? undefined : 'you'), listSkills()),
+  'skills:setEnabled': (id: string, on: boolean) => setSkillEnabled(String(id), !!on),
+  'skills:remove': (id: string) => removeSkill(String(id)),
+  'skills:upload': (input: { zip?: string; files?: { path: string; base64: string }[] }) => uploadSkills(input ?? {}),
+  'plugins:list': () => listPlugins(),
+  'plugins:save': (pl: Omit<PluginInfo, 'id' | 'addedAt' | 'source'> & { id?: string }) => savePlugin(pl),
+  'plugins:remove': (id: string) => removePlugin(String(id)),
+  'plugins:upload': (input: { zip?: string; files?: { path: string; base64: string }[] }) => uploadPlugin(input ?? {}),
+  'plugins:catalog': () => catalog(),
+  'plugins:addFromCatalog': (kind: 'skill' | 'plugin', id: string) => addFromCatalog(kind === 'plugin' ? 'plugin' : 'skill', String(id)),
+  'plugins:builtinApproval': () => builtinApprovals(),
+  'plugins:setBuiltinApproval': (id: string, level: ToolApproval) => setBuiltinApproval(String(id), level),
+  'approvals:answer': (id: string, allow: boolean) => answerApproval(String(id), !!allow),
 
   // Send to Claude Code: the user's own Claude Code runs a task in a project folder (see claudeCode.ts).
   'claudeCode:available': () => claudeCodeAvailable(),

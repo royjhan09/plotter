@@ -187,7 +187,45 @@ const api: PlotterApi = {
     save: (tool) => ipcRenderer.invoke('market:save', tool),
     remove: (id) => ipcRenderer.invoke('market:remove', id),
     setConnected: (id, on) => ipcRenderer.invoke('market:setConnected', id, on),
-    check: (id) => ipcRenderer.invoke('market:check', id)
+    check: (id) => ipcRenderer.invoke('market:check', id),
+    setApproval: (id, level) => ipcRenderer.invoke('market:setApproval', id, level)
+  },
+  skills: {
+    list: () => ipcRenderer.invoke('skills:list'),
+    get: (id) => ipcRenderer.invoke('skills:get', id),
+    readFile: (id, path) => ipcRenderer.invoke('skills:readFile', id, path),
+    save: (draft) => ipcRenderer.invoke('skills:save', draft),
+    setEnabled: (id, on) => ipcRenderer.invoke('skills:setEnabled', id, on),
+    remove: (id) => ipcRenderer.invoke('skills:remove', id),
+    upload: (input) => ipcRenderer.invoke('skills:upload', input),
+    onChanged: (listener) => {
+      const handler = (): void => listener()
+      ipcRenderer.on('skills:changed', handler)
+      return () => ipcRenderer.removeListener('skills:changed', handler)
+    }
+  },
+  plugins: {
+    list: () => ipcRenderer.invoke('plugins:list'),
+    save: (pl) => ipcRenderer.invoke('plugins:save', pl),
+    remove: (id) => ipcRenderer.invoke('plugins:remove', id),
+    upload: (input) => ipcRenderer.invoke('plugins:upload', input),
+    catalog: () => ipcRenderer.invoke('plugins:catalog'),
+    addFromCatalog: (kind, id) => ipcRenderer.invoke('plugins:addFromCatalog', kind, id),
+    builtinApproval: () => ipcRenderer.invoke('plugins:builtinApproval'),
+    setBuiltinApproval: (id, level) => ipcRenderer.invoke('plugins:setBuiltinApproval', id, level),
+    onChanged: (listener) => {
+      const handler = (): void => listener()
+      ipcRenderer.on('plugins:changed', handler)
+      return () => ipcRenderer.removeListener('plugins:changed', handler)
+    }
+  },
+  approvals: {
+    onAsk: (listener) => {
+      const handler = (_e: unknown, a: Parameters<typeof listener>[0]): void => listener(a)
+      ipcRenderer.on('approval:ask', handler)
+      return () => ipcRenderer.removeListener('approval:ask', handler)
+    },
+    answer: (id, allow) => ipcRenderer.invoke('approvals:answer', id, allow)
   },
   claudeCode: {
     available: () => ipcRenderer.invoke('claudeCode:available'),

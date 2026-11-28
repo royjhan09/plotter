@@ -6,6 +6,8 @@ import { generateWithKey, imageKeyStatus, IMAGES } from '@private/main/images'
 import { kitBrief, kitFor } from '@private/main/kits'
 import { KIT_GUIDE, KIT_TAGS_GUIDE, kitToolSpecs, runKitTool } from '@private/main/kitOps'
 import { BROWSER_GUIDE, browserToolSpecs } from '@private/main/browserControl'
+import { approveCall, browserRisk, builtinApprovals } from '@private/main/approvals'
+import { skillSetup } from './skillsChat'
 import { addWishes, bumpRole, getRole } from '@private/main/roles'
 import { getCompany, roleTeam } from '@private/main/company'
 import { labCapture, noteIdea } from '@private/main/lab'
@@ -550,9 +552,19 @@ export async function buildSetup(req: SendRequest, lab?: LabReply): Promise<{ pa
         description: t.description,
         parameters: t.parameters,
         label: t.label,
-        run: async (args: Record<string, unknown>) => ({ output: (await t.run(args, 'ChatGPT')).text })
+        run: async (args: Record<string, unknown>, signal: AbortSignal) => {
+          // clicking and typing ask first when the browser's approval level says so (Market › Plugins › Browser)
+          const ok = await approveCall(builtinApprovals()['browser'], browserRisk(t.name), { who: role?.name ?? 'ChatGPT', tool: 'Browser', what: t.label(args), args: JSON.stringify(args, null, 2).slice(0, 2000) }, signal)
+          return { output: ok ? (await t.run(args, 'ChatGPT')).text : 'The user did not allow this.' }
+        }
       }))
     })
+  // skills: their names and descriptions always (as in ChatGPT); a skill's instructions only when opened
+  const skills = can('skills', true) ? skillSetup() : null
+  if (skills) {
+    add('skills', skills.instructions)
+    use('skills', skills.tools)
+  }
   const title = chat?.title || 'ChatGPT chat'
   const project = chat ? projectContext(chat) : null
   if (project && can('project', true)) {
@@ -600,7 +612,7 @@ export async function buildSetup(req: SendRequest, lab?: LabReply): Promise<{ pa
   if (req.canvas) add('canvas-now', canvasContext(req))
   if (req.research) add('research', RESEARCH_INSTRUCTIONS)
   // shared, unchanging parts first (they are cached across messages and chats); this chat's and this turn's last
-  const ORDER = ['base', 'web', 'python', 'pictures', 'canvas', 'lab', 'capabilities', 'research', 'role', 'memory', 'project', 'side', 'team', 'picked', 'canvas-now']
+  const ORDER = ['base', 'web', 'python', 'pictures', 'canvas', 'lab', 'capabilities', 'skills', 'research', 'role', 'memory', 'project', 'side', 'team', 'picked', 'canvas-now']
   parts.sort((a, b) => ORDER.indexOf(a.name) - ORDER.indexOf(b.name))
   return { parts, tools, webSearch, afterReply, ...(role ? { role } : {}), team, ...(chat ? { chat } : {}) }
 }

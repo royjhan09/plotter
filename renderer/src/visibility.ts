@@ -107,6 +107,20 @@ export const VISIBILITY: VisibilityGroup[] = [
         tradeoff: `${MOVED} The public stand-in has no browser pane and no globe button.`
       },
       {
+        name: 'Skills, plugins and approvals in the Market',
+        now: 'private',
+        advice: 'keep-private',
+        why: 'Skills (SKILL.md folders) and plugins (tools and skills bundled, with prompts to try), made by chatting, in an editor, by upload or from the catalogue; approval levels with Allow/Deny before a tool runs.',
+        tradeoff: `${MOVED} The public stand-in has no skills, no plugins, and tools run without asking.`
+      },
+      {
+        name: 'Chats following skills',
+        now: 'public',
+        advice: 'must-public',
+        why: 'How ChatGPT chats see the skills list and open, read and save skills (main/skillsChat.ts), and ask before Market tools run.',
+        tradeoff: 'Shows how skills are offered to ChatGPT; the skills themselves stay on your PC.'
+      },
+      {
         name: 'Chats using the browser',
         now: 'private',
         advice: 'keep-private',

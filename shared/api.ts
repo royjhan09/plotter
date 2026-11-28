@@ -21,7 +21,7 @@ export interface Attachment {
 /** Something Plotter did with one of its own tools while answering (shown in the reply as a card). */
 export interface ToolRun {
   id: string
-  kind: 'python' | 'memory' | 'connector' | 'market' | 'side' | 'image' | 'kit'
+  kind: 'python' | 'memory' | 'connector' | 'market' | 'side' | 'image' | 'kit' | 'skill'
   /** One line, e.g. "Ran Python", "Saved to memory", "Searched Gmail". */
   title: string
   /** Python: the code; connector: the request. */
@@ -375,7 +375,7 @@ export interface KitVariant {
 }
 
 /** The tools a role may use (each one switched on for its chats, the rest off). */
-export type RoleTool = 'web' | 'python' | 'memory' | 'pictures' | 'kit' | 'connectors' | 'market' | 'project' | 'browser'
+export type RoleTool = 'web' | 'python' | 'memory' | 'pictures' | 'kit' | 'connectors' | 'market' | 'project' | 'browser' | 'skills'
 
 /** What each role tool gives its chats. */
 export const ROLE_TOOL_INFO: Record<RoleTool, { label: string; hint: string }> = {
@@ -387,7 +387,8 @@ export const ROLE_TOOL_INFO: Record<RoleTool, { label: string; hint: string }> =
   connectors: { label: 'Connected apps', hint: 'Uses the apps you connected (mail, calendar, files…).' },
   market: { label: 'Market tools', hint: 'Uses the tools you added from the Market.' },
   project: { label: 'Project memory', hint: "Reads and adds to its project's shared memory." },
-  browser: { label: 'Browser', hint: 'Opens, reads and uses web pages in the browser pane beside the chat.' }
+  browser: { label: 'Browser', hint: 'Opens, reads and uses web pages in the browser pane beside the chat.' },
+  skills: { label: 'Skills', hint: 'Follows the skills you added in the Market when a job matches one.' }
 }
 
 /** A role's look: the sprout-bot in a colour and a costume. */
@@ -628,7 +629,91 @@ export interface MarketTool {
   mcp?: { transport: 'http' | 'stdio'; url?: string; command?: string; args?: string[] }
   /** A secret (API key or token) is stored, encrypted on this PC; it is never sent back to the window. */
   hasSecret: boolean
+  /** When a chat must ask you before using it (default: low-risk tools freely). */
+  approval?: ToolApproval
+  /** The plugin it came with (removed with it). */
+  pluginId?: string
   createdAt: number
+}
+
+/**
+ * When a chat must ask before using a tool, as in ChatGPT: ask = always; read = reads freely, asks before
+ * changes; low = low-risk freely, asks before anything marked destructive; all = never asks (riskier).
+ */
+export type ToolApproval = 'ask' | 'read' | 'low' | 'all'
+
+/** A skill: a folder with SKILL.md (name, when to use it, instructions) and optional references, scripts and assets. */
+export interface SkillInfo {
+  id: string
+  name: string
+  /** What it does and when to use it: chats see this, and open the skill when a job matches. */
+  description: string
+  enabled: boolean
+  /** builtin: comes with Plotter; catalog: added from Plotter's catalogue; you / chat / upload; plugin: came with a plugin. */
+  source: 'builtin' | 'catalog' | 'you' | 'chat' | 'upload' | 'plugin'
+  pluginId?: string
+  /** Its files (paths inside the skill folder), SKILL.md first. */
+  files: string[]
+  /** Times a chat opened it, and when last. */
+  uses: number
+  lastUsed?: number
+  addedAt: number
+}
+
+/** A skill with its instructions (for viewing and editing). */
+export interface SkillDetail extends SkillInfo {
+  /** SKILL.md without its front matter. */
+  body: string
+  folder: string
+}
+
+/** Writing a skill (new, or an edit when id is given). */
+export interface SkillDraft {
+  id?: string
+  name: string
+  description: string
+  body: string
+  /** Other files (references/…, scripts/…, assets/…), text only. */
+  files?: { path: string; content: string }[]
+}
+
+/** A plugin: tools and skills that go together, with prompts to try it. */
+export interface PluginInfo {
+  id: string
+  name: string
+  description: string
+  icon?: string
+  version?: string
+  /** Prompts to try it in a chat. */
+  examples: string[]
+  toolIds: string[]
+  skillIds: string[]
+  source: 'you' | 'chat' | 'upload' | 'catalog'
+  catalogId?: string
+  addedAt: number
+}
+
+/** Something in Plotter's own catalogue of skills and plugins. */
+export interface CatalogEntry {
+  kind: 'skill' | 'plugin'
+  id: string
+  name: string
+  description: string
+  category: string
+  /** Already added. */
+  added: boolean
+}
+
+/** A chat wants to use a tool that needs your OK. */
+export interface ApprovalAsk {
+  id: string
+  /** Who asks (ChatGPT, Claude Code). */
+  who: string
+  tool: string
+  /** What it is about to do, in a line. */
+  what: string
+  /** Its inputs, as JSON. */
+  args: string
 }
 
 /** Registering or editing a tool. secret: undefined keeps the stored one, '' removes it. */
@@ -1050,6 +1135,39 @@ export interface PlotterApi {
     setConnected: (id: string, connected: boolean) => Promise<MarketTool[]>
     /** Connects to an MCP server and lists its tools (a Web API tool is not called: it may have effects). */
     check: (id: string) => Promise<MarketCheck>
+    /** When chats must ask before using it. */
+    setApproval: (id: string, level: ToolApproval) => Promise<MarketTool[]>
+  }
+  skills: {
+    list: () => Promise<SkillInfo[]>
+    get: (id: string) => Promise<SkillDetail>
+    /** One file of a skill, as text. */
+    readFile: (id: string, path: string) => Promise<string>
+    save: (draft: SkillDraft) => Promise<SkillInfo[]>
+    setEnabled: (id: string, enabled: boolean) => Promise<SkillInfo[]>
+    remove: (id: string) => Promise<SkillInfo[]>
+    /** Adds skills from files you picked (a folder, or a .zip as base64). Returns the skills added. */
+    upload: (input: { zip?: string; files?: { path: string; base64: string }[] }) => Promise<SkillInfo[]>
+    onChanged: (listener: () => void) => () => void
+  }
+  plugins: {
+    list: () => Promise<PluginInfo[]>
+    save: (plugin: Omit<PluginInfo, 'id' | 'addedAt' | 'source'> & { id?: string }) => Promise<PluginInfo[]>
+    /** Removes the plugin with the skills and tools that came with it. */
+    remove: (id: string) => Promise<PluginInfo[]>
+    /** Adds a plugin from files you picked (a folder, or a .zip as base64): its skills, and its MCP servers (off until you check them). */
+    upload: (input: { zip?: string; files?: { path: string; base64: string }[] }) => Promise<PluginInfo[]>
+    catalog: () => Promise<CatalogEntry[]>
+    /** Adds a skill or plugin from Plotter's catalogue. */
+    addFromCatalog: (kind: 'skill' | 'plugin', id: string) => Promise<void>
+    /** Approval levels of Plotter's own tools (the browser). */
+    builtinApproval: () => Promise<Record<string, ToolApproval>>
+    setBuiltinApproval: (id: string, level: ToolApproval) => Promise<Record<string, ToolApproval>>
+    onChanged: (listener: () => void) => () => void
+  }
+  approvals: {
+    onAsk: (listener: (ask: ApprovalAsk) => void) => () => void
+    answer: (id: string, allow: boolean) => Promise<void>
   }
   /** Claude Code chats: each message is sent to the user's own installed Claude Code (`claude -p`) in the chat's folder. */
   claudeCode: {

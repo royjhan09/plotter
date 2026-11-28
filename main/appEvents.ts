@@ -24,3 +24,12 @@ export const companyChanged = (): void => emitter('company:changed', {})
 
 /** The Lab's ideas, a test's progress or its result changed. */
 export const labChanged = (): void => emitter('lab:changed', {})
+
+/** Skills were added, changed or removed (in the Market, or by a chat). */
+export const skillsChanged = (): void => emitter('skills:changed', {})
+
+/** Plugins were added, changed or removed. */
+export const pluginsChanged = (): void => emitter('plugins:changed', {})
+
+/** A chat wants to use a tool that needs the user's OK. */
+export const askApproval = (ask: unknown): void => emitter('approval:ask', ask)

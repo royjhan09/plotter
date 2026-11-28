@@ -11,6 +11,7 @@ import { CLAUDE_CODE } from '@private/renderer/ClaudeCode'
 import { ChatPane, announceRename, cleanError } from './ChatPane'
 import { RailIcon } from './RailIcon'
 import { MARKET, Market } from '@private/renderer/Market'
+import { ApprovalPrompt } from '@private/renderer/Approvals'
 import { BROWSER, BrowserPane, queueBrowserOpen } from '@private/renderer/Browser'
 import { KITS, Kits } from '@private/renderer/Kits'
 import { ROLES, Roles } from '@private/renderer/Roles'
@@ -717,7 +718,18 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
         )}
       </aside>
 
-      {marketOpen && !settingsOpen && <Market onClose={() => setMarketOpen(false)} />}
+      {marketOpen && !settingsOpen && (
+        <Market
+          onClose={() => setMarketOpen(false)}
+          onTryInChat={(text) => {
+            // a new chat with the prompt typed in (not sent), as ChatGPT's "Try in chat"
+            setMarketOpen(false)
+            setSideNew(side, 'chatgpt', text)
+            setSideId(side, null)
+          }}
+        />
+      )}
+      <ApprovalPrompt />
       {kitsOpen && !settingsOpen && !marketOpen && <Kits onClose={() => setKitsOpen(false)} />}
       {companyOpen && !settingsOpen && !marketOpen && !kitsOpen && !rolesOpen && !openProject && (
         <Company
