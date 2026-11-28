@@ -161,6 +161,7 @@ export function installDevBridge(): void {
       versionCode: (id, cid, v) => call('kits:versionCode', id, cid, v),
       restoreVersion: (id, cid, v) => call('kits:restoreVersion', id, cid, v),
       addUseWhen: (id, cid, situation) => call('kits:addUseWhen', id, cid, situation),
+      addFromReply: (projectId, piece, chatTitle) => call('kits:addFromReply', projectId, piece, chatTitle),
       onChanged: (l) => {
         listeners.kits.add(l)
         return () => listeners.kits.delete(l)

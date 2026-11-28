@@ -8,7 +8,8 @@ import { clearImageKey, imageKeyStatus, setImageKey, setImageOn, setImageOptions
 import { addNote, createProject, editNote, listProjects, removeNote, removeProject, removeProjectRole, renameProject, setProjectKit, setProjectRole } from './projects'
 import { addWishes, cleanDraft, getRole, grantWish, listRoles, removeRole, saveCombined, saveRole, setRetired } from '@private/main/roles'
 import { combineSuggestions, dismissCombo, getCompany, labelLine, linkRoles, mergeTradeoff, noteHandoff, placeRole, renameCompany, replaceInChart, setPrefer, unlinkRoles } from '@private/main/company'
-import { addUseWhen, createKit, getKit, kitFolder, listKits, listUsage, removeComponent, removeKit, removeRule, restoreVersion, saveComponent, saveRule, setDefaultKit, updateKit, versionCode } from '@private/main/kits'
+import { addPieceFromReply } from '@private/main/kitOps'
+import { addUseWhen, createKit, getKit, kitFolder, kitFor, listKits, listUsage, removeComponent, removeKit, removeRule, restoreVersion, saveComponent, saveRule, setDefaultKit, updateKit, versionCode } from '@private/main/kits'
 import { alsoIn, groupOf, nextSpeaker, routeIn, suggestMembers } from './team'
 import { runRouteTests } from './routeTests'
 import { usageLog } from './openai'
@@ -27,7 +28,7 @@ import { addIdea, readLab, removeIdea, setLabCapture, updateIdea } from '@privat
 import { estimateLab, settleLab, startLab, stopLab } from './labRun'
 import { checkMarketTool, closeAllMarket, listMarket, removeMarketTool, saveMarketTool, setMarketConnected } from '@private/main/market'
 import { claudeCodeAvailable, makeProjectFolder, recentFolders, suggestProjectFolder, sendMember, sendToClaude, forgetGroup, settleStale, stopAllClaude, stopClaude } from '@private/main/claudeCode'
-import { USAGE_URL, type LabTest, type BesideChat, type Chat, type KitComponent, type KitPatch, type RoleDraft, type RoleLink, type HistoryItem, type RoleDeployment, type KitRule, type LibraryRef, type ChatMetaPatch, type MarketToolInput, type ConnectorId, type Features, type ReplyEvent, type SendRequest } from '../shared/api'
+import { USAGE_URL, type LabTest, type BesideChat, type Chat, type KitComponent, type KitPatch, type KitPieceOffer, type RoleDraft, type RoleLink, type HistoryItem, type RoleDeployment, type KitRule, type LibraryRef, type ChatMetaPatch, type MarketToolInput, type ConnectorId, type Features, type ReplyEvent, type SendRequest } from '../shared/api'
 
 app.setName('Plotter')
 // Interactive previews live on their own scheme/origin (see uiFrames.ts). Must be registered before ready.
@@ -299,6 +300,11 @@ export const handlers: Record<string, (...args: never[]) => unknown> = {
     saveComponent(String(id), { ...c, name: String(c?.name ?? ''), code: String(c?.code ?? '') }),
   'kits:removeComponent': (id: string, cid: string) => removeComponent(String(id), String(cid)),
   'kits:usage': (id: string) => listUsage(String(id)),
+  'kits:addFromReply': (projectId: string | null, piece: KitPieceOffer, chatTitle?: string) => {
+    const kit = kitFor(listProjects().find((p) => p.id === projectId)?.kitId)
+    if (!kit) throw new Error('There is no design kit to add it to.')
+    return addPieceFromReply(kit.id, { name: String(piece?.name ?? ''), code: String(piece?.code ?? ''), useWhen: piece?.useWhen, of: piece?.of, uses: piece?.uses }, chatTitle ? String(chatTitle) : undefined)
+  },
   'kits:versionCode': (id: string, cid: string, v: number) => versionCode(String(id), String(cid), Number(v)),
   'kits:restoreVersion': (id: string, cid: string, v: number) => restoreVersion(String(id), String(cid), Number(v)),
   'kits:addUseWhen': (id: string, cid: string, situation: string) => addUseWhen(String(id), String(cid), String(situation ?? '')),

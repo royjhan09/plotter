@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useRef, useState } from 'react'
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { ROLE_TOOL_INFO, type Attachment, type Chat, type ChatKind, type ChatMessage, type BesideChat, type ClaudeChatConfig, type HandOff, type MessageModes, type Model, type Project, type ReplyEvent, type RoleEntity, type TeamAlso, type TeamSetup, type HistoryItem } from '../../shared/api'
 import { memberKey, mentionsIn } from '../../shared/mentions'
 import { Composer, EffortMenu } from './Composer'
@@ -16,6 +16,7 @@ import { RoleBot } from '@private/renderer/RoleBot'
 import { RolesContext, useRole } from './roles'
 import { CLAUDE_CODE, FolderPicker, sendClaudeTurn, startClaudeChat } from '@private/renderer/ClaudeCode'
 import icon from '../../assets/sprout.svg'
+import { KitScope } from './kitScope'
 
 const api = window.plotter
 const newId = (): string => crypto.randomUUID().replace(/-/g, '')
@@ -828,7 +829,9 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
     return list.length ? list : null
   })()
   const lastReply = messages.reduce((at, m, i) => (m.role === 'assistant' && m.text && !m.cc ? i : at), -1)
+  const kitScope = useMemo(() => ({ projectId: chat?.projectId ?? newProject ?? null, chatTitle: chat?.title }), [chat?.projectId, chat?.title, newProject])
   return (
+    <KitScope.Provider value={kitScope}>
     <main
       ref={paneRef}
       className={`main pane ${isClaude ? `claude theme-${ccTheme}` : ''} ${p.split ? 'split' : ''} ${p.focused ? 'focused' : ''}`}
@@ -1191,5 +1194,6 @@ export function ChatPane(p: ChatPaneProps): React.JSX.Element {
         />
       )}
     </main>
+    </KitScope.Provider>
   )
 }

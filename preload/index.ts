@@ -113,6 +113,7 @@ const api: PlotterApi = {
     versionCode: (id, cid, v) => ipcRenderer.invoke('kits:versionCode', id, cid, v),
     restoreVersion: (id, cid, v) => ipcRenderer.invoke('kits:restoreVersion', id, cid, v),
     addUseWhen: (id, cid, situation) => ipcRenderer.invoke('kits:addUseWhen', id, cid, situation),
+    addFromReply: (projectId, piece, chatTitle) => ipcRenderer.invoke('kits:addFromReply', projectId, piece, chatTitle),
     onChanged: (listener) => {
       const handler = (_e: IpcRendererEvent, p: { kitId: string }): void => listener(p.kitId)
       ipcRenderer.on('kits:changed', handler)

@@ -4,7 +4,7 @@ import { addNote, chatDigest, projectContext, removeNote, roleInProject } from '
 import { deliverToSide, projectsChanged } from './appEvents'
 import { generateWithKey, imageKeyStatus, IMAGES } from '@private/main/images'
 import { kitBrief, kitFor } from '@private/main/kits'
-import { KIT_GUIDE, kitToolSpecs, runKitTool } from '@private/main/kitOps'
+import { KIT_GUIDE, KIT_TAGS_GUIDE, kitToolSpecs, runKitTool } from '@private/main/kitOps'
 import { addWishes, bumpRole, getRole } from '@private/main/roles'
 import { getCompany, roleTeam } from '@private/main/company'
 import { labCapture, noteIdea } from '@private/main/lab'
@@ -242,6 +242,7 @@ function chatFiles(req: SendRequest): Attachment[] {
 const KIT_INSTRUCTIONS = (brief: string): string => `${brief}
 Whenever you design or build anything visual (ui blocks, HTML, CSS, app code, mockups, icons), follow the kit's rules without being reminded and reuse its components, changing only their CSS variables for a variation. Components come at three levels: elements (one piece), patterns (made of elements) and features (pieces that behave).
 ${KIT_GUIDE}
+${KIT_TAGS_GUIDE}
 For where, name the place (e.g. "ui block: pricing page", "reply"). Do not mention the kit in replies that have nothing to do with design.
 In this chat there is no kit_record_use call: instead, when you used kit components, end your reply with a block Plotter reads and hides (it records the uses), as the very last thing, after everything else:
 \`\`\`kit-uses
@@ -274,7 +275,8 @@ function kitTools(kit: Kit, chatId: string, chatTitle: string, afterReply: ((tex
     ...(FINAL.includes(t.name) ? { final: true } : {}),
     label: () => t.label,
     run: async (args) => {
-      const out = runKitTool(kit.id, t.name, args, { by: 'ChatGPT', chatId, chatTitle, afterReply: (job) => void afterReply.push(job) })
+      // ChatGPT's previews get kit CSS from kit tags, so it is given the markup only
+      const out = runKitTool(kit.id, t.name, t.name === 'kit_component' && KIT_TAGS_GUIDE ? { ...args, markup_only: true } : args, { by: 'ChatGPT', chatId, chatTitle, afterReply: (job) => void afterReply.push(job) })
       return { output: out.output, ...(out.card ? { run: { kind: 'kit' as const, title: out.card.title, output: out.card.output } } : {}) }
     }
   }))
@@ -548,7 +550,7 @@ export async function buildSetup(req: SendRequest, lab?: LabReply): Promise<{ pa
       brief: `the user's design kit "${kit.name}" (${kit.rules.length} design rules, and components: ${kit.components.map((c) => c.name).slice(0, 60).join(', ')}): open it before you design or build anything visual (ui blocks, HTML or CSS, app screens, mockups, icons, logos), naming in components the ones you will reuse so their code comes with it; then follow its rules and reuse its components without being reminded`,
       guide: KIT_INSTRUCTIONS(kitBrief(kit)),
       tools: kitTools(kit, req.chatId, title, afterReply),
-      prefetch: (names) => runKitTool(kit.id, 'kit_component', { names }, { by: 'ChatGPT', chatId: req.chatId, chatTitle: title }).output
+      prefetch: (names) => runKitTool(kit.id, 'kit_component', { names, ...(KIT_TAGS_GUIDE ? { markup_only: true } : {}) }, { by: 'ChatGPT', chatId: req.chatId, chatTitle: title }).output
     })
   // the kit pieces a reply used, from its kit-uses block, recorded once the reply is finished
   if (kit)

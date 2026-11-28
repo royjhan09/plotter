@@ -152,6 +152,18 @@ export interface TeamTurn {
 }
 
 /** Settings › Images: which image model, and how good by default. */
+/** A piece a reply made that the kit does not have (a <kit-new> in a ui block), offered to the user to add. */
+export interface KitPieceOffer {
+  name: string
+  /** Self-contained HTML with its <style> (kit tags inside already filled in). */
+  code: string
+  useWhen?: string
+  /** An alternative to this kit component (otherwise new). */
+  of?: string
+  /** Kit components it is built from. */
+  uses?: string[]
+}
+
 export interface ImageOptions {
   model: string
   quality: 'low' | 'medium' | 'high'
@@ -986,6 +998,8 @@ export interface PlotterApi {
     addUseWhen: (id: string, componentId: string, situation: string) => Promise<Kit>
     /** Something saved to a kit (a chat or Claude Code): the kit's id. */
     onChanged: (listener: (kitId: string) => void) => () => void
+    /** Adds a piece a reply made to the kit of the chat's project (or the default kit). Returns the kit's name. */
+    addFromReply: (projectId: string | null, piece: KitPieceOffer, chatTitle?: string) => Promise<string>
   }
   /** A chat sent something to the chat beside it. */
   onSideDelivery: (listener: (d: SideDelivery) => void) => () => void

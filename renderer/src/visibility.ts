@@ -100,6 +100,13 @@ export const VISIBILITY: VisibilityGroup[] = [
         tradeoff: `${MOVED} The public stand-in has no Lab: chats are not asked to note ideas.`
       },
       {
+        name: 'Kit tags in previews',
+        now: 'private',
+        advice: 'keep-private',
+        why: 'Previews use design-kit components through <kit> tags filled in by Plotter (CSS scoped per component), and pieces a reply makes that the kit lacks are offered to add.',
+        tradeoff: `${MOVED} The public stand-in shows previews as written, with no kit tags and no offers.`
+      },
+      {
         name: 'Claude Code members in group chats',
         now: 'private',
         advice: 'keep-private',

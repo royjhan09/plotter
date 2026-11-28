@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef } from 'react'
+import { memo, useContext, useEffect, useMemo, useRef } from 'react'
 import { Marked, type Tokens } from 'marked'
 import { markedHighlight } from 'marked-highlight'
 import markedKatex from 'marked-katex-extension'
@@ -11,6 +11,8 @@ import { useTheme } from './theme'
 import { CanvasCard, parseCanvas } from './Canvas'
 import { ToolRunCard } from './ToolRunCard'
 import type { ToolRun } from '../../shared/api'
+import { KitScope } from './kitScope'
+import { expandKitTags, KitOffers } from '@private/renderer/kitTags'
 
 /**
  * Replies as rich Markdown: tables, highlighted code, math (KaTeX), coloured callouts (> [!TIP] …), and
@@ -178,20 +180,31 @@ function UiPiece({ src, done }: { src: string; done: boolean }): React.JSX.Eleme
   const ref = useRef<HTMLDivElement>(null)
   const live = useRef<ReturnType<typeof liveUi> | null>(null)
   const theme = useTheme()
+  const { projectId } = useContext(KitScope)
   useEffect(() => {
     const el = ref.current
     if (!el || done) return
     if (!live.current) live.current = liveUi(el)
-    live.current.update(src)
-  }, [src, done])
+    const view = live.current
+    // kit tags are filled in from the chat's kit (latest wins: an older fill arriving late is dropped by liveUi)
+    void expandKitTags(src, projectId).then((html) => view.update(html))
+  }, [src, done, projectId])
   useEffect(() => {
     const el = ref.current
     if (!el || !done) return
-    const cleanup = renderUi(el, src)
-    live.current?.stop()
-    live.current = null
-    return cleanup
-  }, [src, done, theme])
+    let cleanup: (() => void) | null = null
+    let gone = false
+    void expandKitTags(src, projectId).then((html) => {
+      if (gone) return
+      cleanup = renderUi(el, html)
+      live.current?.stop()
+      live.current = null
+    })
+    return () => {
+      gone = true
+      cleanup?.()
+    }
+  }, [src, done, theme, projectId])
   useEffect(() => () => live.current?.stop(), [])
   return <div ref={ref} className="viz" />
 }
@@ -231,6 +244,7 @@ const TextPiece = memo(function TextPiece({ text, live }: { text: string; live: 
 
 export function Markdown({ text, streaming = false, runs }: { text: string; streaming?: boolean; runs?: ToolRun[] }): React.JSX.Element {
   const pieces = useMemo(() => splitPieces(text), [text])
+  const scope = useContext(KitScope)
   return (
     <div className="md">
       {pieces.map((p, i) => {
@@ -253,6 +267,7 @@ export function Markdown({ text, streaming = false, runs }: { text: string; stre
           )
         return <TextPiece key={i} text={p.text} live={streaming && last} />
       })}
+      {!streaming && <KitOffers text={text} projectId={scope.projectId} chatTitle={scope.chatTitle} />}
     </div>
   )
 }
