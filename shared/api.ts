@@ -1095,6 +1095,8 @@ export interface PlotterApi {
     onOpen: (listener: (url: string) => void) => () => void
     /** The pane's tabs, for chats that use the browser (webContentsId: the tab's page). */
     report: (state: { open: boolean; active: number | null; tabs: { webContentsId: number | null; url: string; title: string }[] }) => Promise<void>
+    /** Ctrl+Shift+S was pressed inside a page in the pane: toggle marking it up. */
+    onMarkShortcut: (listener: () => void) => () => void
     /** A chat is using the browser (who, and what it is doing). */
     onAgent: (listener: (a: { who: string; what: string }) => void) => () => void
   }

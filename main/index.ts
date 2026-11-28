@@ -70,7 +70,7 @@ function createWindow(): void {
       webviewTag: BROWSER // the browser pane's pages (locked down in setupBrowser)
     }
   })
-  if (BROWSER) setupBrowser(win, (url) => emit('browser:open', { url }))
+  if (BROWSER) setupBrowser(win, (url) => emit('browser:open', { url }), () => emit('browser:mark', {}))
   win.once('ready-to-show', () => win?.show())
   // Links in replies open in the real browser, never inside Plotter.
   win.webContents.setWindowOpenHandler(({ url }) => {

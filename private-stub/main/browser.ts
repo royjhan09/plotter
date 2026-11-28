@@ -4,7 +4,7 @@ import type { BrowserWindow } from 'electron'
 export const BROWSER = false
 const OFF = 'The browser pane is not part of this build.'
 
-export function setupBrowser(_win: BrowserWindow, _open: (url: string) => void): void {}
+export function setupBrowser(_win: BrowserWindow, _open: (url: string) => void, _markShortcut?: () => void): void {}
 export async function capturePage(_webContentsId: number): Promise<string> {
   throw new Error(OFF)
 }

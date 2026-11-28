@@ -73,6 +73,11 @@ const api: PlotterApi = {
       return () => ipcRenderer.removeListener('browser:open', handler)
     },
     report: (state) => ipcRenderer.invoke('browser:state', state),
+    onMarkShortcut: (listener) => {
+      const handler = (): void => listener()
+      ipcRenderer.on('browser:mark', handler)
+      return () => ipcRenderer.removeListener('browser:mark', handler)
+    },
     onAgent: (listener) => {
       const handler = (_e: unknown, a: { who: string; what: string }): void => listener(a)
       ipcRenderer.on('browser:agent', handler)

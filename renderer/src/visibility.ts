@@ -103,7 +103,7 @@ export const VISIBILITY: VisibilityGroup[] = [
         name: 'The browser pane',
         now: 'private',
         advice: 'keep-private',
-        why: 'Web pages beside the chat (tabs, address bar), and marks on a page (pick an element, draw, box, write) added to a message as a screenshot with notes.',
+        why: 'Web pages beside the chat (tabs, address bar), and a markup toolbar like the one in Claude (pick an element with its HTML, styles and React components; pen, shapes, steps, text; colours, widths; undo and redo) whose screenshot and notes go into a message.',
         tradeoff: `${MOVED} The public stand-in has no browser pane and no globe button.`
       },
       {

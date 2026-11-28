@@ -126,6 +126,8 @@ export function installDevBridge(): void {
         return () => listeners.browserOpen.delete(l)
       },
       report: (state) => call('browser:state', state),
+      // dev mode: pages are iframes, whose keys the pane listens to itself
+      onMarkShortcut: () => () => undefined,
       onAgent: (l) => {
         listeners.browserAgent.add(l)
         return () => listeners.browserAgent.delete(l)
