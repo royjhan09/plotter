@@ -66,7 +66,7 @@ async function askJson(instructions: string, text: string, tag: string, cacheKey
 }
 
 /** Who speaks next (the facilitator's pick), or that the team is done for now. */
-export async function nextSpeaker(chat: Chat, history: HistoryItem[], turnsLeft: number): Promise<TeamTurn> {
+export async function nextSpeaker(chat: Chat, history: HistoryItem[], turnsLeft: number, tag = 'facilitator'): Promise<TeamTurn> {
   const members = (chat.team?.members ?? []).map((id) => getRole(id)).filter((r): r is RoleEntity => !!r)
   if (!members.length) return { speaker: null, done: 'This team chat has no members left.' }
   if (turnsLeft <= 0) return { speaker: null, done: 'The team has taken its turns for this message.' }
@@ -75,7 +75,7 @@ export async function nextSpeaker(chat: Chat, history: HistoryItem[], turnsLeft:
   const j = await askJson(
     FACILITATOR,
     `Company: ${getCompany().name}\nPurpose of this chat: ${chat.team?.purpose ?? chat.title}\nMembers:\n${members.map(memberLine).join('\n')}\n\nThe conversation so far:\n${t.earlier || '(nothing yet)'}\n\nThe newest message:\n${t.latest}\n\nTurns left before the user is asked again: ${turnsLeft}`,
-    'facilitator',
+    tag,
     `team:${chat.id}:facilitator`
   )
   const pick = String(j['next'] ?? '').trim().toLowerCase()

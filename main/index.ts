@@ -22,9 +22,11 @@ import { startDevBridge } from './devBridge'
 import { getUiFrame, putUiFrame, UI_FRAME_CSP } from './uiFrames'
 import { showInExplorer } from './frontExplorer'
 import { pdfHandlers } from '@private/main/pdf'
+import { addIdea, readLab, removeIdea, setLabCapture, updateIdea } from '@private/main/lab'
+import { estimateLab, settleLab, startLab, stopLab } from './labRun'
 import { checkMarketTool, closeAllMarket, listMarket, removeMarketTool, saveMarketTool, setMarketConnected } from '@private/main/market'
 import { claudeCodeAvailable, makeProjectFolder, recentFolders, suggestProjectFolder, sendToClaude, settleStale, stopAllClaude, stopClaude } from '@private/main/claudeCode'
-import { USAGE_URL, type BesideChat, type Chat, type KitComponent, type KitPatch, type RoleDraft, type RoleLink, type HistoryItem, type RoleDeployment, type KitRule, type LibraryRef, type ChatMetaPatch, type MarketToolInput, type ConnectorId, type Features, type ReplyEvent, type SendRequest } from '../shared/api'
+import { USAGE_URL, type LabTest, type BesideChat, type Chat, type KitComponent, type KitPatch, type RoleDraft, type RoleLink, type HistoryItem, type RoleDeployment, type KitRule, type LibraryRef, type ChatMetaPatch, type MarketToolInput, type ConnectorId, type Features, type ReplyEvent, type SendRequest } from '../shared/api'
 
 app.setName('Plotter')
 // Interactive previews live on their own scheme/origin (see uiFrames.ts). Must be registered before ready.
@@ -194,6 +196,32 @@ export const handlers: Record<string, (...args: never[]) => unknown> = {
   'company:labelLine': (roleId: string, label: string) => labelLine(String(roleId), String(label ?? '')),
   'company:link': (link: Omit<RoleLink, 'id'>) => linkRoles(link ?? ({} as Omit<RoleLink, 'id'>)),
   'company:unlink': (id: string) => unlinkRoles(String(id)),
+  'lab:get': () => {
+    settleLab()
+    // the chat an idea came from, under its title now (it may have been named after the idea was noted)
+    const s = readLab()
+    return { ...s, ideas: s.ideas.map((i) => (i.from.chatId ? { ...i, from: { ...i.from, chatTitle: getChat(i.from.chatId)?.title ?? i.from.chatTitle } } : i)) }
+  },
+  'lab:add': (idea: { title: string; claim: string }) => addIdea(idea ?? { title: '', claim: '' }),
+  'lab:update': (id: string, change: Record<string, unknown>) => {
+    // what the user may change by hand (a test's result and progress come only from a run)
+    const c = change ?? {}
+    const status = c['status'] === 'dismissed' || c['status'] === 'new' ? { status: c['status'] as 'dismissed' | 'new' } : {}
+    return updateIdea(String(id), {
+      ...(typeof c['title'] === 'string' && c['title'].trim() ? { title: c['title'].trim().slice(0, 120) } : {}),
+      ...(typeof c['claim'] === 'string' && c['claim'].trim() ? { claim: c['claim'].trim().slice(0, 600) } : {}),
+      ...(c['test'] && typeof c['test'] === 'object' ? { test: c['test'] as LabTest } : {}),
+      ...status
+    })
+  },
+  'lab:remove': (id: string) => {
+    stopLab(String(id))
+    return removeIdea(String(id))
+  },
+  'lab:setCapture': (on: boolean) => setLabCapture(!!on),
+  'lab:estimate': (test: LabTest) => estimateLab(test),
+  'lab:run': (id: string, test: LabTest) => startLab(String(id), test),
+  'lab:stop': (id: string) => stopLab(String(id)),
   'roles:interview': async (messages: { role: 'user' | 'assistant'; text: string }[]) => {
     const r = await roleInterview(Array.isArray(messages) ? messages.map((m) => ({ role: m.role === 'assistant' ? 'assistant' : 'user', text: String(m.text ?? '') })) : [])
     return { reply: r.reply, ...(r.role && String(r.role.name ?? '').trim() ? { draft: cleanDraft({ purpose: String(r.role.tagline ?? r.role.name), ...r.role }) } : {}) }

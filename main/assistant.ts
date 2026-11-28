@@ -7,6 +7,7 @@ import { kitBrief, kitFor } from '@private/main/kits'
 import { KIT_GUIDE, kitToolSpecs, runKitTool } from '@private/main/kitOps'
 import { addWishes, bumpRole, getRole } from '@private/main/roles'
 import { getCompany, roleTeam } from '@private/main/company'
+import { labCapture, noteIdea } from '@private/main/lab'
 import { memberLine } from './team'
 import { ROLE_TOOL_INFO, type Kit, type RoleEntity, type RoleTool } from '../shared/api'
 import { pythonTool } from './python'
@@ -383,6 +384,48 @@ export function roleWishesIn(text: string): { tool: string; why: string }[] {
   }
 }
 
+/** How a chat notes an untested idea for the Lab: a block at the end of its reply that Plotter records and hides. */
+const LAB_NOTE = `When your reply proposes, or the user suggests, a way of doing something whose real effect is uncertain until tried (that it is faster, cheaper, better for people, more reliable…), and a test would settle it, end your reply with a block Plotter reads and hides, as the very last thing:
+\`\`\`lab-idea
+{"title": "<a short name>", "claim": "<what is expected to happen, so a test can settle it>", "consider": ["<what might also matter>"]}
+\`\`\`
+Not for facts, opinions or routine answers; at most one.`
+
+/** The untested idea a reply noted, from its lab-idea block. */
+export function labIdeaIn(text: string): { title: string; claim: string; consider?: string[] } | null {
+  const m = /```[ \t]*lab-idea[ \t]*\n([\s\S]*?)(```|$)/i.exec(text)
+  if (!m) return null
+  try {
+    const j = JSON.parse(m[1]!.trim()) as Record<string, unknown>
+    const consider = Array.isArray(j['consider']) ? (j['consider'] as unknown[]).map(String) : []
+    return { title: String(j['title'] ?? ''), claim: String(j['claim'] ?? ''), ...(consider.length ? { consider } : {}) }
+  } catch {
+    return null
+  }
+}
+
+/** Tools that change the user's things: in a Lab test they answer as if done and change nothing. */
+const WRITES = new Set(['save_memory', 'forget_memory', 'save_project_note', 'forget_project_note', 'kit_add_rule', 'kit_save_component', 'kit_record_use', 'send_to_side_chat', 'generate_image', 'draw_picture'])
+function dryRun(t: LocalTool): LocalTool {
+  if (WRITES.has(t.name)) return { ...t, run: async () => ({ output: JSON.stringify({ ok: true, note: 'Lab test: nothing was saved or sent.' }) }) }
+  if (t.name === 'open_capability')
+    return {
+      ...t,
+      run: async (args, signal) => {
+        const r = await t.run(args, signal)
+        return r.addTools ? { ...r, addTools: r.addTools.map(dryRun) } : r
+      }
+    }
+  return t
+}
+
+/** A reply run by the Lab: no chat of the user's is touched, nothing is saved, its calls carry the Lab's tag. */
+export interface LabReply {
+  tag: string
+  /** A team test's own (unsaved) team chat. */
+  chat?: Chat
+}
+
 /** A capability loaded on demand: one line always, its guide and tools only once a reply opens it. */
 interface Capability {
   name: string
@@ -431,9 +474,9 @@ export interface SetupPart {
  * Everything a ChatGPT reply is set up with: the instruction parts and the tools, each labelled. reply() sends
  * them; the dev server reports their sizes (debug:setup), so what every message carries can be measured.
  */
-export async function buildSetup(req: SendRequest): Promise<{ parts: SetupPart[]; tools: (LocalTool & { pack: string })[]; webSearch: boolean; afterReply: ((text: string) => { title: string; output: string } | void)[]; role?: RoleEntity; team: string; chat?: Chat }> {
+export async function buildSetup(req: SendRequest, lab?: LabReply): Promise<{ parts: SetupPart[]; tools: (LocalTool & { pack: string })[]; webSearch: boolean; afterReply: ((text: string) => { title: string; output: string } | void)[]; role?: RoleEntity; team: string; chat?: Chat }> {
   const f = readFeatures()
-  const chat = getChat(req.chatId)
+  const chat = lab ? lab.chat : getChat(req.chatId)
   // a role decides which tools its chats get (the user's own picks for one message still count)
   // a generic role, as this project uses it: the tools the project picked, and what is different here
   const base = getRole(req.asRole ?? chat?.roleId)
@@ -526,16 +569,17 @@ export async function buildSetup(req: SendRequest): Promise<{ parts: SetupPart[]
   const picked = modeInstructions(req, imageModel)
   add('picked', picked)
   if (f.canvas || req.canvas) add('canvas', CANVAS_INSTRUCTIONS)
+  if (!lab && labCapture()) add('lab', LAB_NOTE)
   if (req.canvas) add('canvas-now', canvasContext(req))
   if (req.research) add('research', RESEARCH_INSTRUCTIONS)
   // shared, unchanging parts first (they are cached across messages and chats); this chat's and this turn's last
-  const ORDER = ['base', 'web', 'python', 'pictures', 'canvas', 'capabilities', 'research', 'role', 'memory', 'project', 'side', 'team', 'picked', 'canvas-now']
+  const ORDER = ['base', 'web', 'python', 'pictures', 'canvas', 'lab', 'capabilities', 'research', 'role', 'memory', 'project', 'side', 'team', 'picked', 'canvas-now']
   parts.sort((a, b) => ORDER.indexOf(a.name) - ORDER.indexOf(b.name))
   return { parts, tools, webSearch, afterReply, ...(role ? { role } : {}), team, ...(chat ? { chat } : {}) }
 }
 
-export async function reply(req: SendRequest, handlers: ConversationHandlers, signal: AbortSignal): Promise<void> {
-  const { parts, tools, webSearch, afterReply, role, team, chat } = await buildSetup(req)
+export async function reply(req: SendRequest, handlers: ConversationHandlers, signal: AbortSignal, lab?: LabReply): Promise<void> {
+  const { parts, tools, webSearch, afterReply, role, team, chat } = await buildSetup(req, lab)
   let text = ''
   // what this reply costs, from the calls it makes (kept with the role, for the trade-off of combining roles)
   const firstCall = nextUsageSeq()
@@ -548,13 +592,16 @@ export async function reply(req: SendRequest, handlers: ConversationHandlers, si
       history: team ? teamHistory(req.history, role!.id, req) : req.history,
       ...(team ? { cacheKey: `team:${chat!.id}:${role!.id}` } : {}),
       webSearch,
-      tools,
+      tools: lab ? tools.map(dryRun) : tools,
       verbosity: req.research ? 'high' : 'medium',
-      tag: team ? `member:${role!.name}` : role ? `role:${role.name}` : 'chat'
+      tag: lab ? lab.tag : team ? `member:${role!.name}` : role ? `role:${role.name}` : 'chat'
     },
     { ...handlers, onDelta: (t) => ((text += t), handlers.onDelta(t)) },
     signal
   )
+  if (lab) return
+  const idea = labCapture() ? labIdeaIn(text) : null
+  if (idea) noteIdea(idea, { by: role?.name ?? 'ChatGPT', ...(chat ? { chatId: chat.id, chatTitle: chat.title } : {}) })
   for (const job of afterReply) {
     try {
       const card = job(text)

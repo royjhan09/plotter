@@ -747,6 +747,88 @@ export type SpeechStatus =
   | { state: 'ready' }
   | { state: 'error'; message: string }
 
+/**
+ * The Lab: ideas (the user's, or a chat's) whose real effect is not known until tried. Testing everything at once
+ * costs time and tokens, so they are listed with what a test would cost, and the user picks which to run.
+ */
+export type LabArmSetup = { type: 'plain' } | { type: 'role'; roleId: string } | { type: 'team'; roleIds: string[] }
+
+/** One way of doing the task in a comparison. */
+export interface LabArm {
+  label: string
+  setup: LabArmSetup
+}
+
+/** check: ChatGPT tests the claim (Python, the web) and says what it missed. compare: the same task done each way, measured, then judged. */
+export type LabTest = { kind: 'check' } | { kind: 'compare'; task: string; arms: LabArm[] }
+
+export interface LabArmResult {
+  label: string
+  type: LabArmSetup['type']
+  input: number
+  cached: number
+  output: number
+  calls: number
+  ms: number
+  /** What it produced (clipped). */
+  answer: string
+  /** The judge's mark for how well it did the task (1 to 5), and why. */
+  score?: number
+  note?: string
+}
+
+export type LabVerdict = 'holds' | 'partly' | 'fails' | 'unclear'
+
+export interface LabResult {
+  at: number
+  verdict: LabVerdict
+  summary: string
+  /** What the idea did not take into account. */
+  considerations: string[]
+  arms?: LabArmResult[]
+  winner?: string
+  /** What the test itself cost. */
+  cost: { input: number; cached: number; output: number; calls: number; ms: number }
+  /** What it was expected to cost (tokens). */
+  estimate: number
+  /** The tester's own write-up (a check). */
+  report?: string
+}
+
+export interface LabIdea {
+  id: string
+  at: number
+  title: string
+  /** What is expected to happen, in a way a test can settle. */
+  claim: string
+  /** What might also matter (from whoever proposed it). */
+  consider?: string[]
+  from: { by: string; chatId?: string; chatTitle?: string }
+  /** How many times it came up. */
+  seen: number
+  status: 'new' | 'running' | 'done' | 'failed' | 'dismissed'
+  test?: LabTest
+  /** While running: what it is doing. */
+  progress?: string
+  result?: LabResult
+  error?: string
+}
+
+export interface LabState {
+  ideas: LabIdea[]
+  capture: boolean
+}
+
+export interface LabEstimate {
+  tokens: number
+  seconds: number
+  /** Measured: from past Lab runs; typical: before there are any. */
+  basis: 'measured' | 'typical'
+}
+
+/** Ideas waiting in the Lab, at most (the oldest untested ones go first). */
+export const LAB_CAP = 60
+
 export interface PlotterApi {
   auth: {
     state: () => Promise<AuthState>
@@ -795,6 +877,21 @@ export interface PlotterApi {
     next: (chatId: string, history: HistoryItem[], turnsLeft: number) => Promise<TeamTurn>
     /** ChatGPT picks the roles a purpose needs (role ids). */
     suggest: (purpose: string) => Promise<string[]>
+  }
+  lab: {
+    get: () => Promise<LabState>
+    /** An idea of yours, to test later. */
+    add: (idea: { title: string; claim: string }) => Promise<LabState>
+    update: (id: string, change: Partial<Pick<LabIdea, 'title' | 'claim' | 'test' | 'status'>>) => Promise<LabState>
+    remove: (id: string) => Promise<LabState>
+    /** Whether chats note untested ideas for the Lab (a short line in their set-up). */
+    setCapture: (on: boolean) => Promise<LabState>
+    /** What a test would cost, from past Lab runs (or typical figures before there are any). */
+    estimate: (test: LabTest) => Promise<LabEstimate>
+    /** Starts the test; progress and the result arrive through onChanged. */
+    run: (id: string, test: LabTest) => Promise<void>
+    stop: (id: string) => Promise<void>
+    onChanged: (listener: () => void) => () => void
   }
   company: {
     get: () => Promise<Company>

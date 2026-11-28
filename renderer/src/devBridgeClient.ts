@@ -38,7 +38,8 @@ const listeners = {
   projects: new Set<() => void>(),
   kits: new Set<(kitId: string) => void>(),
   roles: new Set<() => void>(),
-  company: new Set<() => void>()
+  company: new Set<() => void>(),
+  lab: new Set<() => void>()
 }
 
 export function installDevBridge(): void {
@@ -50,6 +51,7 @@ export function installDevBridge(): void {
   events.addEventListener('side:deliver', (e) => listeners.side.forEach((l) => l(JSON.parse((e as MessageEvent).data))))
   events.addEventListener('projects:changed', () => listeners.projects.forEach((l) => l()))
   events.addEventListener('company:changed', () => listeners.company.forEach((l) => l()))
+  events.addEventListener('lab:changed', () => listeners.lab.forEach((l) => l()))
   events.addEventListener('roles:changed', () => listeners.roles.forEach((l) => l()))
   events.addEventListener('kits:changed', (e) => listeners.kits.forEach((l) => l(JSON.parse((e as MessageEvent).data).kitId)))
   events.addEventListener('speech:status', (e) => listeners.speech.forEach((l) => l(JSON.parse((e as MessageEvent).data))))
@@ -106,6 +108,20 @@ export function installDevBridge(): void {
       onChanged: (l) => {
         listeners.company.add(l)
         return () => listeners.company.delete(l)
+      }
+    },
+    lab: {
+      get: () => call('lab:get'),
+      add: (idea) => call('lab:add', idea),
+      update: (id, change) => call('lab:update', id, change),
+      remove: (id) => call('lab:remove', id),
+      setCapture: (on) => call('lab:setCapture', on),
+      estimate: (test) => call('lab:estimate', test),
+      run: (id, test) => call('lab:run', id, test),
+      stop: (id) => call('lab:stop', id),
+      onChanged: (l) => {
+        listeners.lab.add(l)
+        return () => listeners.lab.delete(l)
       }
     },
     roles: {

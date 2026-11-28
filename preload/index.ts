@@ -60,6 +60,21 @@ const api: PlotterApi = {
       return () => ipcRenderer.removeListener('company:changed', handler)
     }
   },
+  lab: {
+    get: () => ipcRenderer.invoke('lab:get'),
+    add: (idea) => ipcRenderer.invoke('lab:add', idea),
+    update: (id, change) => ipcRenderer.invoke('lab:update', id, change),
+    remove: (id) => ipcRenderer.invoke('lab:remove', id),
+    setCapture: (on) => ipcRenderer.invoke('lab:setCapture', on),
+    estimate: (test) => ipcRenderer.invoke('lab:estimate', test),
+    run: (id, test) => ipcRenderer.invoke('lab:run', id, test),
+    stop: (id) => ipcRenderer.invoke('lab:stop', id),
+    onChanged: (listener) => {
+      const handler = (): void => listener()
+      ipcRenderer.on('lab:changed', handler)
+      return () => ipcRenderer.removeListener('lab:changed', handler)
+    }
+  },
   roles: {
     list: () => ipcRenderer.invoke('roles:list'),
     save: (role) => ipcRenderer.invoke('roles:save', role),

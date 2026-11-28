@@ -13,6 +13,7 @@ import { RailIcon } from './RailIcon'
 import { MARKET, Market } from '@private/renderer/Market'
 import { KITS, Kits } from '@private/renderer/Kits'
 import { ROLES, Roles } from '@private/renderer/Roles'
+import { LAB, Lab } from '@private/renderer/Lab'
 import { COMPANY, Company } from '@private/renderer/Company'
 import { RolesContext } from './roles'
 import icon from '../../assets/sprout.svg'
@@ -167,6 +168,8 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
   // Roles: ChatGPT chats with a job and their own look
   const [rolesOpen, setRolesOpen] = useState(false)
   const [companyOpen, setCompanyOpen] = useState(false)
+  // the Lab: untested ideas, and the tests you chose to run
+  const [labOpen, setLabOpen] = useState(false)
   const [roles, setRoles] = useState<RoleEntity[]>([])
   useEffect(() => {
     const load = (): void => void api.roles.list().then(setRoles, () => setRoles([]))
@@ -186,6 +189,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
     setKitsOpen(false)
     setRolesOpen(false)
     setCompanyOpen(false)
+    setLabOpen(false)
     setProjectOpen(null)
     setSettingsTab(tab)
     setSettingsOpen(true)
@@ -234,6 +238,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
     setKitsOpen(false)
     setRolesOpen(false)
     setCompanyOpen(false)
+    setLabOpen(false)
     setProjectOpen(null)
     if (where === 'right') setSplit(true)
     const other = where === 'left' ? rightId : leftId
@@ -252,6 +257,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
     setKitsOpen(false)
     setRolesOpen(false)
     setCompanyOpen(false)
+    setLabOpen(false)
     setProjectOpen(null)
     setSideNew(side, 'chatgpt')
     setSideId(side, null)
@@ -264,6 +270,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
     setKitsOpen(false)
     setRolesOpen(false)
     setCompanyOpen(false)
+    setLabOpen(false)
     setProjectOpen(null)
     const where: 'left' | 'right' = beside ? (side === 'left' ? 'right' : 'left') : side
     if (where === 'right') setSplit(true)
@@ -319,6 +326,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
     setKitsOpen(false)
     setRolesOpen(false)
     setCompanyOpen(false)
+    setLabOpen(false)
     setProjectOpen(p.id)
   }
   /** A new team chat (roles working on one purpose together), on the focused side, its purpose typed in. */
@@ -329,6 +337,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
     setKitsOpen(false)
     setRolesOpen(false)
     setCompanyOpen(false)
+    setLabOpen(false)
     setSideNew(side, 'chatgpt', team.purpose, undefined, undefined, undefined, team)
     setSideId(side, null)
   }
@@ -340,6 +349,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
     setKitsOpen(false)
     setRolesOpen(false)
     setCompanyOpen(false)
+    setLabOpen(false)
     // a Claude Code role works in a Claude Code chat (in a project folder); the others in a ChatGPT chat
     const engine = roles.find((r) => r.id === roleId)?.engine === 'claude' && CLAUDE_CODE ? 'claude' : 'chatgpt'
     setSideNew(side, engine, undefined, undefined, projectId, roleId)
@@ -353,6 +363,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
     setKitsOpen(false)
     setRolesOpen(false)
     setCompanyOpen(false)
+    setLabOpen(false)
     setSideNew(side, kind, undefined, undefined, projectId)
     setSideId(side, null)
   }
@@ -404,6 +415,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
     setKitsOpen(false)
     setRolesOpen(false)
     setCompanyOpen(false)
+    setLabOpen(false)
     if (where === 'right') setSplit(true)
     setProjectOpen(null)
     setSideNew(where, kind)
@@ -489,6 +501,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
                 setKitsOpen(false)
                 setRolesOpen(false)
                 setCompanyOpen(false)
+                setLabOpen(false)
                 setMarketOpen(!marketOpen)
               }}
             >
@@ -512,6 +525,24 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
               <RailIcon name="company" />
             </button>
           )}
+          {LAB && (
+            <button
+              className={`rail-btn ${labOpen ? 'on' : ''}`}
+              title="Lab: ideas not yet tested, and the tests you run"
+              onClick={() => {
+                setSettingsOpen(false)
+                setMarketOpen(false)
+                setKitsOpen(false)
+                setRolesOpen(false)
+                setCompanyOpen(false)
+                setProjectOpen(null)
+                setPanel(null)
+                setLabOpen(!labOpen)
+              }}
+            >
+              <RailIcon name="lab" />
+            </button>
+          )}
           {ROLES && (
             <button
               className={`rail-btn ${rolesOpen ? 'on' : ''}`}
@@ -523,6 +554,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
                 setProjectOpen(null)
                 setPanel(null)
                 setCompanyOpen(false)
+                setLabOpen(false)
                 setRolesOpen(!rolesOpen)
               }}
             >
@@ -540,6 +572,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
                 setPanel(null)
                 setRolesOpen(false)
                 setCompanyOpen(false)
+                setLabOpen(false)
                 setKitsOpen(!kitsOpen)
               }}
             >
@@ -653,6 +686,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
                 setKitsOpen(false)
                 setRolesOpen(false)
                 setCompanyOpen(false)
+                setLabOpen(false)
                 setProjectOpen(id)
                 if (!pinned) setPanel(null)
               }}
@@ -683,6 +717,15 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
           onOpenRoles={() => {
             setCompanyOpen(false)
             setRolesOpen(true)
+          }}
+        />
+      )}
+      {labOpen && !settingsOpen && !marketOpen && !kitsOpen && !rolesOpen && !companyOpen && !openProject && (
+        <Lab
+          onClose={() => setLabOpen(false)}
+          onOpenChat={(id) => {
+            setLabOpen(false)
+            openChat(id)
           }}
         />
       )}
@@ -725,7 +768,7 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
 
       <div
         className={`panes ${split ? 'split' : ''}`}
-        hidden={settingsOpen || marketOpen || kitsOpen || rolesOpen || companyOpen || !!openProject}
+        hidden={settingsOpen || marketOpen || kitsOpen || rolesOpen || companyOpen || labOpen || !!openProject}
         onDragOver={onPanesDragOver}
         onDragLeave={(e) => {
           if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDropSide(null)

@@ -93,6 +93,13 @@ export const VISIBILITY: VisibilityGroup[] = [
         tradeoff: `${MOVED} The public stand-in keeps no wishes and cannot combine roles.`
       },
       {
+        name: 'The Lab page',
+        now: 'private',
+        advice: 'keep-private',
+        why: 'The Lab page, where untested ideas wait with what a test would cost, and the results of the tests you ran.',
+        tradeoff: `${MOVED} The public stand-in has no Lab: chats are not asked to note ideas.`
+      },
+      {
         name: 'Company page and org chart',
         now: 'private',
         advice: 'keep-private',
@@ -176,6 +183,13 @@ export const VISIBILITY: VisibilityGroup[] = [
         advice: 'must-public',
         why: 'How a role says it lacked a tool, the "Suggest tools" review, making a role by chatting, the draft of a combined role, and a role’s per-project tools and notes in its replies are ChatGPT parts (main/assistant.ts, main/openai.ts, main/projects.ts).',
         tradeoff: 'Shows how roles are reviewed and combined, not your roles themselves.'
+      },
+      {
+        name: 'Lab tests run by ChatGPT',
+        now: 'public',
+        advice: 'must-public',
+        why: 'How a chat notes an untested idea at the end of a reply, and how a test runs: ChatGPT checking a claim with Python or the web, or the same task done several ways, measured, then judged (main/assistant.ts, main/labRun.ts).',
+        tradeoff: 'Shows how ideas are tested, not your ideas or results.'
       },
       {
         name: 'Recruiter: the team a project needs',

@@ -21,3 +21,6 @@ export const rolesChanged = (): void => emitter('roles:changed', {})
 
 /** The company's name or org chart changed. */
 export const companyChanged = (): void => emitter('company:changed', {})
+
+/** The Lab's ideas, a test's progress or its result changed. */
+export const labChanged = (): void => emitter('lab:changed', {})
