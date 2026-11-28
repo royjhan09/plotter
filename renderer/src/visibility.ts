@@ -110,7 +110,7 @@ export const VISIBILITY: VisibilityGroup[] = [
         name: 'Skills, plugins and approvals in the Market',
         now: 'private',
         advice: 'keep-private',
-        why: 'Skills (SKILL.md folders) and plugins (tools and skills bundled, with prompts to try), made by chatting, in an editor, by upload or from the catalogue; approval levels with Allow/Deny before a tool runs.',
+        why: 'Skills (SKILL.md folders) and plugins (tools and skills bundled, with prompts to try, each on its own page with its logo or one Plotter makes), made by chatting, in an editor, by upload or from the catalogue; approval levels with Allow/Deny before a tool runs.',
         tradeoff: `${MOVED} The public stand-in has no skills, no plugins, and tools run without asking.`
       },
       {

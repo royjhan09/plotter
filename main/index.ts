@@ -30,7 +30,7 @@ import { addIdea, readLab, removeIdea, setLabCapture, updateIdea } from '@privat
 import { estimateLab, settleLab, startLab, stopLab } from './labRun'
 import { checkMarketTool, closeAllMarket, listMarket, removeMarketTool, saveMarketTool, setMarketApproval, setMarketConnected, signInTool, signOutTool } from '@private/main/market'
 import { getSkill, listSkills, readSkillFile, removeSkill, saveSkill, setSkillEnabled, uploadSkills } from '@private/main/skills'
-import { addFromCatalog, addPopular, catalog, listPlugins, popular, popularIcons, removePlugin, savePlugin, uploadPlugin } from '@private/main/plugins'
+import { addFromCatalog, addPopular, catalog, listPlugins, popular, popularIcons, removePlugin, savePlugin, setPluginIcon, uploadPlugin } from '@private/main/plugins'
 import { answerApproval, builtinApprovals, setBuiltinApproval } from '@private/main/approvals'
 import { claudeCodeAvailable, makeProjectFolder, recentFolders, suggestProjectFolder, sendMember, sendToClaude, forgetGroup, settleStale, stopAllClaude, stopClaude } from '@private/main/claudeCode'
 import { USAGE_URL, type LabTest, type BesideChat, type Chat, type KitComponent, type KitPatch, type KitPieceOffer, type ToolApproval, type SkillDraft, type PluginInfo, type RoleDraft, type RoleLink, type HistoryItem, type RoleDeployment, type KitRule, type LibraryRef, type ChatMetaPatch, type MarketToolInput, type ConnectorId, type Features, type ReplyEvent, type SendRequest } from '../shared/api'
@@ -404,6 +404,7 @@ export const handlers: Record<string, (...args: never[]) => unknown> = {
   'plugins:list': () => listPlugins(),
   'plugins:save': (pl: Omit<PluginInfo, 'id' | 'addedAt' | 'source'> & { id?: string }) => savePlugin(pl),
   'plugins:remove': (id: string) => removePlugin(String(id)),
+  'plugins:setIcon': (id: string, icon: string | null) => setPluginIcon(String(id), icon ? String(icon) : null),
   'plugins:upload': (input: { zip?: string; files?: { path: string; base64: string }[] }) => uploadPlugin(input ?? {}),
   'plugins:catalog': () => catalog(),
   'plugins:addFromCatalog': (kind: 'skill' | 'plugin', id: string) => addFromCatalog(kind === 'plugin' ? 'plugin' : 'skill', String(id)),

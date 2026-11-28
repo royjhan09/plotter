@@ -684,7 +684,9 @@ export interface PluginInfo {
   id: string
   name: string
   description: string
+  /** Its logo, an image data URL: the plugin's own, or one Plotter made (madeIcon) when it came without one. */
   icon?: string
+  madeIcon?: boolean
   version?: string
   /** Prompts to try it in a chat. */
   examples: string[]
@@ -708,6 +710,11 @@ export interface PopularService {
   /** key services: what to paste and where to make it. */
   keyLabel?: string
   keyHelp?: string
+  /** The service's own website. */
+  site: string
+  examples: string[]
+  /** What it does, in a few words each. */
+  abilities: string[]
   added: boolean
 }
 
@@ -718,6 +725,10 @@ export interface CatalogEntry {
   name: string
   description: string
   category: string
+  /** Plugins: logo, prompts to try, and the skills that come with it. */
+  icon?: string
+  examples?: string[]
+  skills?: { name: string; description: string }[]
   /** Already added. */
   added: boolean
 }
@@ -1176,6 +1187,8 @@ export interface PlotterApi {
     save: (plugin: Omit<PluginInfo, 'id' | 'addedAt' | 'source'> & { id?: string }) => Promise<PluginInfo[]>
     /** Removes the plugin with the skills and tools that came with it. */
     remove: (id: string) => Promise<PluginInfo[]>
+    /** Sets a plugin's logo (an image data URL), or null for one Plotter makes. */
+    setIcon: (id: string, icon: string | null) => Promise<PluginInfo[]>
     /** Adds a plugin from files you picked (a folder, or a .zip as base64): its skills, and its MCP servers (off until you check them). */
     upload: (input: { zip?: string; files?: { path: string; base64: string }[] }) => Promise<PluginInfo[]>
     catalog: () => Promise<CatalogEntry[]>

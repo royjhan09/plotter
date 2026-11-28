@@ -9,6 +9,7 @@ export function savePlugin(_p: Omit<PluginInfo, 'id' | 'addedAt' | 'source'> & {
   throw new Error(OFF)
 }
 export const removePlugin = (_id: string): PluginInfo[] => []
+export const setPluginIcon = (_id: string, _icon: string | null): PluginInfo[] => []
 export function uploadPlugin(_input: { zip?: string; files?: { path: string; base64: string }[] }): PluginInfo[] {
   throw new Error(OFF)
 }

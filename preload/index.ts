@@ -210,6 +210,7 @@ const api: PlotterApi = {
     list: () => ipcRenderer.invoke('plugins:list'),
     save: (pl) => ipcRenderer.invoke('plugins:save', pl),
     remove: (id) => ipcRenderer.invoke('plugins:remove', id),
+    setIcon: (id, icon) => ipcRenderer.invoke('plugins:setIcon', id, icon),
     upload: (input) => ipcRenderer.invoke('plugins:upload', input),
     catalog: () => ipcRenderer.invoke('plugins:catalog'),
     popular: () => ipcRenderer.invoke('plugins:popular'),

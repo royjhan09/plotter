@@ -9331,9 +9331,152 @@ webview.bp-page:not(.on) {
   max-width: 760px;
 }
 .mk2-crumb {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 13px;
   color: var(--muted);
-  margin-bottom: 14px;
+  margin-bottom: 22px;
+}
+.mk2-crumb .link {
+  color: var(--muted);
+}
+.mk2-crumb span {
+  color: var(--ink);
+}
+/* a plugin's page, as ChatGPT lays it out: big logo, name and maker, actions on the right */
+.mk2-page-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 22px;
+}
+.mk2-page-head .mk2-text b {
+  font-size: 20px;
+  font-weight: 500;
+}
+.mk2-page-head .mk2-text span {
+  font-size: 13.5px;
+}
+.mk2-page-head .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.mk2-page-head .btn.on {
+  background: var(--sand);
+}
+.mk2-logo.big {
+  width: 58px;
+  height: 58px;
+  border-radius: 14px;
+}
+.mk2-logo.big img {
+  width: 40px;
+  height: 40px;
+}
+.mk2-logo.tiny {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  display: inline-grid;
+  vertical-align: -3px;
+}
+.mk2-logo.tiny img {
+  width: 14px;
+  height: 14px;
+}
+/* a logo Plotter made fills its tile */
+.mk2-logo.made,
+.conn-icon.logo.made {
+  border: 0;
+  background: none;
+}
+.mk2-logo.made img,
+.conn-icon.logo.made img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.mk2-ex-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--orange-text, var(--orange));
+  font-weight: 500;
+  white-space: nowrap;
+}
+.mk2-ex-tag .mk2-logo.tiny {
+  vertical-align: 0;
+}
+.mk2-h {
+  margin: 34px 0 6px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--sand);
+  font-size: 18px;
+  font-weight: 500;
+}
+.mk2-h span {
+  font-size: 15px;
+  color: var(--muted);
+  font-weight: 400;
+  margin-left: 4px;
+}
+.mk2-line {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 10px 8px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  font: inherit;
+  text-align: left;
+  color: var(--ink);
+}
+.mk2-line.clickable,
+.mk2-line.more {
+  cursor: pointer;
+}
+.mk2-line.clickable:hover,
+.mk2-line.more:hover {
+  background: var(--cream);
+}
+.mk2-line .mk2-text b {
+  font-weight: 400;
+}
+.mk2-line.more .mk2-text span {
+  font-size: 13.5px;
+}
+.mk2-info {
+  margin: 8px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 14px;
+}
+.mk2-info > div {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 12px;
+}
+.mk2-info dt {
+  color: var(--muted);
+}
+.mk2-info dd {
+  margin: 0;
+}
+.mk2-ext {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--ink);
+}
+a.pop-item {
+  text-decoration: none;
+  color: inherit;
+  display: block;
 }
 .mk2-detail-head {
   display: flex;
@@ -9356,10 +9499,12 @@ webview.bp-page:not(.on) {
 .mk2-examples {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 16px;
+  align-items: center;
+  gap: 14px;
+  padding: 28px 20px;
   border-radius: 20px;
   background: var(--cream);
+  margin-bottom: 18px;
 }
 .mk2-example {
   display: flex;
@@ -9367,11 +9512,13 @@ webview.bp-page:not(.on) {
   gap: 10px;
   text-align: left;
   border: 1px solid var(--sand);
-  border-radius: 12px;
+  border-radius: 16px;
   background: var(--surface);
-  padding: 10px 12px;
+  padding: 12px 10px 12px 14px;
+  width: min(100%, 500px);
   font: inherit;
-  font-size: 13.5px;
+  font-size: 14.5px;
+  line-height: 1.5;
   color: var(--ink);
   cursor: pointer;
   transition: border-color 0.15s;
