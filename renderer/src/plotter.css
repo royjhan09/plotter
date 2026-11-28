@@ -8680,17 +8680,18 @@ body,
   min-width: 90px;
   height: 30px;
   padding: 0 6px 0 10px;
-  border: 1px solid var(--sand);
-  border-radius: 999px;
+  border-radius: 8px;
   font-size: 13px;
   color: var(--muted);
   cursor: pointer;
   flex: none;
 }
+.bp-tab:hover {
+  background: var(--sand);
+}
 .bp-tab.on {
   color: var(--ink);
-  background: var(--paper);
-  border-color: var(--sand-strong);
+  background: var(--sand);
 }
 .bp-tab-title {
   flex: 1;
@@ -8707,7 +8708,7 @@ body,
   border: 0;
   background: none;
   color: var(--muted);
-  border-radius: 50%;
+  border-radius: 6px;
   cursor: pointer;
 }
 .bp-x {
@@ -8756,19 +8757,20 @@ body,
   min-width: 0;
   margin-left: 6px;
   height: 30px;
-  border: 1px solid var(--sand);
-  border-radius: 999px;
-  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 0 12px;
   font: inherit;
   font-size: 13px;
   text-align: center;
-  background: var(--paper);
+  background: var(--sand);
   color: var(--ink);
   outline: none;
 }
 .bp-address:focus {
   text-align: left;
-  border-color: var(--orange);
+  background: var(--paper);
+  border-color: var(--sand-strong);
 }
 .bp-body {
   position: relative;
@@ -8949,4 +8951,22 @@ webview.bp-page:not(.on) {
   text-overflow: ellipsis;
   box-shadow: var(--shadow);
   pointer-events: none;
+}
+
+/* Plotter's own address opened in its browser pane */
+.own-browser-note {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 24px;
+  text-align: center;
+  font-size: 14px;
+  color: var(--muted);
+}
+.own-browser-note b {
+  color: var(--ink);
+  font-size: 15px;
 }
