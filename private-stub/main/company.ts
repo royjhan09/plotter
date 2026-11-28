@@ -1,4 +1,4 @@
-import type { Company, RoleEntity, RoleLink, RoleMergeTradeoff } from '../../shared/api'
+import type { CombineAdvice, CombineSuggestion, Company, RoleEntity, RoleLink, RoleMergeTradeoff } from '../../shared/api'
 
 /** Public stand-in for the company page (in Plotter's private folder): none. */
 export const COMPANY = false
@@ -17,7 +17,16 @@ export const mergeTradeoff = (_a: RoleEntity, _b: RoleEntity, _draft: Pick<RoleE
   setupTokens: { a: 0, b: 0, merged: 0 },
   replyTokens: { a: 0, b: 0, measured: false },
   handoffTokens: 0,
+  heavyPenalty: 0,
+  perTask: { handoffs: 1, separate: 0, combined: 0 },
+  breakEven: null,
   responsibilities: 0,
   tools: 0,
-  warnings: []
+  warnings: [],
+  advice: { combine: [], separate: [] }
 })
+export const noteHandoff = (_a: string, _b: string, _round: string): void => undefined
+export const setPrefer = (_prefer: 'cost' | 'speed'): Company => NONE
+export const dismissCombo = (_a: string, _b: string): void => undefined
+export const combineAdvice = (_a: RoleEntity, _b: RoleEntity): CombineAdvice => ({ combine: [], separate: [] })
+export const combineSuggestions = (_roles: RoleEntity[]): CombineSuggestion[] => []

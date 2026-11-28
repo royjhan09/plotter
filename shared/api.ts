@@ -368,8 +368,16 @@ export interface RoleMergeTradeoff {
   setupTokens: { a: number; b: number; merged: number }
   /** Cost of one reply in tokens (input + output): measured from their replies where there are any. */
   replyTokens: { a: number; b: number; measured: boolean }
-  /** A hand-off between them in a team chat (a member turn and a facilitator call) that the combined role saves. */
+  /** What a hand-off between them costs in a team chat (the facilitator's call and the turn handing it back), saved by combining. */
   handoffTokens: number
+  /** Extra tokens per task for the combined role: one role's heavy tools (extra rounds) now carry the other's work too. */
+  heavyPenalty: number
+  /** One typical task, in tokens, with the hand-offs they usually make: as two roles, and as one. */
+  perTask: { handoffs: number; separate: number; combined: number }
+  /** Hand-offs per task from which one role costs less than two (null: always, or it never does). */
+  breakEven: number | null
+  /** Why to combine them, or keep them apart (by the rules on the Roles page). */
+  advice: CombineAdvice
   responsibilities: number
   tools: number
   /** Plain warnings: an independent review lost, too broad, many tools… */
@@ -384,7 +392,26 @@ export interface Company {
   lineLabels?: Record<string, string>
   /** Working relations between roles, beside who reports to whom. */
   links?: RoleLink[]
+  /** Hand-offs counted in team chats, per pair of roles ("a|b", ids sorted): how often and in how many tasks. */
+  pairs?: Record<string, { handoffs: number; rounds: number; lastRound?: string }>
+  /** What matters more when roles could be combined: tokens (cost) or turns (speed). */
+  prefer?: 'cost' | 'speed'
+  /** Combine suggestions you said "not now" to ("a|b"). */
+  dismissedCombos?: string[]
   updatedAt: number
+}
+
+/** Why two roles should, or should not, become one. */
+export interface CombineAdvice {
+  combine: string[]
+  separate: string[]
+}
+
+/** A pair of roles Plotter suggests combining, and why. */
+export interface CombineSuggestion {
+  a: string
+  b: string
+  reasons: string[]
 }
 
 /** A kind of working relation between two roles (or custom, with its own label). */
@@ -723,6 +750,8 @@ export interface PlotterApi {
     place: (roleId: string, reportsTo: string | null) => Promise<Company>
     /** What the line from a role's manager to it says (empty: "manages"). */
     labelLine: (roleId: string, label: string) => Promise<Company>
+    /** Whether combining roles should favour fewer tokens or fewer turns. */
+    setPrefer: (prefer: 'cost' | 'speed') => Promise<Company>
     link: (link: Omit<RoleLink, 'id'>) => Promise<Company>
     unlink: (linkId: string) => Promise<Company>
     onChanged: (listener: () => void) => () => void
@@ -744,6 +773,10 @@ export interface PlotterApi {
     combine: (a: string, b: string, draft: RoleDraft) => Promise<RoleEntity>
     /** Brings a retired role back. */
     restore: (id: string) => Promise<RoleEntity>
+    /** Pairs of roles worth combining now (hand work back and forth, same tools, speed preferred), with the reasons. */
+    combineSuggestions: () => Promise<CombineSuggestion[]>
+    /** "Not now" to a combine suggestion. */
+    dismissCombo: (a: string, b: string) => Promise<void>
     onChanged: (listener: () => void) => () => void
   }
   kits: {

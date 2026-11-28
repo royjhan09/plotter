@@ -7,7 +7,7 @@ import { getLibraryItem, listLibrary } from '@private/main/library'
 import { clearImageKey, imageKeyStatus, setImageKey, setImageOptions } from '@private/main/images'
 import { addNote, createProject, editNote, listProjects, removeNote, removeProject, renameProject, setProjectKit } from './projects'
 import { addWishes, cleanDraft, getRole, grantWish, listRoles, removeRole, saveCombined, saveRole, setRetired } from '@private/main/roles'
-import { getCompany, labelLine, linkRoles, mergeTradeoff, placeRole, renameCompany, replaceInChart, unlinkRoles } from '@private/main/company'
+import { combineSuggestions, dismissCombo, getCompany, labelLine, linkRoles, mergeTradeoff, noteHandoff, placeRole, renameCompany, replaceInChart, setPrefer, unlinkRoles } from '@private/main/company'
 import { addUseWhen, createKit, getKit, kitFolder, listKits, listUsage, removeComponent, removeKit, removeRule, restoreVersion, saveComponent, saveRule, setDefaultKit, updateKit, versionCode } from '@private/main/kits'
 import { nextSpeaker, suggestMembers } from './team'
 import { usageLog } from './openai'
@@ -152,7 +152,13 @@ export const handlers: Record<string, (...args: never[]) => unknown> = {
   'team:next': async (chatId: string, history: HistoryItem[], turnsLeft: number) => {
     const chat = getChat(String(chatId))
     if (!chat?.team) return { speaker: null, done: 'This is not a team chat.' }
-    return nextSpeaker(chat, Array.isArray(history) ? history : [], Number(turnsLeft) || 0)
+    const list = Array.isArray(history) ? history : []
+    const turn = await nextSpeaker(chat, list, Number(turnsLeft) || 0)
+    // a hand-off: the member who spoke last passes the work to another (counted per pair, for combine suggestions)
+    const last = list[list.length - 1]
+    if (turn.speaker && last?.role === 'assistant' && last.speaker && last.speaker !== turn.speaker)
+      noteHandoff(last.speaker, turn.speaker, `${chat.id}:${list.map((h) => h.role).lastIndexOf('user')}`)
+    return turn
   },
   'team:suggest': (purpose: string) => suggestMembers(String(purpose ?? '')),
   // dev measurements only (the browser-mode server): token use per ChatGPT call
@@ -206,6 +212,9 @@ export const handlers: Record<string, (...args: never[]) => unknown> = {
     return getRole(made.id) ?? made
   },
   'roles:restore': (id: string) => setRetired(String(id), false),
+  'roles:combineSuggestions': () => combineSuggestions(listRoles()),
+  'roles:dismissCombo': (a: string, b: string) => dismissCombo(String(a), String(b)),
+  'company:setPrefer': (prefer: 'cost' | 'speed') => setPrefer(prefer === 'speed' ? 'speed' : 'cost'),
   'roles:save': (role: RoleDraft & { id?: string }) => saveRole({ ...role }),
   'roles:remove': (id: string) => removeRole(String(id)),
   'roles:draft': async (input: { name: string; purpose: string }) => cleanDraft(await draftRole({ name: String(input?.name ?? ''), purpose: String(input?.purpose ?? '') })),

@@ -96,6 +96,7 @@ export function installDevBridge(): void {
       rename: (name) => call('company:rename', name),
       place: (roleId, reportsTo) => call('company:place', roleId, reportsTo),
       labelLine: (roleId, label) => call('company:labelLine', roleId, label),
+      setPrefer: (prefer) => call('company:setPrefer', prefer),
       link: (link) => call('company:link', link),
       unlink: (id) => call('company:unlink', id),
       onChanged: (l) => {
@@ -113,6 +114,8 @@ export function installDevBridge(): void {
       combineDraft: (a, b) => call('roles:combineDraft', a, b),
       combine: (a, b, draft) => call('roles:combine', a, b, draft),
       restore: (id) => call('roles:restore', id),
+      combineSuggestions: () => call('roles:combineSuggestions'),
+      dismissCombo: (a, b) => call('roles:dismissCombo', a, b),
       onChanged: (l) => {
         listeners.roles.add(l)
         return () => listeners.roles.delete(l)

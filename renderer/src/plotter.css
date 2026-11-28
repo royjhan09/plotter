@@ -7536,3 +7536,77 @@ body,
 .combine-evolve {
   text-align: center;
 }
+/* combining roles: suggestions, advice, and the cost-or-speed preference */
+.combine-suggest {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--orange);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--orange) 7%, var(--paper));
+}
+.combine-suggest-bots {
+  display: inline-flex;
+}
+.combine-suggest-bots .role-bot + .role-bot {
+  margin-left: -8px;
+}
+.combine-suggest-text {
+  flex: 1;
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+}
+.combine-suggest-text span {
+  color: var(--muted);
+}
+.combine-advice {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+.combine-advice > div {
+  padding: 10px 12px;
+  border: 1px solid var(--sand);
+  border-radius: 10px;
+}
+.combine-advice h4 {
+  margin: 0 0 6px;
+  font-size: 13px;
+}
+.combine-advice ul {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+}
+.combine-advice p {
+  margin: 0;
+}
+.company-prefer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--muted);
+}
+.company-prefer button {
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--sand);
+  background: var(--surface);
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+}
+.company-prefer button.on {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}

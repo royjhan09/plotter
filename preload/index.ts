@@ -47,6 +47,7 @@ const api: PlotterApi = {
     rename: (name) => ipcRenderer.invoke('company:rename', name),
     place: (roleId, reportsTo) => ipcRenderer.invoke('company:place', roleId, reportsTo),
     labelLine: (roleId, label) => ipcRenderer.invoke('company:labelLine', roleId, label),
+    setPrefer: (prefer) => ipcRenderer.invoke('company:setPrefer', prefer),
     link: (link) => ipcRenderer.invoke('company:link', link),
     unlink: (id) => ipcRenderer.invoke('company:unlink', id),
     onChanged: (listener) => {
@@ -65,6 +66,8 @@ const api: PlotterApi = {
     combineDraft: (a, b) => ipcRenderer.invoke('roles:combineDraft', a, b),
     combine: (a, b, draft) => ipcRenderer.invoke('roles:combine', a, b, draft),
     restore: (id) => ipcRenderer.invoke('roles:restore', id),
+    combineSuggestions: () => ipcRenderer.invoke('roles:combineSuggestions'),
+    dismissCombo: (a, b) => ipcRenderer.invoke('roles:dismissCombo', a, b),
     onChanged: (listener) => {
       const handler = (): void => listener()
       ipcRenderer.on('roles:changed', handler)
