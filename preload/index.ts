@@ -213,6 +213,7 @@ const api: PlotterApi = {
     upload: (input) => ipcRenderer.invoke('plugins:upload', input),
     catalog: () => ipcRenderer.invoke('plugins:catalog'),
     popular: () => ipcRenderer.invoke('plugins:popular'),
+    popularIcons: () => ipcRenderer.invoke('plugins:popularIcons'),
     addPopular: (id, key) => ipcRenderer.invoke('plugins:addPopular', id, key),
     addFromCatalog: (kind, id) => ipcRenderer.invoke('plugins:addFromCatalog', kind, id),
     builtinApproval: () => ipcRenderer.invoke('plugins:builtinApproval'),

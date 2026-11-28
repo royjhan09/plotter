@@ -20,3 +20,4 @@ export const popular = (): PopularService[] => []
 export function addPopular(_id: string, _key?: string): string {
   throw new Error(OFF)
 }
+export const popularIcons = async (): Promise<Record<string, string>> => ({})

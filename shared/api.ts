@@ -703,6 +703,8 @@ export interface PopularService {
   category: string
   /** oauth: sign in to your account; key: paste an API key or token; none: nothing needed. */
   auth: 'oauth' | 'key' | 'none'
+  /** In the Market's Popular group. */
+  featured?: boolean
   /** key services: what to paste and where to make it. */
   keyLabel?: string
   keyHelp?: string
@@ -1181,6 +1183,8 @@ export interface PlotterApi {
     popular: () => Promise<PopularService[]>
     /** Adds one as a plugin (its server as a tool); key services need the key. Returns the plugin's id. */
     addPopular: (id: string, key?: string) => Promise<string>
+    /** The services' official icons (id → data URL; '' when none), fetched from their own sites and cached. */
+    popularIcons: () => Promise<Record<string, string>>
     /** Adds a skill or plugin from Plotter's catalogue. */
     addFromCatalog: (kind: 'skill' | 'plugin', id: string) => Promise<void>
     /** Approval levels of Plotter's own tools (the browser). */

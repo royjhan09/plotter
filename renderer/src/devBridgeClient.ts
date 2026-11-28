@@ -269,6 +269,7 @@ export function installDevBridge(): void {
       upload: (input) => call('plugins:upload', input),
       catalog: () => call('plugins:catalog'),
       popular: () => call('plugins:popular'),
+      popularIcons: () => call('plugins:popularIcons'),
       addPopular: (id, key) => call('plugins:addPopular', id, key),
       addFromCatalog: (kind, id) => call('plugins:addFromCatalog', kind, id),
       builtinApproval: () => call('plugins:builtinApproval'),

@@ -117,7 +117,7 @@ export const VISIBILITY: VisibilityGroup[] = [
         name: 'Popular services and account sign-in',
         now: 'private',
         advice: 'keep-private',
-        why: 'Official MCP servers of popular services (Notion, Linear, Atlassian, GitHub, Stripe…) ready to add, and signing in to their accounts (OAuth) with tokens kept encrypted on this PC.',
+        why: 'Official MCP servers of popular services (Notion, Linear, Atlassian, GitHub, Stripe…) ready to add, and signing in to their accounts (OAuth) with tokens kept encrypted on this PC; each shown with its official logo, fetched once from its own website and kept on this PC.',
         tradeoff: `${MOVED} The public stand-in has no Popular list and no account sign-in.`
       },
       {

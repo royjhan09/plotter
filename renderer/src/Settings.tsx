@@ -451,6 +451,8 @@ function ConnectorsTab({ onOpenMarket }: { onOpenMarket?: () => void }): React.J
   const [list, setList] = useState<ConnectorStatus[] | null>(null)
   const [tools, setTools] = useState<MarketTool[]>([])
   const [levels, setLevels] = useState<Record<string, ToolApproval>>({})
+  // a popular service's own logo, for tools added from the Market's Popular list
+  const [logos, setLogos] = useState<Record<string, string>>({})
   const [q, setQ] = useState('')
   const [open, setOpen] = useState<ConnOpen>(null)
   const [busy, setBusy] = useState<string | null>(null)
@@ -468,6 +470,16 @@ function ConnectorsTab({ onOpenMarket }: { onOpenMarket?: () => void }): React.J
       .builtinApproval()
       .then(setLevels)
       .catch(() => setLevels({}))
+    void Promise.all([api.plugins.list(), api.plugins.popularIcons()])
+      .then(([plugins, icons]) => {
+        const byTool: Record<string, string> = {}
+        for (const p of plugins) {
+          const id = p.catalogId?.startsWith('popular:') ? p.catalogId.slice(8) : ''
+          if (id && icons[id]) for (const t of p.toolIds) byTool[t] = icons[id]!
+        }
+        setLogos(byTool)
+      })
+      .catch(() => setLogos({}))
   }
   useEffect(load, [])
   const act = async <T,>(key: string, f: () => Promise<T>): Promise<void> => {
@@ -494,9 +506,7 @@ function ConnectorsTab({ onOpenMarket }: { onOpenMarket?: () => void }): React.J
 
   const rowOf = (key: string, icon: keyof typeof CONN_ICON, name: string, desc: string, right: string, onOpen: () => void): React.JSX.Element => (
     <button key={key} className="conn-row" onClick={onOpen}>
-      <span className="conn-icon">
-        <ConnIcon name={icon} />
-      </span>
+      <span className={`conn-icon ${logos[key] ? 'logo' : ''}`}>{logos[key] ? <img src={logos[key]} alt="" /> : <ConnIcon name={icon} />}</span>
       <span className="conn-text">
         <b>{name}</b>
         <span>{desc}</span>

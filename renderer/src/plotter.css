@@ -9135,7 +9135,13 @@ webview.bp-page:not(.on) {
   flex: 1;
   min-width: 0;
   overflow-y: auto;
-  padding: 26px 34px 60px;
+  padding: 28px 40px 72px;
+}
+/* one calm column at most 960px wide, as ChatGPT's */
+.mk2-main > * {
+  max-width: 960px;
+  margin-left: auto;
+  margin-right: auto;
 }
 .mk2-title h2 {
   margin: 0;
@@ -9176,22 +9182,70 @@ webview.bp-page:not(.on) {
   min-width: 230px;
 }
 .mk2-section {
-  margin: 22px 0 8px;
-  font-size: 15px;
+  margin: 40px 0 14px;
+  font-size: 18px;
+  font-weight: 500;
+}
+.mk2-group:first-of-type .mk2-section {
+  margin-top: 28px;
+}
+.mk2-group-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--ink);
+  cursor: pointer;
+}
+.mk2-group-link svg {
+  color: var(--muted);
 }
 .mk2-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
-  gap: 2px 18px;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 18px 40px;
 }
 .mk2-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   padding: 8px 10px;
+  margin: 0 -10px;
   border-radius: 12px;
   min-width: 0;
   transition: background 0.15s;
+}
+.mk2-row .mk2-text b {
+  font-size: 15px;
+  font-weight: 500;
+}
+.mk2-row .mk2-text span {
+  font-size: 13.5px;
+}
+/* a service's own logo in a quiet tile (as ChatGPT shows them); Plotter's own items keep a line icon */
+.mk2-logo {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  background: #fcfcfc;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  color: var(--ink);
+}
+:root[data-theme='dark'] .mk2-logo {
+  border-color: var(--sand);
+  background: var(--surface);
+}
+.mk2-logo img {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
 }
 .mk2-row.clickable {
   cursor: pointer;
@@ -9746,4 +9800,16 @@ webview.bp-page:not(.on) {
 }
 .conn-foot {
   margin-top: 22px;
+}
+.conn-icon.logo {
+  width: 36px;
+  height: 36px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  background: #fcfcfc;
+}
+.conn-icon.logo img {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
 }
