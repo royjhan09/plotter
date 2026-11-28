@@ -34,3 +34,7 @@ Plotter's own look is also the user's design kit (`private/main/plotterKit.ts`, 
   brand rules (the Plotter brand), not kit rules.
 - **Deliver it to existing kits** with a new step in `REFRESHES` (`plotter-N`) that adds what is missing and never
   overwrites what the user edited, and check it on the Design kits page.
+- **Text sizes come from the type scale** in `renderer/src/plotter.css` (`:root`): a role (`--role-page-title`,
+  `--role-item-title`, `--role-section`, `--role-name`, `--role-desc`, `--role-body`, `--role-label`, with their
+  weights) where one fits, else a step (`--type-2xs` … `--type-display`). Never a px font size for text (icons and
+  glyphs drawn with a font size are fine), so one change restyles similar text on every page.
