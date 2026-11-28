@@ -10,6 +10,7 @@ import { addWishes, cleanDraft, getRole, grantWish, listRoles, removeRole, saveC
 import { combineSuggestions, dismissCombo, getCompany, labelLine, linkRoles, mergeTradeoff, noteHandoff, placeRole, renameCompany, replaceInChart, setPrefer, unlinkRoles } from '@private/main/company'
 import { addPieceFromReply } from '@private/main/kitOps'
 import { BROWSER, captureUrl, capturePage, saveMarkup, setupBrowser } from '@private/main/browser'
+import { setBrowserEmitter, setBrowserState, type BrowserTabState } from '@private/main/browserControl'
 import { addUseWhen, createKit, getKit, kitFolder, kitFor, listKits, listUsage, removeComponent, removeKit, removeRule, restoreVersion, saveComponent, saveRule, setDefaultKit, updateKit, versionCode } from '@private/main/kits'
 import { alsoIn, groupOf, nextSpeaker, routeIn, suggestMembers } from './team'
 import { runRouteTests } from './routeTests'
@@ -103,6 +104,7 @@ type Emit = (channel: string, payload: unknown) => void
 const emitters = new Set<Emit>()
 const emit: Emit = (channel, payload) => emitters.forEach((e) => e(channel, payload))
 setAppEmitter(emit)
+setBrowserEmitter(emit)
 
 const running = new Map<string, AbortController>()
 const sendReply = (event: ReplyEvent): void => emit('reply:event', event)
@@ -306,6 +308,7 @@ export const handlers: Record<string, (...args: never[]) => unknown> = {
   'browser:capture': (webContentsId: number) => capturePage(Number(webContentsId)),
   'browser:captureUrl': (url: string, width: number, height: number) => captureUrl(String(url), Number(width), Number(height)),
   'browser:saveMarkup': (dataUrl: string) => saveMarkup(String(dataUrl)),
+  'browser:state': (s: { open: boolean; active: number | null; tabs: BrowserTabState[] }) => setBrowserState(s),
   'kits:addFromReply': (projectId: string | null, piece: KitPieceOffer, chatTitle?: string) => {
     const kit = kitFor(listProjects().find((p) => p.id === projectId)?.kitId)
     if (!kit) throw new Error('There is no design kit to add it to.')

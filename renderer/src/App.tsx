@@ -11,7 +11,7 @@ import { CLAUDE_CODE } from '@private/renderer/ClaudeCode'
 import { ChatPane, announceRename, cleanError } from './ChatPane'
 import { RailIcon } from './RailIcon'
 import { MARKET, Market } from '@private/renderer/Market'
-import { BROWSER, BrowserPane } from '@private/renderer/Browser'
+import { BROWSER, BrowserPane, queueBrowserOpen } from '@private/renderer/Browser'
 import { KITS, Kits } from '@private/renderer/Kits'
 import { ROLES, Roles } from '@private/renderer/Roles'
 import { LAB, Lab } from '@private/renderer/Lab'
@@ -173,6 +173,20 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
   const [labOpen, setLabOpen] = useState(false)
   const [browserOpen, setBrowserOpen] = useState(() => BROWSER && localStorage.getItem('plotter-browser-open') === '1')
   useEffect(() => localStorage.setItem('plotter-browser-open', browserOpen ? '1' : '0'), [browserOpen])
+  // a chat opens an address while the pane is closed: open the pane with it (an open pane takes it itself)
+  const browserOpenRef = useRef(browserOpen)
+  browserOpenRef.current = browserOpen
+  useEffect(
+    () =>
+      BROWSER
+        ? api.browser.onOpen((url) => {
+            if (browserOpenRef.current) return
+            queueBrowserOpen(url)
+            setBrowserOpen(true)
+          })
+        : undefined,
+    []
+  )
   const [roles, setRoles] = useState<RoleEntity[]>([])
   useEffect(() => {
     const load = (): void => void api.roles.list().then(setRoles, () => setRoles([]))

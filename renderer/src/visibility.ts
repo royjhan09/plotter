@@ -107,6 +107,13 @@ export const VISIBILITY: VisibilityGroup[] = [
         tradeoff: `${MOVED} The public stand-in has no browser pane and no globe button.`
       },
       {
+        name: 'Chats using the browser',
+        now: 'private',
+        advice: 'keep-private',
+        why: 'ChatGPT (tools loaded when a reply needs them) and Claude Code (through the tool bridge) open, read, click, type in and screenshot pages in the browser pane, with the pane showing what they do.',
+        tradeoff: `${MOVED} The public stand-in gives chats no browser tools.`
+      },
+      {
         name: 'Kit tags in previews',
         now: 'private',
         advice: 'keep-private',

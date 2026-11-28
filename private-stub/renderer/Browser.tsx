@@ -11,6 +11,8 @@ export function BrowserPane(_p: { onClose: () => void }): React.JSX.Element | nu
   return null
 }
 
+export function queueBrowserOpen(_url: string): void {}
+
 export function BrowserIcon(): React.JSX.Element | null {
   return null
 }

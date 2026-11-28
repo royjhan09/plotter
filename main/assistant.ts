@@ -5,6 +5,7 @@ import { deliverToSide, projectsChanged } from './appEvents'
 import { generateWithKey, imageKeyStatus, IMAGES } from '@private/main/images'
 import { kitBrief, kitFor } from '@private/main/kits'
 import { KIT_GUIDE, KIT_TAGS_GUIDE, kitToolSpecs, runKitTool } from '@private/main/kitOps'
+import { BROWSER_GUIDE, browserToolSpecs } from '@private/main/browserControl'
 import { addWishes, bumpRole, getRole } from '@private/main/roles'
 import { getCompany, roleTeam } from '@private/main/company'
 import { labCapture, noteIdea } from '@private/main/lab'
@@ -416,7 +417,7 @@ export function labIdeaIn(text: string): { title: string; claim: string; conside
 }
 
 /** Tools that change the user's things: in a Lab test they answer as if done and change nothing. */
-const WRITES = new Set(['save_memory', 'forget_memory', 'save_project_note', 'forget_project_note', 'kit_add_rule', 'kit_save_component', 'kit_record_use', 'send_to_side_chat', 'generate_image', 'draw_picture'])
+const WRITES = new Set(['browser_open', 'browser_click', 'browser_type', 'browser_scroll', 'browser_back', 'save_memory', 'forget_memory', 'save_project_note', 'forget_project_note', 'kit_add_rule', 'kit_save_component', 'kit_record_use', 'send_to_side_chat', 'generate_image', 'draw_picture'])
 function dryRun(t: LocalTool): LocalTool {
   if (WRITES.has(t.name)) return { ...t, run: async () => ({ output: JSON.stringify({ ok: true, note: 'Lab test: nothing was saved or sent.' }) }) }
   if (t.name === 'open_capability')
@@ -464,7 +465,7 @@ function openCapability(caps: Capability[]): LocalTool {
       },
       required: ['name']
     },
-    label: (args) => (args['name'] === 'design_kit' ? 'Opening your design kit…' : args['name'] === 'connected_apps' ? 'Opening your connected apps…' : 'Opening your tools…'),
+    label: (args) => (args['name'] === 'design_kit' ? 'Opening your design kit…' : args['name'] === 'connected_apps' ? 'Opening your connected apps…' : args['name'] === 'browser' ? 'Opening the browser…' : 'Opening your tools…'),
     run: async (args) => {
       const c = caps.find((x) => x.name === args['name'])
       if (!c) return { output: JSON.stringify({ error: `Open one of: ${caps.map((x) => x.name).join(', ')}` }) }
@@ -536,6 +537,21 @@ export async function buildSetup(req: SendRequest, lab?: LabReply): Promise<{ pa
       brief: `tools the user added from Plotter's market (${market.tools.map((t) => t.name).join(', ')}): open it when a request matches what one does`,
       guide: market.instructions,
       tools: market.tools
+    })
+  // the browser pane beside the chat: opened when a reply needs it (its tools act on the user's own browser)
+  const browser = can('browser', true) ? browserToolSpecs().filter((t) => t.name !== 'browser_screenshot') : []
+  if (browser.length)
+    lazy.push({
+      name: 'browser',
+      brief: "the browser pane beside the chat (the user's own browser): open it to look at, check or do something on a web page there, or about the page the user has open in it; for plain look-ups, web search is enough",
+      guide: BROWSER_GUIDE,
+      tools: browser.map((t) => ({
+        name: t.name,
+        description: t.description,
+        parameters: t.parameters,
+        label: t.label,
+        run: async (args: Record<string, unknown>) => ({ output: (await t.run(args, 'ChatGPT')).text })
+      }))
     })
   const title = chat?.title || 'ChatGPT chat'
   const project = chat ? projectContext(chat) : null

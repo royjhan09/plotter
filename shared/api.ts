@@ -375,7 +375,7 @@ export interface KitVariant {
 }
 
 /** The tools a role may use (each one switched on for its chats, the rest off). */
-export type RoleTool = 'web' | 'python' | 'memory' | 'pictures' | 'kit' | 'connectors' | 'market' | 'project'
+export type RoleTool = 'web' | 'python' | 'memory' | 'pictures' | 'kit' | 'connectors' | 'market' | 'project' | 'browser'
 
 /** What each role tool gives its chats. */
 export const ROLE_TOOL_INFO: Record<RoleTool, { label: string; hint: string }> = {
@@ -386,7 +386,8 @@ export const ROLE_TOOL_INFO: Record<RoleTool, { label: string; hint: string }> =
   kit: { label: 'Design kit', hint: 'Uses and updates your design kit for anything visual.' },
   connectors: { label: 'Connected apps', hint: 'Uses the apps you connected (mail, calendar, files…).' },
   market: { label: 'Market tools', hint: 'Uses the tools you added from the Market.' },
-  project: { label: 'Project memory', hint: "Reads and adds to its project's shared memory." }
+  project: { label: 'Project memory', hint: "Reads and adds to its project's shared memory." },
+  browser: { label: 'Browser', hint: 'Opens, reads and uses web pages in the browser pane beside the chat.' }
 }
 
 /** A role's look: the sprout-bot in a colour and a costume. */
@@ -1090,8 +1091,12 @@ export interface PlotterApi {
     captureUrl: (url: string, width: number, height: number) => Promise<string>
     /** Saves a marked-up page (PNG data URL) as a file; returns its path. */
     saveMarkup: (dataUrl: string) => Promise<string>
-    /** A page in the pane opened a link in a new window: open it as a tab. */
+    /** A page in the pane opened a link in a new window, or a chat opens an address: open it as a tab. */
     onOpen: (listener: (url: string) => void) => () => void
+    /** The pane's tabs, for chats that use the browser (webContentsId: the tab's page). */
+    report: (state: { open: boolean; active: number | null; tabs: { webContentsId: number | null; url: string; title: string }[] }) => Promise<void>
+    /** A chat is using the browser (who, and what it is doing). */
+    onAgent: (listener: (a: { who: string; what: string }) => void) => () => void
   }
   ui: {
     /** live: a page that shows a preview while it is being written (post { plotterUiLive: html } to it). */
