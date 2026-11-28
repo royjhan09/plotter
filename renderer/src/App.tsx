@@ -764,6 +764,14 @@ function ChatApp({ auth, setAuth }: { auth: Extract<AuthState, { signedIn: true 
           onOpenChat={(id) => openChat(id)}
           onUpdateChat={updateChat}
           onDeleteChat={(c) => setDeleting({ id: c.id, title: c.title })}
+          onOpenMarket={
+            MARKET
+              ? () => {
+                  setSettingsOpen(false)
+                  setMarketOpen(true)
+                }
+              : undefined
+          }
         />
       )}
 

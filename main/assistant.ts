@@ -570,7 +570,7 @@ export async function buildSetup(req: SendRequest, lab?: LabReply): Promise<{ pa
       )
     use('side', sideTools(req.beside, title))
   }
-  const imageModel = IMAGES && imageKeyStatus().set
+  const imageModel = IMAGES && imageKeyStatus().on
   if (can('pictures', true) || req.modes?.image) {
     add('pictures', IMAGE_INSTRUCTIONS(imageModel))
     use('pictures', imageTools(imageModel))

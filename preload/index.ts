@@ -36,7 +36,8 @@ const api: PlotterApi = {
     status: () => ipcRenderer.invoke('images:status'),
     setKey: (key) => ipcRenderer.invoke('images:setKey', key),
     clearKey: () => ipcRenderer.invoke('images:clearKey'),
-    setOptions: (patch) => ipcRenderer.invoke('images:setOptions', patch)
+    setOptions: (patch) => ipcRenderer.invoke('images:setOptions', patch),
+    setOn: (on) => ipcRenderer.invoke('images:setOn', on)
   },
   library: {
     list: () => ipcRenderer.invoke('library:list'),

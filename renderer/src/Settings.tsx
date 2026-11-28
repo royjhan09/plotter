@@ -136,6 +136,8 @@ export interface SettingsProps {
   onOpenChat: (id: string) => void
   onUpdateChat: (id: string, patch: ChatMetaPatch) => void
   onDeleteChat: (chat: ChatSummary) => void
+  /** Opens the Market (where image generation is set up). */
+  onOpenMarket?: () => void
 }
 
 /** Settings as its own page (as in ChatGPT): navigation on the left, the chosen section in the middle. */
@@ -182,7 +184,7 @@ export function Settings(props: SettingsProps): React.JSX.Element {
           {tab === 'account' && <AccountTab {...props} />}
           {tab === 'general' && <GeneralTab theme={props.theme} setTheme={props.setTheme} />}
           {tab === 'features' && <FeaturesTab />}
-          {tab === 'images' && <ImagesTab />}
+          {tab === 'images' && <ImagesTab onOpenMarket={props.onOpenMarket} />}
           {tab === 'memory' && <MemoryTab />}
           {tab === 'connectors' && <ConnectorsTab />}
           {tab === 'archived' && <ArchivedTab {...props} />}
@@ -329,41 +331,19 @@ function FeaturesTab(): React.JSX.Element {
   )
 }
 
-const QUALITY_TEXT: Record<string, string> = {
-  low: 'Low: fastest and cheapest, good for drafts',
-  medium: 'Medium: a good balance',
-  high: 'High: best detail, costs the most'
-}
-
 /**
- * Pictures: drawn by the chats (free, always on) or made by OpenAI's image model with the user's own API key.
- * The key is typed here by the user, checked with OpenAI, and kept encrypted on this PC.
+ * Pictures: drawn by the chats (free, always on). OpenAI's image model, with the user's own API key, is a
+ * ready-made tool in the Market, set up and switched on there.
  */
-function ImagesTab(): React.JSX.Element {
+function ImagesTab({ onOpenMarket }: { onOpenMarket?: () => void }): React.JSX.Element {
   const [st, setSt] = useState<ImageKeyStatus | null>(null)
-  const [key, setKey] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   useEffect(() => void api.images.status().then(setSt), [])
   if (!st) return <div className="muted">Loading…</div>
-  const clean = (e: unknown): string => (e instanceof Error ? e.message : String(e)).replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
-  const save = async (): Promise<void> => {
-    setBusy(true)
-    setError(null)
-    try {
-      setSt(await api.images.setKey(key))
-      setKey('')
-    } catch (e) {
-      setError(clean(e))
-    } finally {
-      setBusy(false)
-    }
-  }
   return (
     <>
       <h3>Images</h3>
       <p className="settings-lead">
-        Ask any chat for a picture. Without a key, ChatGPT and Claude Code draw it themselves as a vector picture (free, on your plans): good for icons, logos, illustrations and banners. Add your own OpenAI API key to use OpenAI’s image model as well, for photos and detailed artwork.
+        Ask any chat for a picture. ChatGPT and Claude Code draw it themselves as a vector picture (free, on your plans): good for icons, logos, illustrations and banners. For photos and detailed artwork, set up Image generation in the Market with your own OpenAI API key.
       </p>
       <div className="setting-row">
         <div className="setting-text">
@@ -372,65 +352,25 @@ function ImagesTab(): React.JSX.Element {
         </div>
         <span className="setting-value">On</span>
       </div>
-      {st.models.length === 0 ? (
-        <div className="setting-row">
-          <div className="setting-text">
-            <div className="setting-name">OpenAI’s image model</div>
-            <div className="setting-desc">Not part of this build.</div>
+      <div className="setting-row">
+        <div className="setting-text">
+          <div className="setting-name">Image generation (OpenAI)</div>
+          <div className="setting-desc">
+            {st.models.length === 0
+              ? 'Not part of this build.'
+              : st.on
+                ? `Connected in the Market: ${st.options.model}, key ${st.hint}.`
+                : st.set
+                  ? 'Set up but switched off in the Market.'
+                  : 'A tool in the Market: add your OpenAI API key there to use it.'}
           </div>
         </div>
-      ) : (
-        <>
-          <div className="setting-row images-key">
-            <div className="setting-text">
-              <div className="setting-name">OpenAI API key</div>
-              <div className="setting-desc">
-                {st.set
-                  ? `Saved (${st.hint}), encrypted on this PC. Pictures from the image model are billed to this key, not to your ChatGPT plan.`
-                  : 'Pictures from the image model are billed to your key (roughly $0.01 to $0.20 each, by quality and size), not to your ChatGPT plan. Create a key at platform.openai.com › API keys. OpenAI may ask you to verify your organisation before its image models work.'}
-              </div>
-              {!st.set && (
-                <div className="images-key-form">
-                  <input type="password" placeholder="sk-…" value={key} autoComplete="off" spellCheck={false} onChange={(e) => setKey(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && key.trim() && void save()} />
-                  <button className="btn small primary" disabled={!key.trim() || busy} onClick={() => void save()}>
-                    {busy ? 'Checking…' : 'Save key'}
-                  </button>
-                </div>
-              )}
-              {error && <div className="settings-error">{error}</div>}
-            </div>
-            {st.set && (
-              <button className="btn small" onClick={() => void api.images.clearKey().then(setSt)}>
-                Remove key
-              </button>
-            )}
-          </div>
-          <div className="setting-row">
-            <div className="setting-text">
-              <div className="setting-name">Image model</div>
-              <div className="setting-desc">gpt-image-2 is OpenAI’s newest.</div>
-            </div>
-            <select className="setting-select" value={st.options.model} onChange={(e) => void api.images.setOptions({ model: e.target.value }).then(setSt)}>
-              {st.models.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="setting-row">
-            <div className="setting-text">
-              <div className="setting-name">Default quality</div>
-              <div className="setting-desc">{QUALITY_TEXT[st.options.quality]}. A chat may choose differently when you ask.</div>
-            </div>
-            <select className="setting-select" value={st.options.quality} onChange={(e) => void api.images.setOptions({ quality: e.target.value as 'low' | 'medium' | 'high' }).then(setSt)}>
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
-            </select>
-          </div>
-        </>
-      )}
+        {st.models.length > 0 && onOpenMarket && (
+          <button className="btn small" onClick={onOpenMarket}>
+            Open the Market
+          </button>
+        )}
+      </div>
     </>
   )
 }

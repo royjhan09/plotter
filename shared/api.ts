@@ -160,6 +160,8 @@ export interface ImageOptions {
 export interface ImageKeyStatus {
   /** An OpenAI API key is saved (pictures from the image model are possible). */
   set: boolean
+  /** Set up and switched on in the Market: chats can make pictures with the image model. */
+  on: boolean
   /** The key's last characters, to recognise it. */
   hint?: string
   options: ImageOptions
@@ -888,6 +890,8 @@ export interface PlotterApi {
     setKey: (key: string) => Promise<ImageKeyStatus>
     clearKey: () => Promise<ImageKeyStatus>
     setOptions: (patch: Partial<ImageOptions>) => Promise<ImageKeyStatus>
+    /** Switches the image model on or off for chats (the key stays saved). */
+    setOn: (on: boolean) => Promise<ImageKeyStatus>
   }
   library: {
     /** Files and pictures from every chat, newest first. */

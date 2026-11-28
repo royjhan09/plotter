@@ -8,7 +8,8 @@ const options: ImageOptions = { model: '', quality: 'medium' }
 
 export const readImageOptions = (): ImageOptions => options
 export const setImageOptions = (_patch: Partial<ImageOptions>): ImageOptions => options
-export const imageKeyStatus = (): ImageKeyStatus => ({ set: false, options, models: [] })
+export const imageKeyStatus = (): ImageKeyStatus => ({ set: false, on: false, options, models: [] })
+export const setImageOn = (_on: boolean): ImageKeyStatus => imageKeyStatus()
 export async function setImageKey(_raw: string): Promise<ImageKeyStatus> {
   throw new Error(OFF)
 }

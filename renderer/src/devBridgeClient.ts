@@ -87,7 +87,8 @@ export function installDevBridge(): void {
       status: () => call('images:status'),
       setKey: (key) => call('images:setKey', key),
       clearKey: () => call('images:clearKey'),
-      setOptions: (patch) => call('images:setOptions', patch)
+      setOptions: (patch) => call('images:setOptions', patch),
+      setOn: (on) => call('images:setOn', on)
     },
     library: {
       list: () => call('library:list'),

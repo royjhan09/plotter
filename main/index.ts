@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { authState, cancelSignIn, loadSession, signIn, signOut } from './auth'
 import { projectsChanged, setAppEmitter } from './appEvents'
 import { getLibraryItem, listLibrary } from '@private/main/library'
-import { clearImageKey, imageKeyStatus, setImageKey, setImageOptions } from '@private/main/images'
+import { clearImageKey, imageKeyStatus, setImageKey, setImageOn, setImageOptions } from '@private/main/images'
 import { addNote, createProject, editNote, listProjects, removeNote, removeProject, removeProjectRole, renameProject, setProjectKit, setProjectRole } from './projects'
 import { addWishes, cleanDraft, getRole, grantWish, listRoles, removeRole, saveCombined, saveRole, setRetired } from '@private/main/roles'
 import { combineSuggestions, dismissCombo, getCompany, labelLine, linkRoles, mergeTradeoff, noteHandoff, placeRole, renameCompany, replaceInChart, setPrefer, unlinkRoles } from '@private/main/company'
@@ -318,6 +318,7 @@ export const handlers: Record<string, (...args: never[]) => unknown> = {
   'images:status': () => imageKeyStatus(),
   'images:setKey': (key: string) => setImageKey(String(key ?? '')),
   'images:clearKey': () => clearImageKey(),
+  'images:setOn': (on: boolean) => setImageOn(!!on),
   'images:setOptions': (patch: Record<string, unknown>) => {
     setImageOptions({ model: typeof patch?.['model'] === 'string' ? patch['model'] : undefined, quality: patch?.['quality'] as 'low' | 'medium' | 'high' | undefined })
     return imageKeyStatus()
