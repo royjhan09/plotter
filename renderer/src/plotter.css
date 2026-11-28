@@ -9253,6 +9253,14 @@ webview.bp-page:not(.on) {
   gap: 10px;
   align-items: center;
 }
+/* Add lines up with the search box beside it (both 36px, as ChatGPT's) */
+.mk2-bar .btn {
+  height: 36px;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
 .mk2-search {
   width: 240px;
   height: 36px;
