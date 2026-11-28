@@ -163,7 +163,9 @@ export async function renderMermaid(el: HTMLElement, src: string): Promise<void>
  */
 export function renderUi(el: HTMLElement, src: string): () => void {
   const dark = currentTheme() === 'dark'
-  el.innerHTML = '<div class="viz-wait">Drawing preview…</div>'
+  // a live preview already showing stays until the finished one has loaded, so it does not flash
+  const before = el.querySelector<HTMLIFrameElement>('iframe.ui-frame')
+  if (!before) el.innerHTML = '<div class="viz-wait">Drawing preview…</div>'
   el.classList.remove('diagram')
   el.classList.add('ui')
   let frame: HTMLIFrameElement | null = null
@@ -184,12 +186,84 @@ export function renderUi(el: HTMLElement, src: string): () => void {
       frame.setAttribute('referrerpolicy', 'no-referrer')
       frame.title = 'Interactive preview'
       frame.src = window.plotter.ui.frameUrl(id)
-      el.innerHTML = ''
-      el.appendChild(frame)
+      if (before) {
+        const next = frame
+        next.style.cssText = `position:absolute;visibility:hidden;height:${before.offsetHeight}px`
+        next.addEventListener('load', () => {
+          if (gone) return
+          el.querySelectorAll('iframe.ui-frame').forEach((f) => f !== next && f.remove())
+          next.style.position = ''
+          next.style.visibility = ''
+        })
+        el.style.position = 'relative'
+        el.appendChild(next)
+      } else {
+        el.innerHTML = ''
+        el.appendChild(frame)
+      }
     })
     .catch((e: unknown) => showError(el, 'preview', src, e))
   return () => {
     gone = true
     window.removeEventListener('message', onMessage)
+  }
+}
+
+/**
+ * A ```ui preview shown while it is being written: one page that takes the HTML so far by postMessage and puts
+ * it in place (its scripts do not run until the finished preview replaces it, see renderUi). Updates are
+ * sent at most every 120 ms.
+ */
+export function liveUi(el: HTMLElement): { update: (src: string) => void; stop: () => void } {
+  const dark = currentTheme() === 'dark'
+  el.innerHTML = '<div class="viz-wait">Drawing preview…</div>'
+  el.classList.remove('diagram')
+  el.classList.add('ui')
+  let frame: HTMLIFrameElement | null = null
+  let ready = false
+  let gone = false
+  let latest = ''
+  let sent = ''
+  let timer: ReturnType<typeof setTimeout> | null = null
+  const send = (): void => {
+    timer = null
+    if (gone || !ready || !frame?.contentWindow || latest === sent) return
+    sent = latest
+    frame.contentWindow.postMessage({ plotterUiLive: latest }, '*')
+  }
+  const onMessage = (e: MessageEvent): void => {
+    if (!frame || e.source !== frame.contentWindow) return
+    const h = (e.data as { plotterUiHeight?: unknown } | null)?.plotterUiHeight
+    if (typeof h === 'number' && h > 0) frame.style.height = `${Math.min(Math.ceil(h), 4000)}px`
+  }
+  window.addEventListener('message', onMessage)
+  window.plotter.ui
+    .put('', dark, true)
+    .then((id) => {
+      if (gone) return
+      frame = document.createElement('iframe')
+      frame.className = 'ui-frame'
+      frame.setAttribute('sandbox', window.plotter.ui.sandbox)
+      frame.setAttribute('referrerpolicy', 'no-referrer')
+      frame.title = 'Preview being drawn'
+      frame.src = window.plotter.ui.frameUrl(id)
+      frame.addEventListener('load', () => {
+        ready = true
+        send()
+      })
+      el.innerHTML = ''
+      el.appendChild(frame)
+    })
+    .catch(() => undefined)
+  return {
+    update: (src) => {
+      latest = src
+      if (!timer) timer = setTimeout(send, 120)
+    },
+    stop: () => {
+      gone = true
+      if (timer) clearTimeout(timer)
+      window.removeEventListener('message', onMessage)
+    }
   }
 }

@@ -350,7 +350,7 @@ export const handlers: Record<string, (...args: never[]) => unknown> = {
     if (!chat) throw new Error('That chat no longer exists.')
     return generateProjectBrief(chat)
   },
-  'ui:put': (html: string, dark: boolean) => putUiFrame(String(html), !!dark),
+  'ui:put': (html: string, dark: boolean, live?: boolean) => putUiFrame(String(html), !!dark, !!live),
 
   'features:get': () => readFeatures(),
   'features:set': (patch: Partial<Features>) => updateFeatures(patch ?? {}),

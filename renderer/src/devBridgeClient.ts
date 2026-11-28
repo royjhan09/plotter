@@ -244,7 +244,7 @@ export function installDevBridge(): void {
       }
     },
     ui: {
-      put: (html, dark) => call('ui:put', html, dark),
+      put: (html, dark, live) => call('ui:put', html, dark, live),
       frameUrl: (id) => `${BRIDGE}/ui/${id}`,
       // Some browsers (e.g. Claude's browser pane) refuse opaque-origin frames from loopback; there the
       // preview keeps the bridge's origin (still not Plotter's page, and its CSP allows no network).

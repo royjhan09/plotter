@@ -6,7 +6,7 @@ import hljs from 'highlight.js/lib/common'
 import DOMPurify from 'dompurify'
 import 'katex/dist/katex.min.css'
 import 'highlight.js/styles/atom-one-dark.css'
-import { renderChart, renderMermaid, renderUi } from './visuals'
+import { liveUi, renderChart, renderMermaid, renderUi } from './visuals'
 import { useTheme } from './theme'
 import { CanvasCard, parseCanvas } from './Canvas'
 import { ToolRunCard } from './ToolRunCard'
@@ -96,7 +96,7 @@ type Piece =
   | { kind: 'visual'; lang: string; src: string }
   | { kind: 'canvas'; lang: string; src: string }
   | { kind: 'tool'; id: string }
-  | { kind: 'pending'; lang: string }
+  | { kind: 'pending'; lang: string; src: string }
 
 /**
  * Splits a reply at top-level ```chart / ```mermaid / ```ui / ```canvas blocks and [[tool:id]] markers
@@ -139,7 +139,7 @@ function splitPieces(text: string): Piece[] {
     }
     flush()
     if (close < 0) {
-      pieces.push({ kind: 'pending', lang })
+      pieces.push({ kind: 'pending', lang, src: lines.slice(i + 1).join('\n') })
       return pieces
     }
     const src = lines.slice(i + 1, close).join('\n')
@@ -168,6 +168,33 @@ const Visual = memo(function Visual({ lang, src }: { lang: string; src: string }
   }, [lang, src, theme])
   return <div ref={ref} className="viz" />
 })
+
+/**
+ * A ```ui preview, drawn as it is written: while the block streams, the HTML so far is shown live; once the
+ * block closes, the finished preview (scripts and all) takes its place. Same component throughout, so the
+ * preview is not remounted when the block completes.
+ */
+function UiPiece({ src, done }: { src: string; done: boolean }): React.JSX.Element {
+  const ref = useRef<HTMLDivElement>(null)
+  const live = useRef<ReturnType<typeof liveUi> | null>(null)
+  const theme = useTheme()
+  useEffect(() => {
+    const el = ref.current
+    if (!el || done) return
+    if (!live.current) live.current = liveUi(el)
+    live.current.update(src)
+  }, [src, done])
+  useEffect(() => {
+    const el = ref.current
+    if (!el || !done) return
+    const cleanup = renderUi(el, src)
+    live.current?.stop()
+    live.current = null
+    return cleanup
+  }, [src, done, theme])
+  useEffect(() => () => live.current?.stop(), [])
+  return <div ref={ref} className="viz" />
+}
 
 /** A text piece. Copy buttons on code; any visual nested inside (e.g. in a list) is drawn once settled. */
 const TextPiece = memo(function TextPiece({ text, live }: { text: string; live: boolean }): React.JSX.Element {
@@ -208,12 +235,13 @@ export function Markdown({ text, streaming = false, runs }: { text: string; stre
     <div className="md">
       {pieces.map((p, i) => {
         const last = i === pieces.length - 1
-        if (p.kind === 'visual') return <Visual key={i} lang={p.lang} src={p.src} />
+        if (p.kind === 'visual') return p.lang === 'ui' ? <UiPiece key={i} src={p.src} done /> : <Visual key={i} lang={p.lang} src={p.src} />
         if (p.kind === 'canvas') return <CanvasCard key={i} doc={parseCanvas(p.lang, p.src)} auto={streaming} />
         if (p.kind === 'tool') {
           const run = runs?.find((r) => r.id === p.id)
           return run ? <ToolRunCard key={i} run={run} /> : null
         }
+        if (p.kind === 'pending' && p.lang === 'ui' && streaming) return <UiPiece key={i} src={p.src} done={false} />
         if (p.kind === 'pending')
           return streaming ? (
             <div key={i} className="viz">

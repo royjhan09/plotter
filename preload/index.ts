@@ -202,7 +202,7 @@ const api: PlotterApi = {
     }
   },
   ui: {
-    put: (html, dark) => ipcRenderer.invoke('ui:put', html, dark),
+    put: (html, dark, live) => ipcRenderer.invoke('ui:put', html, dark, live),
     frameUrl: (id) => `plotter-ui://frame/${id}`,
     sandbox: 'allow-scripts'
   },

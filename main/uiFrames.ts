@@ -18,10 +18,14 @@ const frames = new Map<string, string>()
 export const UI_FRAME_CSP =
   "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; media-src data:; form-action 'none'; base-uri 'none'"
 
-/** Keeps a preview's HTML and returns its id. */
-export function putUiFrame(html: string, dark: boolean): string {
+/**
+ * Keeps a preview's HTML and returns its id. live: a page that shows the preview as it is being written; the
+ * chat posts the HTML so far ({ plotterUiLive }) and it is put in place without running its scripts (the
+ * finished preview is then served as its own page, scripts and all).
+ */
+export function putUiFrame(html: string, dark: boolean, live = false): string {
   const id = randomUUID()
-  frames.set(id, wrap(html, dark))
+  frames.set(id, wrap(live ? '<div id="plotter-live"></div>' : html, dark, live))
   while (frames.size > MAX) frames.delete(frames.keys().next().value!)
   return id
 }
@@ -30,7 +34,7 @@ export function getUiFrame(id: string): string | undefined {
   return frames.get(id)
 }
 
-function wrap(body: string, dark: boolean): string {
+function wrap(body: string, dark: boolean, live = false): string {
   return `<!doctype html><html><head><meta charset="utf-8">
 <meta name="color-scheme" content="${dark ? 'dark' : 'light'}">
 <style>
@@ -48,7 +52,16 @@ function wrap(body: string, dark: boolean): string {
       var h = Math.ceil(document.documentElement.scrollHeight);
       if (h !== last) { last = h; parent.postMessage({ plotterUiHeight: h }, '*'); }
     }
-    new ResizeObserver(report).observe(document.documentElement);
+    new ResizeObserver(report).observe(document.documentElement);${
+      live
+        ? `
+    window.addEventListener('message', function (e) {
+      if (e.source !== parent || !e.data || typeof e.data.plotterUiLive !== 'string') return;
+      document.getElementById('plotter-live').innerHTML = e.data.plotterUiLive;
+      report();
+    });`
+        : ''
+    }
     window.addEventListener('load', report);
     report();
   })();
