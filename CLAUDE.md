@@ -22,3 +22,15 @@ keeps no conversation on the server). So:
   output tokens per call, tagged by what the call is for (`debug:usageClear` resets it).
 
 The same rule applies to features Plotter builds into the apps it helps make.
+
+## Design kit: keep Plotter's look in it
+
+Plotter's own look is also the user's design kit (`private/main/plotterKit.ts`, brought into kits by
+`private/main/kits.ts`). So when you build a new interface piece or settle a layout or format for Plotter:
+
+- **Add the piece to the kit** as a component (self-contained HTML with its `<style>`, adjustable values as CSS
+  variables with the kit's tokens as defaults, a clear use-when, its level and what it is built from).
+- **Add the agreed format as a rule** (spacing, grouping, how a page is laid out); colour, logo and type choices are
+  brand rules (the Plotter brand), not kit rules.
+- **Deliver it to existing kits** with a new step in `REFRESHES` (`plotter-N`) that adds what is missing and never
+  overwrites what the user edited, and check it on the Design kits page.
